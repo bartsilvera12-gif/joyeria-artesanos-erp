@@ -1,0 +1,241 @@
+/*
+ * Theme tokens, fuentes y utilidades visuales de la web pública Elevate.
+ *
+ * IMPORTANTE: todo está SCOPEADO bajo `.elevate-public-theme` para no afectar
+ * el resto del ERP. Los Tailwind tokens (`bg-primary`, `bg-cream`, `text-gold`,
+ * etc.) están registrados en `globals.css` apuntando a `var(--primary)` etc.;
+ * acá solo definimos esos vars dentro del scope con la paleta bordeaux/dorado
+ * de Elevate (HSL components → wrap con hsl()).
+ *
+ * Fuentes (Playfair, Cormorant, Inter) se cargan vía `next/font/google` en
+ * `publico/layout.tsx` y se exponen como vars `--font-playfair`, `--font-cormorant`,
+ * `--font-inter`.
+ */
+
+.elevate-public-theme {
+  /* Paleta Elevate (HSL → hsl()) */
+  --background: hsl(48 55% 97%);
+  --foreground: hsl(0 0% 10%);
+  --cream: hsl(49 67% 88%);
+  --cream-foreground: hsl(0 0% 10%);
+  --primary: hsl(346 96% 19%);
+  --primary-foreground: hsl(49 67% 92%);
+  --primary-glow: hsl(346 70% 30%);
+  --gold: hsl(39 59% 37%);
+  --gold-foreground: hsl(48 55% 97%);
+  --gold-light: hsl(39 55% 55%);
+  --muted: hsl(49 40% 92%);
+  --muted-foreground: hsl(220 9% 46%);
+  --border: hsl(39 30% 80%);
+
+  /* Gradientes y sombras Elevate */
+  --shadow-soft: 0 4px 24px -8px hsl(346 96% 19% / 0.12);
+  --shadow-elegant: 0 20px 60px -20px hsl(346 96% 19% / 0.25);
+  --transition-elegant: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), "Inter", system-ui, sans-serif;
+}
+
+.elevate-public-theme h1,
+.elevate-public-theme h2,
+.elevate-public-theme h3,
+.elevate-public-theme h4,
+.elevate-public-theme h5,
+.elevate-public-theme h6 {
+  font-family: var(--font-playfair), "Playfair Display", serif;
+  letter-spacing: -0.01em;
+}
+
+.elevate-public-theme .font-display {
+  font-family: var(--font-playfair), "Playfair Display", serif;
+}
+
+.elevate-public-theme .font-editorial {
+  font-family: var(--font-cormorant), "Cormorant Garamond", serif;
+}
+
+.elevate-public-theme .transition-elegant {
+  transition: var(--transition-elegant);
+}
+
+.elevate-public-theme .transition-smooth {
+  transition: var(--transition-smooth);
+}
+
+.elevate-public-theme .shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.elevate-public-theme .shadow-elegant {
+  box-shadow: var(--shadow-elegant);
+}
+
+.elevate-public-theme .gold-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--gold),
+    transparent
+  );
+}
+
+.elevate-public-theme .text-balance {
+  text-wrap: balance;
+}
+
+@keyframes elevate-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.elevate-public-theme .animate-fade-up {
+  animation: elevate-fade-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Sección con fondo bordeaux gradient + light text */
+.elevate-public-theme .gradient-bordeaux {
+  background: linear-gradient(135deg, hsl(346 96% 19%) 0%, hsl(346 80% 12%) 100%);
+}
+
+/* Sombra dorada para el botón flotante de WhatsApp */
+.elevate-public-theme .shadow-gold {
+  box-shadow: 0 8px 30px -12px hsl(39 59% 37% / 0.4);
+}
+
+/* Carrusel continuo de Bestsellers — desplazamiento horizontal infinito.
+ * El track (.bestseller-marquee__track) renderiza la lista de productos
+ * DUPLICADA; la animación traslada -50% (una copia completa) en loop lineal,
+ * por lo que el empalme es invisible y el movimiento es constante y fluido
+ * (no "slide por slide"). Lento y premium. Pausa al hacer hover/focus y
+ * degradado sutil en los bordes para sensación de continuidad. Respeta
+ * prefers-reduced-motion abajo. */
+.elevate-public-theme .bestseller-marquee {
+  position: relative;
+  overflow: hidden;
+}
+@keyframes elevate-bestseller-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.elevate-public-theme .bestseller-marquee__track {
+  animation: elevate-bestseller-marquee 45s linear infinite;
+  will-change: transform;
+}
+.elevate-public-theme .bestseller-marquee:hover .bestseller-marquee__track,
+.elevate-public-theme .bestseller-marquee:focus-within .bestseller-marquee__track {
+  animation-play-state: paused;
+}
+.elevate-public-theme .bestseller-marquee__edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8vw;
+  max-width: 120px;
+  z-index: 2;
+  pointer-events: none;
+}
+.elevate-public-theme .bestseller-marquee__edge--left {
+  left: 0;
+  background: linear-gradient(to right, var(--background), transparent);
+}
+.elevate-public-theme .bestseller-marquee__edge--right {
+  right: 0;
+  background: linear-gradient(to left, var(--background), transparent);
+}
+
+/* Carrusel de reseñas (videos): scroll horizontal con snap, sin barra visible. */
+.elevate-public-theme .reviews-scroller {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.elevate-public-theme .reviews-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tarjetas promo: float + glow + sheen */
+@keyframes elevate-promo-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes elevate-promo-glow-pulse {
+  0%, 100% {
+    box-shadow: 0 10px 30px -12px hsl(39 59% 37% / 0.35),
+                0 0 0 1px hsl(39 59% 45% / 0.25);
+  }
+  50% {
+    box-shadow: 0 25px 60px -18px hsl(39 59% 45% / 0.65),
+                0 0 0 1px hsl(39 59% 55% / 0.55);
+  }
+}
+@keyframes elevate-promo-sheen {
+  0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  20%  { opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateX(220%) skewX(-20deg); opacity: 0; }
+}
+
+.elevate-public-theme .promo-card {
+  position: relative;
+  animation: elevate-promo-float 5.5s ease-in-out infinite,
+             elevate-promo-glow-pulse 3.8s ease-in-out infinite;
+  transition: var(--transition-elegant);
+  will-change: transform;
+}
+.elevate-public-theme .promo-card:nth-child(2) { animation-delay: 0.4s, 0.6s; }
+.elevate-public-theme .promo-card:nth-child(3) { animation-delay: 0.8s, 1.2s; }
+.elevate-public-theme .promo-card:nth-child(4) { animation-delay: 1.2s, 1.8s; }
+
+.elevate-public-theme .promo-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    hsl(39 70% 70% / 0.35) 48%,
+    hsl(48 90% 90% / 0.55) 50%,
+    hsl(39 70% 70% / 0.35) 52%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  background-position: -150% 0;
+  animation: elevate-promo-sheen 4.5s ease-in-out infinite;
+  mix-blend-mode: overlay;
+}
+
+.elevate-public-theme .promo-card:hover {
+  transform: translateY(-12px) scale(1.015);
+  animation-play-state: paused;
+  box-shadow: 0 30px 70px -20px hsl(39 59% 45% / 0.75),
+              0 0 0 1px hsl(39 59% 55% / 0.7);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .elevate-public-theme .promo-card,
+  .elevate-public-theme .promo-card::before,
+  .elevate-public-theme .bestseller-marquee__track,
+  .elevate-public-theme .animate-fade-up {
+    animation: none !important;
+  }
+  /* Sin animación, el carrusel queda estático: permitir desplazarlo a mano. */
+  .elevate-public-theme .bestseller-marquee {
+    overflow-x: auto;
+  }
+}
