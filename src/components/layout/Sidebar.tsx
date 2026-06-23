@@ -88,7 +88,27 @@ function adminEmpresasMatchesQuery(queryRaw: string): boolean {
   return label.includes(q) || normalizeMenuSearch("empresas").includes(q);
 }
 
-const MENU_STRUCTURE: MenuItem[] = [
+/** Items ocultos del sidebar (Joyeria Artesanos). No se renderizan ni
+ *  aparecen en familias, aunque sigan en MENU_STRUCTURE. */
+const HIDDEN_MENU_KEYS = new Set<string>([
+  "gerencia",
+  "usuarios",
+  "planes",
+  "comisiones",
+  "crm",
+  "agenda",
+  "conversaciones",
+  "conversaciones-finalizadas",
+  "monitoreo",
+  "historial-omnicanal",
+  "campanas",
+  "etiquetas",
+  "marketing",
+  "marketing_ops",
+  "sorteos",
+]);
+
+const MENU_STRUCTURE_FULL: MenuItem[] = [
   { key: "dashboard", slug: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard },
   { key: "gerencia", slug: "gerencia", label: "Gerencia", href: "/dashboard/gerencia", icon: TrendingUp },
   { key: "reportes", slug: "reportes", label: "Reportes", href: "/reportes", icon: BarChart3 },
@@ -204,6 +224,10 @@ const MENU_STRUCTURE: MenuItem[] = [
     icon: Tags,
   },
 ];
+
+const MENU_STRUCTURE: MenuItem[] = MENU_STRUCTURE_FULL.filter(
+  (item) => !HIDDEN_MENU_KEYS.has(item.key),
+);
 
 /**
  * Agrupamiento VISUAL del menú por familias. Solo reordena el render: no cambia
@@ -827,8 +851,8 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
           </div>
         )}
 
-        {/* Admin */}
-        {esSuperAdmin && adminEmpresasMatchesQuery(menuSearchQuery) && (
+        {/* Admin (Admin Empresas oculto en Joyeria Artesanos) */}
+        {false && esSuperAdmin && adminEmpresasMatchesQuery(menuSearchQuery) && (
           <div className="mt-6 border-t border-[color:var(--zentra-sidebar-border)] pt-4">
             {!collapsed && (
               <div className="mb-2 flex items-center gap-2 px-3">
