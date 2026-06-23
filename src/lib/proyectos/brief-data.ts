@@ -5,7 +5,8 @@
 
 export type BriefFieldDef =
   | { kind: "checkbox"; key: string; label: string }
-  | { kind: "text"; key: string; label: string; placeholder?: string };
+  | { kind: "text"; key: string; label: string; placeholder?: string }
+  | { kind: "url_list"; key: string; label: string; placeholder?: string };
 
 export type ProyectoModuloSnapshot = {
   id: string | null;
@@ -30,7 +31,7 @@ export const PROYECTO_DATOS_BRIEF_FIELDS: BriefFieldDef[] = [
   { kind: "text", key: "secciones", label: "Secciones necesarias" },
   { kind: "text", key: "estilo_colores", label: "Colores o estilo deseado" },
   { kind: "text", key: "logo_cliente", label: "Logo del cliente", placeholder: "https://..." },
-  { kind: "text", key: "redes_sociales", label: "Redes sociales" },
+  { kind: "url_list", key: "redes_sociales", label: "Redes sociales", placeholder: "https://..." },
   { kind: "text", key: "whatsapp_contacto", label: "WhatsApp de contacto" },
   { kind: "checkbox", key: "hosting_existente", label: "Hosting existente" },
   { kind: "text", key: "referencias_urls", label: "Referencias de páginas" },
@@ -64,9 +65,36 @@ export function coalesceBriefData(raw: unknown): Record<string, string> {
     const k = normalizeBriefKey(k0);
     if (typeof v === "boolean") out[k] = v ? "1" : "";
     else if (v == null) out[k] = "";
-    else out[k] = String(v);
+    else if (Array.isArray(v)) {
+      // Arrays (p. ej. redes_sociales como lista de URLs) NO van al map de strings.
+      // Se leen por separado via readBriefUrlList. Omitimos la entrada para no
+      // colapsarla a "[object]" o JSON crudo en los inputs de texto.
+      continue;
+    } else out[k] = String(v);
   }
   return out;
+}
+
+/**
+ * Lee una lista de URLs de un campo del brief. Acepta:
+ *   - Array de strings → filtra vacios/no-string.
+ *   - String no vacío → wrap en array [string] (compat. con datos previos
+ *     guardados como un solo input de texto).
+ *   - Cualquier otra cosa → [].
+ */
+export function readBriefUrlList(raw: unknown, key: string): string[] {
+  const brief = readRawBriefObject(raw);
+  const value = brief[key];
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => (typeof v === "string" ? v.trim() : ""))
+      .filter((v) => v.length > 0);
+  }
+  if (typeof value === "string") {
+    const t = value.trim();
+    return t ? [t] : [];
+  }
+  return [];
 }
 
 function readRawBriefObject(raw: unknown): Record<string, unknown> {
@@ -160,6 +188,23 @@ export function formatFechaPyFull(iso?: string | null): string {
   }).format(d);
 }
 
+// Para campos solo-fecha (sin hora real, ej. fecha_limite). Lee el prefijo
+// YYYY-MM-DD del valor para no convertir zona horaria: un valor guardado como
+// medianoche UTC no debe retroceder un día al mostrarse en Paraguay (UTC-3/-4).
+export function formatFechaPySolo(iso?: string | null): string {
+  if (!iso) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso).trim());
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-PY", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(d);
+}
+
 export function formatDurationHuman(seconds: number | null | undefined): string {
   if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return "—";
   const s = Math.floor(seconds);
@@ -184,21 +229,34 @@ export function slaTipoSnapshotLabel(raw: string | null | undefined): string {
 
 /**
  * Preserva claves extra del JSON y actualiza solo los campos del formulario de Datos.
+ *
+ * - `form` cubre los campos `text` y `checkbox` (mapa key → string).
+ * - `lists` cubre los campos `url_list` (mapa key → string[]). Se normaliza
+ *   trim + drop empties. Si el resultado queda vacío, la clave se borra del
+ *   brief para no dejar arrays vacíos colgados en el JSON.
  */
 export function applyBriefFormToExisting(
   existingRaw: unknown,
-  form: Record<string, string>
+  form: Record<string, string>,
+  lists: Record<string, string[]> = {}
 ): Record<string, unknown> {
   const base =
     existingRaw && typeof existingRaw === "object" && !Array.isArray(existingRaw)
       ? { ...(existingRaw as Record<string, unknown>) }
       : {};
   for (const f of PROYECTO_DATOS_BRIEF_FIELDS) {
-    const v = form[f.key] ?? "";
     if (f.kind === "checkbox") {
+      const v = form[f.key] ?? "";
       if (v === "1") base[f.key] = true;
       else delete base[f.key];
+    } else if (f.kind === "url_list") {
+      const arr = (lists[f.key] ?? [])
+        .map((u) => (typeof u === "string" ? u.trim() : ""))
+        .filter((u) => u.length > 0);
+      if (arr.length === 0) delete base[f.key];
+      else base[f.key] = arr;
     } else {
+      const v = form[f.key] ?? "";
       const t = v.trim();
       if (!t) delete base[f.key];
       else base[f.key] = t;

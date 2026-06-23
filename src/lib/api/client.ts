@@ -71,6 +71,17 @@ async function apiPut<T>(path: string, data: Record<string, unknown>): Promise<{
   return { success: true, data: body.data };
 }
 
+export type DuplicadoMatchClient = {
+  cliente_id: string;
+  nombre: string;
+  documento: string | null;
+  estado: string;
+  activo: boolean;
+  tipo_servicio: string | null;
+  match_type: "documento" | "nombre" | "ambos";
+  display_url: string;
+};
+
 export async function apiCreateCliente(data: {
   tipo_cliente?: string;
   tipo_servicio_cliente?: string;
@@ -101,13 +112,95 @@ export async function apiCreateCliente(data: {
   sifen_descripcion_tipo_doc?: string | null;
 }): Promise<
   | { ok: true; data: { id: string; [key: string]: unknown } }
-  | { ok: false; error: string }
+  | { ok: false; error: string; code?: string; hay_inactivo?: boolean; matches?: DuplicadoMatchClient[] }
 > {
-  const result = await apiPost<{ id: string; [key: string]: unknown }>("/api/clientes", data);
-  if (!result.success) {
-    return { ok: false, error: result.error };
+  const res = await fetchWithSupabaseSession("/api/clientes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch {
+    return { ok: false, error: res.ok ? "Respuesta inválida del servidor" : `Error ${res.status}` };
   }
-  return { ok: true, data: result.data };
+  const body = json as {
+    success?: boolean;
+    data?: { id: string; [key: string]: unknown };
+    error?: string;
+    code?: string;
+    hay_inactivo?: boolean;
+    matches?: DuplicadoMatchClient[];
+  };
+  if (!res.ok) {
+    // 409 Conflict: duplicado por documento o nombre principal.
+    if (res.status === 409 || body?.code === "DUPLICATE") {
+      return {
+        ok: false,
+        error: body?.error ?? "Ya existe un cliente con este RUC/Cédula o nombre.",
+        code: "DUPLICATE",
+        hay_inactivo: body?.hay_inactivo ?? false,
+        matches: body?.matches ?? [],
+      };
+    }
+    return { ok: false, error: body?.error ?? `Error ${res.status}` };
+  }
+  if (body?.success !== true || !body.data) {
+    return { ok: false, error: body?.error ?? "Respuesta inválida del servidor" };
+  }
+  return { ok: true, data: body.data };
+}
+
+/** Verificación en vivo de duplicados (documento o nombre principal). NO usa teléfono/correo/contacto. */
+export async function apiCheckDuplicateCliente(input: {
+  nombre?: string;
+  documento?: string;
+  excluir?: string;
+}): Promise<{
+  exists: boolean;
+  match_type: "documento" | "nombre" | "ambos" | null;
+  hay_inactivo: boolean;
+  matches: DuplicadoMatchClient[];
+}> {
+  const sp = new URLSearchParams();
+  if (input.nombre?.trim()) sp.set("nombre", input.nombre.trim());
+  if (input.documento?.trim()) sp.set("documento", input.documento.trim());
+  if (input.excluir?.trim()) sp.set("excluir", input.excluir.trim());
+  const empty = { exists: false, match_type: null as null, hay_inactivo: false, matches: [] };
+  if (![...sp.keys()].some((k) => k === "nombre" || k === "documento")) return empty;
+  try {
+    const res = await fetchWithSupabaseSession(`/api/clientes/check-duplicate?${sp.toString()}`);
+    const json = await res.json();
+    if (!res.ok || json?.success !== true) return empty;
+    return json.data;
+  } catch {
+    return empty;
+  }
+}
+
+export type HistorialClienteFila = {
+  id: string;
+  created_at: string;
+  tipo?: string | null;
+  accion: string;
+  plan_anterior_nombre?: string | null;
+  plan_nuevo_nombre?: string | null;
+  creado_por_email?: string | null;
+  creado_por_auth_user_id?: string | null;
+  detalle?: Record<string, unknown> | null;
+};
+
+/** Historial de cambios (auditoría) de la ficha del cliente. */
+export async function apiGetClienteHistorial(clienteId: string): Promise<HistorialClienteFila[]> {
+  try {
+    const res = await fetchWithSupabaseSession(`/api/clientes/${clienteId}/historial`);
+    const json = await res.json();
+    if (!res.ok || json?.success !== true) return [];
+    return (json.data?.filas ?? []) as HistorialClienteFila[];
+  } catch {
+    return [];
+  }
 }
 
 export type BajaOperativaPreview = {
@@ -287,15 +380,51 @@ export async function apiCreateFacturaWithError(data: Parameters<typeof apiCreat
   return { ok: true, data: result.data };
 }
 
+export type FacturaMasViejaClient = {
+  id: string;
+  numero_factura: string | null;
+  fecha_vencimiento: string | null;
+  saldo: number;
+};
+
+export type CrearPagoResult =
+  | { ok: true; data: { id: string; [key: string]: unknown } }
+  | { ok: false; error: string; code?: string; oldest?: FacturaMasViejaClient };
+
 export async function apiCreatePago(data: {
   factura_id: string;
   monto: number;
   fecha_pago: string;
   metodo_pago?: string;
   referencia?: string;
-}): Promise<{ id: string; [key: string]: unknown } | null> {
-  const result = await apiPost<{ id: string; [key: string]: unknown }>("/api/pagos", data);
-  return result.success ? result.data : null;
+}): Promise<CrearPagoResult> {
+  const res = await fetchWithSupabaseSession("/api/pagos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  let json: unknown;
+  try {
+    json = await res.json();
+  } catch {
+    return { ok: false, error: res.ok ? "Respuesta inválida del servidor" : `Error ${res.status}` };
+  }
+  const body = json as {
+    success?: boolean;
+    data?: { id: string; [key: string]: unknown };
+    error?: string;
+    code?: string;
+    oldest?: FacturaMasViejaClient;
+  };
+  if (!res.ok || body?.success !== true || !body.data) {
+    return {
+      ok: false,
+      error: body?.error ?? `Error ${res.status}`,
+      code: body?.code,
+      oldest: body?.oldest,
+    };
+  }
+  return { ok: true, data: body.data };
 }
 
 export async function apiCreateSuscripcion(data: {
@@ -308,6 +437,11 @@ export async function apiCreateSuscripcion(data: {
   dia_facturacion?: number;
   dia_vencimiento?: number;
   generar_factura_este_mes?: boolean;
+  /** Decisión explícita de facturación inicial (preferido sobre generar_factura_este_mes). */
+  generar_factura?: boolean;
+  periodo_factura?: "actual" | "siguiente" | "none";
+  fecha_vencimiento_override?: string | null;
+  tipo_servicio?: string | null;
 }): Promise<{ id: string; [key: string]: unknown } | null> {
   const result = await apiPost<{ id: string; [key: string]: unknown }>("/api/suscripciones", data);
   return result.success ? result.data : null;

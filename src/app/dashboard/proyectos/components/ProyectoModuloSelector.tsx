@@ -15,7 +15,6 @@ export function ProyectoModuloSelector({
   modulos,
   selectedIds,
   onChange,
-  variant = "light",
 }: ProyectoModuloSelectorProps) {
   const [query, setQuery] = useState("");
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -31,21 +30,6 @@ export function ProyectoModuloSelector({
     );
   }, [modulos, query]);
 
-  const isDark = variant === "dark";
-  const inputClass = isDark
-    ? "w-full rounded-lg border border-slate-600 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-    : "w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500";
-  const panelClass = isDark
-    ? "rounded-xl border border-slate-700 bg-slate-900/40"
-    : "rounded-xl border border-emerald-100 bg-white/70";
-  const rowClass = isDark
-    ? "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
-    : "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50";
-  const chipClass = isDark
-    ? "inline-flex items-center gap-1 rounded-full border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-100"
-    : "inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-900";
-  const mutedClass = isDark ? "text-slate-500" : "text-slate-500";
-
   function toggle(id: string) {
     if (selectedSet.has(id)) onChange(selectedIds.filter((current) => current !== id));
     else onChange([...selectedIds, id]);
@@ -58,19 +42,24 @@ export function ProyectoModuloSelector({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className={`text-xs font-medium ${mutedClass}`}>
-          {selectedIds.length === 1 ? "1 módulo seleccionado" : `${selectedIds.length} módulos seleccionados`}
+        <p className="text-xs font-medium text-slate-500">
+          {selectedIds.length === 1
+            ? "1 módulo seleccionado"
+            : `${selectedIds.length} módulos seleccionados`}
         </p>
       </div>
 
       {selectedModules.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {selectedModules.map((modulo) => (
-            <span key={modulo.id} className={chipClass}>
+            <span
+              key={modulo.id}
+              className="inline-flex items-center gap-1 rounded-full border border-[#4FAEB2]/30 bg-[#4FAEB2]/10 px-2.5 py-1 text-xs font-medium text-[#3F8E91]"
+            >
               {modulo.nombre}
               <button
                 type="button"
-                className="rounded-full px-1 font-bold hover:bg-black/10"
+                className="rounded-full px-1 leading-none text-[#3F8E91]/70 transition-colors hover:bg-[#4FAEB2]/20 hover:text-[#3F8E91]"
                 onClick={() => remove(modulo.id)}
                 aria-label={`Quitar ${modulo.nombre}`}
               >
@@ -80,33 +69,63 @@ export function ProyectoModuloSelector({
           ))}
         </div>
       ) : (
-        <p className={`text-xs ${mutedClass}`}>Todavía no seleccionaste módulos.</p>
+        <p className="text-xs text-slate-500">Todavía no seleccionaste módulos.</p>
       )}
 
-      <input
-        className={inputClass}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Buscar módulo..."
-      />
+      <div className="relative">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[#4FAEB2]"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+        </span>
+        <input
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 shadow-sm transition-colors placeholder:text-slate-400 hover:border-[#4FAEB2]/60 focus:border-[#4FAEB2] focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]/20"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar módulo..."
+        />
+      </div>
 
-      <div className={`${panelClass} max-h-56 overflow-y-auto p-2`}>
+      <div className="max-h-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
         {modulos.length === 0 ? (
-          <p className={`px-3 py-4 text-sm ${mutedClass}`}>No hay módulos disponibles en el catálogo.</p>
+          <p className="px-3 py-4 text-sm text-slate-500">No hay módulos disponibles en el catálogo.</p>
         ) : filteredModules.length === 0 ? (
-          <p className={`px-3 py-4 text-sm ${mutedClass}`}>No hay módulos que coincidan con la búsqueda.</p>
+          <p className="px-3 py-4 text-sm text-slate-500">No hay módulos que coincidan con la búsqueda.</p>
         ) : (
-          filteredModules.map((modulo) => (
-            <label key={modulo.id} className={rowClass}>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300"
-                checked={selectedSet.has(modulo.id)}
-                onChange={() => toggle(modulo.id)}
-              />
-              <span className="flex-1">{modulo.nombre}</span>
-            </label>
-          ))
+          filteredModules.map((modulo) => {
+            const checked = selectedSet.has(modulo.id);
+            return (
+              <label
+                key={modulo.id}
+                className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  checked
+                    ? "bg-[#4FAEB2]/8 text-[#3F8E91]"
+                    : "text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] accent-[#4FAEB2] focus:ring-[#4FAEB2]/30"
+                  checked={checked}
+                  onChange={() => toggle(modulo.id)}
+                />
+                <span className="flex-1 font-medium">{modulo.nombre}</span>
+              </label>
+            );
+          })
         )}
       </div>
     </div>

@@ -617,12 +617,12 @@ export function FacturaCorreccionFiscalNC({
 
       {modalOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40"
+          className="fixed inset-0 z-[60] flex items-center justify-center p-0 sm:p-4 bg-black/40"
           role="dialog"
           aria-modal="true"
           aria-labelledby="nc-modal-title"
         >
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-5 space-y-3 border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-none sm:rounded-xl shadow-xl max-w-lg w-full p-5 space-y-3 border-0 sm:border border-slate-200 h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[90dvh] overflow-y-auto">
             <h4 id="nc-modal-title" className="text-sm font-bold text-slate-900">
               Crear nota de crédito (borrador)
             </h4>

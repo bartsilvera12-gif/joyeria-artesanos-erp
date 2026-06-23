@@ -113,6 +113,33 @@ export function fechaMasDiasCalendario(ymd: string, dias: number): string {
  * (acotado a días del mes). Si ese día ya pasó respecto a la emisión, el vencimiento cae en
  * el mismo día del mes siguiente (nunca suma N días de crédito: evita saltos tipo +30/+34 días).
  */
+/**
+ * Vencimiento EXPLÍCITO para un período elegido (no decide solo):
+ *  - "actual": día de vencimiento en el mes de emisión (puede quedar ya vencido).
+ *  - "siguiente": día de vencimiento en el mes siguiente al de emisión.
+ * Acota el día a la cantidad de días del mes destino. No suma N días de crédito.
+ */
+export function vencimientoPeriodo(
+  fechaEmisionYmd: string,
+  diaVencimiento: number,
+  periodo: "actual" | "siguiente"
+): string {
+  const parts = fechaEmisionYmd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!parts) return toCalendarDateStr(fechaEmisionYmd) || fechaEmisionYmd;
+  let y = parseInt(parts[1], 10);
+  let mo = parseInt(parts[2], 10);
+  if (periodo === "siguiente") {
+    mo += 1;
+    if (mo > 12) {
+      mo = 1;
+      y += 1;
+    }
+  }
+  const dim = new Date(y, mo, 0).getDate();
+  const dV = Math.min(Math.max(1, diaVencimiento), dim);
+  return `${y}-${String(mo).padStart(2, "0")}-${String(dV).padStart(2, "0")}`;
+}
+
 export function fechaVencimientoSuscripcion(fechaEmisionYmd: string, diaVencimiento: number): string {
   const parts = fechaEmisionYmd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!parts) return toCalendarDateStr(fechaEmisionYmd) || fechaEmisionYmd;
