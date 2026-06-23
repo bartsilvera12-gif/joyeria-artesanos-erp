@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, ChevronDown, LogOut } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
 import { signOut } from "@/lib/auth";
 
@@ -38,7 +38,11 @@ function roleLabel(rol: string | null | undefined): string {
     .join(" ");
 }
 
-export default function Header() {
+type HeaderProps = {
+  onOpenMobileSidebar?: () => void;
+};
+
+export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
   const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [usuario, setUsuario] = useState<HeaderUsuario | null>(null);
@@ -82,9 +86,23 @@ export default function Header() {
   return (
     <header
       id="neura-header"
-      className="z-40 flex h-16 shrink-0 items-center justify-end gap-3 border-b border-slate-200/90 bg-white/95 px-4 sm:px-6 shadow-[inset_0_-1px_0_0_rgba(10,37,64,0.05)] backdrop-blur-sm"
+      className="z-40 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200/90 bg-white/95 px-3 sm:px-6 shadow-[inset_0_-1px_0_0_rgba(10,37,64,0.05)] backdrop-blur-sm"
     >
+      {/* Hamburguesa: solo mobile. Abre el sidebar como sheet desde la izquierda. */}
+      <button
+        type="button"
+        onClick={() => onOpenMobileSidebar?.()}
+        aria-label="Abrir menú"
+        className="-ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9] md:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+      {/* Spacer en desktop para mantener el justify-end original. */}
+      <span className="hidden md:block" />
+
       <div className="flex items-center gap-2">
+        {/* Asistente de ayuda (Neurita) — desactivado temporalmente. */}
+
         {/* Notificaciones */}
         <button
           type="button"

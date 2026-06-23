@@ -58,16 +58,35 @@ export default function LoginPage() {
         <p className="text-center text-sm text-sky-100/90">Iniciá sesión para continuar</p>
 
         <div className="w-full rounded-2xl border border-white/20 bg-white/[0.97] p-5 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.38)] backdrop-blur-md sm:p-6">
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" autoComplete="off">
+            {/*
+              Señuelos anti-autofill: algunos navegadores ignoran autoComplete="off"
+              en formularios de login y rellenan el primer par usuario/contraseña que
+              encuentran. Estos campos ocultos (fuera de pantalla, no display:none para
+              que el navegador los considere "reales") capturan ese autofill en lugar de
+              los campos visibles. No tienen estado ni participan del submit.
+            */}
+            <div
+              aria-hidden="true"
+              style={{ position: "absolute", height: 0, width: 0, overflow: "hidden", opacity: 0, pointerEvents: "none" }}
+            >
+              <input type="text" name="username" tabIndex={-1} autoComplete="username" />
+              <input type="password" name="password" tabIndex={-1} autoComplete="current-password" />
+            </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-[#0F172A]">Correo electrónico</label>
               <input
                 type="email"
+                name="zentra-login-id"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="usuario@empresa.com"
                 required
                 autoFocus
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-[#0F172A] transition-all placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
               />
             </div>
@@ -77,10 +96,15 @@ export default function LoginPage() {
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
+                  name="zentra-login-secret"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  autoComplete="new-password"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-10 text-sm text-[#0F172A] transition-all placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
                 />
                 <button
