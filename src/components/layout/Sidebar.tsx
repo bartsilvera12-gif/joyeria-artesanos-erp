@@ -454,8 +454,11 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
     sorteos: true,
     compras: true,
   });
-  /** Familias colapsadas (solo visual). Ausente = expandida. */
-  const [collapsedFamilies, setCollapsedFamilies] = useState<Record<string, boolean>>({});
+  /** Familias colapsadas (solo visual). Ausente = expandida.
+   *  Joyeria Artesanos: arrancan todas colapsadas. */
+  const [collapsedFamilies, setCollapsedFamilies] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(MENU_FAMILIES.map((f) => [f.id, true])),
+  );
   const [cargando, setCargando] = useState(true);
   const [esSuperAdmin, setEsSuperAdmin] = useState(false);
   /** Filtro visual del menú (no altera permisos ni rutas). */
