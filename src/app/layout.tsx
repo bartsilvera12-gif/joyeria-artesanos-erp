@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Neura ERP",
-  description: "Sistema de gestión empresarial de Neura",
+  title: "Joyería Artesanos",
+  description: "Sistema de gestión Joyería Artesanos",
 };
 
 export default function RootLayout({
