@@ -16,6 +16,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Star,
   Sparkles,
   PanelLeftClose,
@@ -676,12 +677,25 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
       transition={{ duration: 0.2 }}
       data-mobile-open={mobileOpen ? "true" : "false"}
       className={`
-        flex h-svh min-h-0 shrink-0 flex-col border-r border-[color:var(--zentra-sidebar-border)] bg-[color:var(--zentra-sidebar)]
+        relative flex h-svh min-h-0 shrink-0 flex-col border-r border-[color:var(--zentra-sidebar-border)] bg-[color:var(--zentra-sidebar)]
         max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:!w-[280px]
         max-md:shadow-2xl max-md:transition-transform max-md:duration-200 max-md:ease-out
         ${mobileOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"}
       `}
     >
+      {/* Toggle flotante estilo Coolify: pestaña en el borde derecho del
+          sidebar, debajo del header global. Solo desktop. */}
+      <button
+        type="button"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+        title={collapsed ? "Expandir" : "Colapsar"}
+        style={{ backgroundColor: "#104A4E" }}
+        className="absolute top-[8rem] -right-3 z-50 hidden h-7 w-7 items-center justify-center rounded-full border border-[color:var(--zentra-sidebar-border)] text-white shadow-[0_4px_10px_rgba(0,0,0,0.35)] transition-transform hover:scale-105 md:inline-flex"
+      >
+        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+      </button>
+
       {/* Logo oficial ZENTRA (blanco sobre azul marca) */}
       <div className="flex h-[7.25rem] shrink-0 items-center justify-between gap-2 border-b border-[color:var(--zentra-sidebar-border)] bg-[color:var(--zentra-sidebar-elevated)]/35 px-3 py-2.5">
         <Link href="/" className={`flex items-center justify-center min-w-0 flex-1 overflow-hidden`}>
@@ -699,16 +713,8 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
             />
           </div>
         </Link>
-        {/* Toggle colapsar (solo desktop): en mobile el sidebar es un sheet que se cierra
-            con el backdrop o cambio de ruta, no tiene estado intermedio. */}
-        <button
-          type="button"
-          onClick={() => setCollapsed(!collapsed)}
-          className="hidden rounded-lg p-2 text-slate-400 transition-colors hover:bg-[color:var(--zentra-sidebar-hover)] hover:text-white md:inline-flex"
-          aria-label={collapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-        >
-          {collapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-        </button>
+        {/* Toggle colapsar embebido eliminado: ahora hay un toggle flotante
+            estilo Coolify en el borde derecho del aside (ver mas abajo). */}
         {/* En mobile, botón de cerrar el sheet. */}
         <button
           type="button"
