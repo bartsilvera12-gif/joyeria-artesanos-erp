@@ -69,6 +69,20 @@ export interface Producto {
   /** Fase Decants: si true, este producto puede entregarse como obsequio
    *  sin cargo en una venta del ERP. */
   es_decant?: boolean;
+
+  /* ─────────────────────────────────────────────────────────────────
+   * Campos opcionales heredados del ERP base (gastro/autopartes).
+   * No se usan en joyería, pero el componente InventarioDesktop —
+   * importado del repo Autorepuestos Felix — los referencia como
+   * filtros/columnas opcionales. Quedan como `?` para no romper el
+   * compilador; los renders contra `undefined` se omiten naturalmente.
+   * ───────────────────────────────────────────────────────────────── */
+  es_vendible?: boolean;
+  es_insumo?: boolean;
+  controla_stock?: boolean;
+  modo_receta?: string;
+  distribuidor_nombre?: string | null;
+  ubicacion_deposito?: string | null;
 }
 
 /** Fase Presentaciones: cada presentación por ml de un producto. */

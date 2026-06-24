@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
 import ImportExcelButton from "@/components/ui/ImportExcelButton";
 import { useIsAdmin } from "@/lib/auth/use-is-admin";
-import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
 
 interface Ubicacion {
   id: string;
@@ -34,7 +33,7 @@ export default function UbicacionesPage() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetchWithSupabaseSession("/api/inventario/ubicaciones?todas=1");
+      const r = await fetch("/api/inventario/ubicaciones?todas=1", { credentials: "include" });
       const j = await r.json();
       if (r.ok && j?.success) setItems(j.data.ubicaciones as Ubicacion[]);
       else setError(j?.error ?? "No se pudo cargar.");
@@ -52,9 +51,10 @@ export default function UbicacionesPage() {
     setCreating(true);
     setError(null);
     try {
-      const r = await fetchWithSupabaseSession("/api/inventario/ubicaciones", {
+      const r = await fetch("/api/inventario/ubicaciones", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           nombre: nombre.trim(),
           codigo: codigo.trim() || null,
@@ -77,9 +77,10 @@ export default function UbicacionesPage() {
   }
 
   async function toggleActivo(u: Ubicacion) {
-    const r = await fetchWithSupabaseSession(`/api/inventario/ubicaciones/${u.id}`, {
+    const r = await fetch(`/api/inventario/ubicaciones/${u.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ activo: !u.activo }),
     });
     const j = await r.json();
