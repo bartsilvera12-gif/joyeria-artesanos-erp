@@ -63,6 +63,9 @@ export default function EditarProductoPage() {
     departamento: "",
   });
   const [permitirVentaSinStock, setPermitirVentaSinStock] = useState(false);
+  const [activo, setActivo] = useState(true);
+  const [visibleWeb, setVisibleWeb] = useState(true);
+  const [destacadoWeb, setDestacadoWeb] = useState(false);
   const [imagenPath, setImagenPath] = useState<string | null>(null);
   const [imagenUrl, setImagenUrl] = useState<string | null>(null);
   const [codigoOriginal, setCodigoOriginal] = useState<string | null>(null);
@@ -223,6 +226,9 @@ export default function EditarProductoPage() {
         departamento: p.ubicacion_deposito ?? "",
       });
       setPermitirVentaSinStock(p.permitir_venta_sin_stock === true);
+      setActivo(p.activo !== false);
+      setVisibleWeb(p.visible_web === true);
+      setDestacadoWeb(p.destacado_web === true);
       setCodigoOriginal(p.codigo_barras ?? null);
       setImagenPath(p.imagen_path ?? null);
       setImagenUrl(p.imagen_url ?? null);
@@ -386,6 +392,9 @@ export default function EditarProductoPage() {
         distribuidor_comision_pct: form.distribuidor_comision_pct.trim() === "" ? null : Math.min(Math.max(parseFloat(form.distribuidor_comision_pct) || 0, 0), 100),
         // Departamento → ubicacion_deposito (columna ya existe en DB).
         ubicacion_deposito: form.departamento.trim() || null,
+        activo,
+        visible_web: visibleWeb,
+        destacado_web: destacadoWeb,
       };
       if (cambioCodigo) {
         updatePayload.codigo_barras = codigoIngresado || null;
@@ -967,6 +976,39 @@ export default function EditarProductoPage() {
             </select>
           </div>
 
+          {/* Visibilidad en la web pública */}
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <p className="text-sm font-semibold text-slate-700 mb-3">Visibilidad</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={activo}
+                  onChange={(e) => setActivo(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                />
+                Activo <span className="text-xs text-slate-400">(disponible para vender)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={visibleWeb}
+                  onChange={(e) => setVisibleWeb(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                />
+                Visible en web <span className="text-xs text-slate-400">(catálogo público)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={destacadoWeb}
+                  onChange={(e) => setDestacadoWeb(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                />
+                Destacado <span className="text-xs text-slate-400">(home "Más vendidas")</span>
+              </label>
+            </div>
+          </div>
 
           <div className="flex gap-4 pt-2">
             <button

@@ -55,6 +55,9 @@ export default function NuevoProductoPage() {
     departamento: "",
   });
   const [permitirVentaSinStock, setPermitirVentaSinStock] = useState(false);
+  const [activo, setActivo] = useState(true);
+  const [visibleWeb, setVisibleWeb] = useState(true);
+  const [destacadoWeb, setDestacadoWeb] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generandoCodigo, setGenerandoCodigo] = useState(false);
   const [generandoSku, setGenerandoSku] = useState(false);
@@ -366,6 +369,9 @@ export default function NuevoProductoPage() {
           distribuidor_comision_pct: form.distribuidor_comision_pct.trim() === "" ? null : Math.min(Math.max(parseFloat(form.distribuidor_comision_pct) || 0, 0), 100),
           // Departamento → se mapea a ubicacion_deposito (columna existente en DB).
           ubicacion_deposito: form.departamento.trim() || null,
+          activo,
+          visible_web: visibleWeb,
+          destacado_web: destacadoWeb,
         });
       } catch (err) {
         console.error("[inventario/nuevo] saveProducto error:", err);
@@ -1068,6 +1074,39 @@ export default function NuevoProductoPage() {
             </select>
           </div>
 
+          {/* Visibilidad en la web pública */}
+          <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <p className="text-sm font-semibold text-slate-700 mb-3">Visibilidad</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={activo}
+                  onChange={(e) => setActivo(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                />
+                Activo <span className="text-xs text-slate-400">(disponible para vender)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={visibleWeb}
+                  onChange={(e) => setVisibleWeb(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                />
+                Visible en web <span className="text-xs text-slate-400">(catálogo público)</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={destacadoWeb}
+                  onChange={(e) => setDestacadoWeb(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                />
+                Destacado <span className="text-xs text-slate-400">(home "Más vendidas")</span>
+              </label>
+            </div>
+          </div>
 
           {/* Acciones */}
           <div className="flex gap-4 pt-2">
