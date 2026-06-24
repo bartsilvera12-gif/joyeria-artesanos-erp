@@ -65,6 +65,7 @@ export async function GET() {
     )
     .eq("activo", true)
     .eq("visible_web", true)
+    .gt("stock_actual", 0)
     .order("orden_web", { ascending: true, nullsFirst: false })
     .limit(200);
 
