@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
-import { Check, X, Eye, EyeOff, Star, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Star, Trash2 } from "lucide-react";
 import { getProductos } from "@/lib/inventario/storage";
 import type { Producto, MetodoValuacion } from "@/lib/inventario/types";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
@@ -650,22 +650,21 @@ export default function InventarioPage() {
                 {tab !== "materia" && <th className="py-3 pr-4 font-medium">Precio Venta</th>}
                 <th className="py-3 pr-4 font-medium text-center">Stock actual</th>
                 <th className="py-3 pr-4 text-center font-medium hidden lg:table-cell">Stock Mín.</th>
-                <th className="py-3 pr-4 font-medium hidden lg:table-cell">Departamento</th>
-                <th className="py-3 pr-4 font-medium hidden lg:table-cell">Distribuidor</th>
+                <th className="py-3 pr-4 font-medium text-center">Activo</th>
+                <th className="py-3 pr-4 font-medium text-center">Destacado</th>
                 {tab !== "materia" && (
                   <th className="hidden py-3 pr-6 text-right font-medium lg:table-cell">
                     <span title="(precio - costo) / precio × 100">Margen s/venta</span>
                   </th>
                 )}
-                <th className="py-3 pl-4 font-medium text-center w-56">Acciones</th>
-                <th className="py-3 pl-4 font-medium text-center w-28">Editar</th>
+                <th className="py-3 pl-4 font-medium text-center w-32">Acción</th>
               </tr>
             </thead>
 
             <tbody>
               {cargandoLista && (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center text-sm text-slate-400">
+                  <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
                     <div className="inline-flex items-center gap-2">
                       <svg className="h-4 w-4 animate-spin text-[#4FAEB2]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
@@ -678,7 +677,7 @@ export default function InventarioPage() {
               )}
               {!cargandoLista && productosPagina.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="py-16 text-center text-sm text-slate-400">
+                  <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
                     {todos.length === 0
                       ? "Todavía no cargaste productos. Probá con \"+ Nuevo producto\" o \"Importar Excel\"."
                       : "No hay productos que coincidan con los filtros aplicados."}
@@ -723,100 +722,70 @@ export default function InventarioPage() {
                     <td className="py-4 pr-4 text-center text-gray-500 hidden lg:table-cell">
                       {sinControl ? "—" : <span className="tabular-nums">{formatStock(p.stock_minimo)}</span>}
                     </td>
-                    <td className="py-4 pr-4 text-gray-600 text-xs hidden lg:table-cell">
-                      {/* Prioriza la ubicación legacy (FK a inventario_ubicaciones)
-                          si está cargada; si no, cae al "Departamento" del Excel
-                          (productos.ubicacion_deposito). */}
-                      {p.ubicacion_principal_id
-                        ? (() => {
-                            const u = ubicacionById.get(p.ubicacion_principal_id);
-                            return u ? (
-                              <span>
-                                <span className="font-medium text-gray-700">{u.nombre}</span>
-                                <span className="text-gray-400"> — {u.tipo}</span>
-                              </span>
-                            ) : (
-                              <span className="font-medium text-gray-700">{p.ubicacion_deposito ?? "—"}</span>
-                            );
-                          })()
-                        : p.ubicacion_deposito
-                          ? <span className="font-medium text-gray-700">{p.ubicacion_deposito}</span>
-                          : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="py-4 pr-4 text-gray-600 text-xs hidden lg:table-cell">
-                      {p.distribuidor_nombre
-                        ? <span className="font-medium text-gray-700">{p.distribuidor_nombre}</span>
-                        : <span className="text-gray-300">—</span>}
-                    </td>
+                    {(() => {
+                      const mutando = mutandoIds.has(p.id);
+                      const visibleWeb = p.visible_web === true;
+                      const destacado = p.destacado_web === true;
+                      const pillBase =
+                        "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+                      const onCls = "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100";
+                      const offCls = "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100";
+                      const destOnCls = "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100";
+                      return (
+                        <>
+                          <td className="py-4 pr-4 text-center">
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => toggleFlag(p, "visible_web")}
+                              title={visibleWeb ? "Publicado en la web — click para ocultar" : "Oculto de la web — click para publicar"}
+                              className={`${pillBase} ${visibleWeb ? onCls : offCls} ${mutando ? "opacity-60" : ""}`}
+                              aria-pressed={visibleWeb}
+                            >
+                              {visibleWeb ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                              {visibleWeb ? "Sí" : "No"}
+                            </button>
+                          </td>
+                          <td className="py-4 pr-4 text-center">
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => toggleFlag(p, "destacado_web")}
+                              title={destacado ? "Destacado en home — click para quitar" : "Click para marcar como destacado"}
+                              className={`${pillBase} ${destacado ? destOnCls : offCls} ${mutando ? "opacity-60" : ""}`}
+                              aria-pressed={destacado}
+                            >
+                              <Star className={`h-3.5 w-3.5 ${destacado ? "fill-amber-400" : ""}`} />
+                              {destacado ? "Sí" : "No"}
+                            </button>
+                          </td>
+                        </>
+                      );
+                    })()}
                     {tab !== "materia" && (
                       <td className={`hidden py-4 pr-6 text-right font-semibold tabular-nums lg:table-cell ${margenColor(margen)}`}>
                         {margen.toFixed(2)}%
                       </td>
                     )}
                     <td className="py-4 pl-4 text-center">
-                      {(() => {
-                        const mutando = mutandoIds.has(p.id);
-                        const activo = p.activo !== false; // default true si null/undef
-                        const visibleWeb = p.visible_web === true;
-                        const destacado = p.destacado_web === true;
-                        const baseBtn =
-                          "inline-flex items-center justify-center h-8 w-8 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
-                        const onCls =
-                          "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100";
-                        const offCls =
-                          "border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100";
-                        return (
-                          <div className={`flex items-center justify-center gap-1 ${mutando ? "opacity-60" : ""}`}>
-                            <button
-                              type="button"
-                              disabled={mutando}
-                              onClick={() => toggleFlag(p, "activo")}
-                              title={activo ? "Activo — click para desactivar" : "Inactivo — click para activar"}
-                              className={`${baseBtn} ${activo ? onCls : offCls}`}
-                              aria-pressed={activo}
-                            >
-                              {activo ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={mutando}
-                              onClick={() => toggleFlag(p, "visible_web")}
-                              title={visibleWeb ? "Visible en la web — click para ocultar" : "Oculto en la web — click para mostrar"}
-                              className={`${baseBtn} ${visibleWeb ? onCls : offCls}`}
-                              aria-pressed={visibleWeb}
-                            >
-                              {visibleWeb ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                            </button>
-                            <button
-                              type="button"
-                              disabled={mutando}
-                              onClick={() => toggleFlag(p, "destacado_web")}
-                              title={destacado ? "Destacado (Top) — click para quitar" : "No destacado — click para marcar como Top"}
-                              className={`${baseBtn} ${destacado ? "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100" : offCls}`}
-                              aria-pressed={destacado}
-                            >
-                              <Star className={`h-4 w-4 ${destacado ? "fill-amber-400" : ""}`} />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={mutando}
-                              onClick={() => borrarProducto(p)}
-                              title="Borrar producto (soft delete)"
-                              className={`${baseBtn} border-red-200 bg-red-50 text-red-600 hover:bg-red-100`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    <td className="py-4 pl-4 text-center">
-                      <Link
-                        href={`/inventario/${p.id}/editar`}
-                        className="inline-flex items-center justify-center min-h-[40px] rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                      >
-                        Editar
-                      </Link>
+                      <div className="inline-flex items-center justify-center gap-2">
+                        <Link
+                          href={`/inventario/${p.id}/editar`}
+                          className="inline-flex items-center justify-center h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                        >
+                          Editar
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={mutandoIds.has(p.id)}
+                          onClick={() => borrarProducto(p)}
+                          title="Borrar producto"
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Borrar producto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
