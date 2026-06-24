@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff, Star, Trash2 } from "lucide-react";
 import { getProductos } from "@/lib/inventario/storage";
 import type { Producto, MetodoValuacion } from "@/lib/inventario/types";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
@@ -62,6 +63,7 @@ export default function InventarioPage() {
   const [tab,              setTab]               = useState<"reventa" | "menu" | "materia">("reventa");
   const [cargandoLista,    setCargandoLista]     = useState(true);
   const [soloStockBajo,    setSoloStockBajo]    = useState(false);
+  const [mutandoIds,       setMutandoIds]       = useState<Set<string>>(new Set());
   // Filtros nuevos auto-parts (visibles arriba del listado).
   type FiltroStock = "todos" | "sin_stock" | "bajo" | "con_stock";
   const [filtroStock,       setFiltroStock]       = useState<FiltroStock>("todos");
@@ -94,6 +96,47 @@ export default function InventarioPage() {
       .catch(() => undefined);
     return () => { cancelled = true; };
   }, [refreshKey]);
+
+  /** Patch optimista de un flag (activo/visible_web/destacado_web). */
+  async function toggleFlag(p: Producto, flag: "activo" | "visible_web" | "destacado_web") {
+    if (mutandoIds.has(p.id)) return;
+    const prev = (p as unknown as Record<string, unknown>)[flag];
+    const nuevo = flag === "activo" ? p.activo === false : !((p as unknown as Record<string, boolean | undefined>)[flag] === true);
+    // Optimistic update
+    setTodos((arr) => arr.map((x) => (x.id === p.id ? { ...x, [flag]: nuevo } : x)));
+    setMutandoIds((s) => { const n = new Set(s); n.add(p.id); return n; });
+    try {
+      const res = await fetch(`/api/productos/${p.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [flag]: nuevo }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      // Revertir si falla
+      setTodos((arr) => arr.map((x) => (x.id === p.id ? { ...x, [flag]: prev as boolean } : x)));
+      console.error("[inventario] toggle", flag, err);
+    } finally {
+      setMutandoIds((s) => { const n = new Set(s); n.delete(p.id); return n; });
+    }
+  }
+
+  async function borrarProducto(p: Producto) {
+    if (!confirm(`¿Borrar "${p.nombre}"? Esta acción lo dará de baja (soft delete).`)) return;
+    if (mutandoIds.has(p.id)) return;
+    setMutandoIds((s) => { const n = new Set(s); n.add(p.id); return n; });
+    try {
+      const res = await fetch(`/api/productos/${p.id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setTodos((arr) => arr.filter((x) => x.id !== p.id));
+    } catch (err) {
+      console.error("[inventario] borrar", err);
+      alert("No se pudo borrar el producto.");
+    } finally {
+      setMutandoIds((s) => { const n = new Set(s); n.delete(p.id); return n; });
+    }
+  }
 
   // Map se reconstruia en cada render del componente (cualquier setState de
   // filtro): O(N) basura por keystroke. useMemo lo cachea hasta que cambia ubicaciones.
@@ -565,14 +608,14 @@ export default function InventarioPage() {
                 {tab !== "materia" && <th className="py-3 pr-4 font-medium">Precio Venta</th>}
                 <th className="py-3 pr-4 font-medium text-center">Stock actual</th>
                 <th className="py-3 pr-4 text-center font-medium hidden lg:table-cell">Stock Mín.</th>
-                <th className="py-3 pr-4 font-medium hidden lg:table-cell">Departamento</th>
-                <th className="py-3 pr-4 font-medium hidden lg:table-cell">Distribuidor</th>
+                <th className="py-3 pr-4 font-medium text-center">Activo</th>
+                <th className="py-3 pr-4 font-medium text-center">Destacado</th>
                 {tab !== "materia" && (
                   <th className="hidden py-3 pr-6 text-right font-medium lg:table-cell">
                     <span title="(precio - costo) / precio × 100">Margen s/venta</span>
                   </th>
                 )}
-                <th className="py-3 pl-4 font-medium text-center w-28">Acción</th>
+                <th className="py-3 pl-4 font-medium text-center w-32">Acción</th>
               </tr>
             </thead>
 
@@ -637,43 +680,70 @@ export default function InventarioPage() {
                     <td className="py-4 pr-4 text-center text-gray-500 hidden lg:table-cell">
                       {sinControl ? "—" : <span className="tabular-nums">{formatStock(p.stock_minimo)}</span>}
                     </td>
-                    <td className="py-4 pr-4 text-gray-600 text-xs hidden lg:table-cell">
-                      {/* Prioriza la ubicación legacy (FK a inventario_ubicaciones)
-                          si está cargada; si no, cae al "Departamento" del Excel
-                          (productos.ubicacion_deposito). */}
-                      {p.ubicacion_principal_id
-                        ? (() => {
-                            const u = ubicacionById.get(p.ubicacion_principal_id);
-                            return u ? (
-                              <span>
-                                <span className="font-medium text-gray-700">{u.nombre}</span>
-                                <span className="text-gray-400"> — {u.tipo}</span>
-                              </span>
-                            ) : (
-                              <span className="font-medium text-gray-700">{p.ubicacion_deposito ?? "—"}</span>
-                            );
-                          })()
-                        : p.ubicacion_deposito
-                          ? <span className="font-medium text-gray-700">{p.ubicacion_deposito}</span>
-                          : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="py-4 pr-4 text-gray-600 text-xs hidden lg:table-cell">
-                      {p.distribuidor_nombre
-                        ? <span className="font-medium text-gray-700">{p.distribuidor_nombre}</span>
-                        : <span className="text-gray-300">—</span>}
-                    </td>
+                    {(() => {
+                      const mutando = mutandoIds.has(p.id);
+                      const visibleWeb = p.visible_web === true;
+                      const destacado = p.destacado_web === true;
+                      const pillBase =
+                        "inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+                      const onCls = "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100";
+                      const offCls = "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100";
+                      const destOnCls = "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100";
+                      return (
+                        <>
+                          <td className="py-4 pr-4 text-center">
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => toggleFlag(p, "visible_web")}
+                              title={visibleWeb ? "Publicado en la web — click para ocultar" : "Oculto de la web — click para publicar"}
+                              className={`${pillBase} ${visibleWeb ? onCls : offCls} ${mutando ? "opacity-60" : ""}`}
+                              aria-pressed={visibleWeb}
+                            >
+                              {visibleWeb ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                              {visibleWeb ? "Sí" : "No"}
+                            </button>
+                          </td>
+                          <td className="py-4 pr-4 text-center">
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => toggleFlag(p, "destacado_web")}
+                              title={destacado ? "Destacado en home — click para quitar" : "Click para marcar como destacado"}
+                              className={`${pillBase} ${destacado ? destOnCls : offCls} ${mutando ? "opacity-60" : ""}`}
+                              aria-pressed={destacado}
+                            >
+                              <Star className={`h-3.5 w-3.5 ${destacado ? "fill-amber-400" : ""}`} />
+                              {destacado ? "Sí" : "No"}
+                            </button>
+                          </td>
+                        </>
+                      );
+                    })()}
                     {tab !== "materia" && (
                       <td className={`hidden py-4 pr-6 text-right font-semibold tabular-nums lg:table-cell ${margenColor(margen)}`}>
                         {margen.toFixed(2)}%
                       </td>
                     )}
                     <td className="py-4 pl-4 text-center">
-                      <Link
-                        href={`/inventario/${p.id}/editar`}
-                        className="inline-flex items-center justify-center min-h-[40px] rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                      >
-                        Editar
-                      </Link>
+                      <div className="inline-flex items-center justify-center gap-2">
+                        <Link
+                          href={`/inventario/${p.id}/editar`}
+                          className="inline-flex items-center justify-center h-9 rounded-md border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                        >
+                          Editar
+                        </Link>
+                        <button
+                          type="button"
+                          disabled={mutandoIds.has(p.id)}
+                          onClick={() => borrarProducto(p)}
+                          title="Borrar producto"
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Borrar producto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
