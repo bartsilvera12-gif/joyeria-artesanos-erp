@@ -144,7 +144,7 @@ const MENU_STRUCTURE_FULL: MenuItem[] = [
     href: "/dashboard/monitoreo",
     icon: Activity,
   },
-  { key: "ventas", slug: "ventas", label: "Caja", href: "/ventas", icon: ShoppingCart },
+  { key: "ventas", slug: "ventas", label: "Ventas", href: "/ventas", icon: ShoppingCart },
   { key: "inventario", slug: "inventario", label: "Inventario", href: "/inventario", icon: Package, children: [
     { label: "Productos", href: "/inventario" },
     { label: "Movimientos", href: "/inventario/movimientos" },
@@ -244,7 +244,7 @@ const MENU_FAMILIES: { id: string; title: string; itemKeys: string[] }[] = [
     title: "Comercial",
     itemKeys: ["clientes", "crm", "gestion-clientes", "comisiones", "planes", "agenda"],
   },
-  { id: "finanzas", title: "Finanzas", itemKeys: ["pagos", "gastos", "notas_credito", "reportes"] },
+  { id: "finanzas", title: "Finanzas", itemKeys: ["pagos", "gastos", "reportes"] },
   { id: "operaciones", title: "Operaciones", itemKeys: ["ventas", "cobranzas", "inventario", "compras", "proyectos"] },
   {
     id: "omnicanal",
