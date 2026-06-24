@@ -58,7 +58,6 @@ export default function NuevoProductoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [generandoCodigo, setGenerandoCodigo] = useState(false);
   const [generandoSku, setGenerandoSku] = useState(false);
-  const [skuPatrones, setSkuPatrones] = useState<{ prefix: string; siguiente: string }[]>([]);
 
   // Relaciones opcionales
   const [categoriaId, setCategoriaId] = useState<string | null>(null);
@@ -180,25 +179,27 @@ export default function NuevoProductoPage() {
     if (generandoSku) return;
     setGenerandoSku(true);
     setErrorDuplicado(null);
+    setErrorGeneral(null);
     try {
-      const res = await fetch(`/api/productos/sku-sugerencias?tipo=${tipoGastro ?? "reventa"}`, {
+      const res = await fetch(`/api/productos/generar-sku`, {
+        method: "POST",
         credentials: "include",
         cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}), // prefijo default ELE_PER
       });
       const json = await res.json();
-      if (res.ok && json?.success && json.data?.sugerido) {
-        setForm((prev) => ({ ...prev, sku: json.data.sugerido as string }));
-        setSkuPatrones(json.data.patrones ?? []);
+      if (res.ok && json?.success && (json.data?.sku || json.data?.sugerido)) {
+        const generado = (json.data.sku ?? json.data.sugerido) as string;
+        setForm((prev) => ({ ...prev, sku: generado }));
+      } else {
+        setErrorGeneral(json?.error ?? "No se pudo generar el SKU.");
       }
-    } catch { /* no bloquea */ } finally {
+    } catch (err) {
+      setErrorGeneral(err instanceof Error ? err.message : "Error de red");
+    } finally {
       setGenerandoSku(false);
     }
-  }
-
-  function handleSelectPatron(e: React.ChangeEvent<HTMLSelectElement>) {
-    const sig = e.target.value;
-    if (sig) setForm((prev) => ({ ...prev, sku: sig }));
-    e.target.value = ""; // volver al placeholder del dropdown
   }
 
   /** Genera un código de barras REAL (EAN-13) escaneable. */
@@ -598,19 +599,7 @@ export default function NuevoProductoPage() {
                   {generandoSku ? "…" : "Generar SKU"}
                 </button>
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                <select
-                  onChange={handleSelectPatron}
-                  defaultValue=""
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-[#0EA5E9]"
-                >
-                  <option value="">Usar patrón existente…</option>
-                  {skuPatrones.map((p) => (
-                    <option key={p.prefix} value={p.siguiente}>{p.prefix} → {p.siguiente}</option>
-                  ))}
-                </select>
-                <span className="text-[11px] text-gray-400">Código interno editable. Podés ajustar el número final.</span>
-              </div>
+              <p className="mt-1.5 text-[11px] text-gray-400">Código interno editable. Podés ajustar el número final.</p>
             </div>
 
             <div className={tipoGastro === "menu" ? "hidden" : ""}>
