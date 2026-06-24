@@ -362,3 +362,50 @@ export async function PATCH(
     );
   }
 }
+
+/**
+ * DELETE /api/productos/[id]
+ *
+ * Soft-delete: pone activo=false en vez de un hard DELETE. Más seguro en
+ * producción donde el producto puede tener FKs a ventas_items, pedidos_web_items,
+ * etc. El producto deja de aparecer en el catálogo web/ventas pero los
+ * históricos quedan intactos.
+ */
+export async function DELETE(
+  request: NextRequest,
+  ctxParams: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await ctxParams.params;
+    const ctx = await getTenantSupabaseFromAuth(request);
+    if (!ctx) {
+      return NextResponse.json(errorResponse(API_ERRORS.UNAUTHORIZED), { status: 401 });
+    }
+    const empresaId = ctx.auth.empresa_id;
+    const jwt = await getAccessTokenForRequest(request);
+
+    try {
+      const row = await updateProductoPostgrest(jwt, empresaId, id, { activo: false });
+      if (!row) {
+        return NextResponse.json(errorResponse(API_ERRORS.NOT_FOUND), { status: 404 });
+      }
+      return NextResponse.json(successResponse({ producto: rowToProductoApi(row) }));
+    } catch (err) {
+      console.error("[/api/productos/[id] DELETE]", {
+        empresaId,
+        id,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      return NextResponse.json(
+        errorResponse("No se pudo borrar el producto."),
+        { status: 500 }
+      );
+    }
+  } catch (err) {
+    console.error("[/api/productos/[id] DELETE] outer", err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      errorResponse("No se pudo borrar el producto."),
+      { status: 500 }
+    );
+  }
+}

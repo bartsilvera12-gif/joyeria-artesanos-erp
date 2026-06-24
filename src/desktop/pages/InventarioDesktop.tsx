@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import { Check, X, Eye, EyeOff, Star, Trash2 } from "lucide-react";
 import { getProductos } from "@/lib/inventario/storage";
 import type { Producto, MetodoValuacion } from "@/lib/inventario/types";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
@@ -73,6 +74,90 @@ export default function InventarioPage() {
   type PageSize = 10 | 50 | 100 | "todos";
   const [pageSize, setPageSize] = useState<PageSize>(50);
   const [paginaActual, setPaginaActual] = useState(0);
+
+  // Set de productos con una mutación en curso (toggle o delete).
+  // Lo usamos para deshabilitar los botones y mostrar opacidad mientras
+  // el PATCH/DELETE está en vuelo.
+  const [mutandoIds, setMutandoIds] = useState<Set<string>>(() => new Set());
+
+  const marcarMutando = useCallback((id: string, mutando: boolean) => {
+    setMutandoIds((prev) => {
+      const next = new Set(prev);
+      if (mutando) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
+  // PATCH parcial sobre un flag bool del producto. Optimistic local + refetch
+  // si falla / al terminar.
+  const toggleFlag = useCallback(
+    async (
+      producto: Producto,
+      campo: "activo" | "visible_web" | "destacado_web",
+    ) => {
+      if (mutandoIds.has(producto.id)) return;
+      const nuevoValor = !(producto[campo] === true);
+      marcarMutando(producto.id, true);
+      // Optimistic: actualizar el row en `todos` para que la UI responda
+      // inmediato; revertimos si el server falla.
+      setTodos((prev) =>
+        prev.map((p) => (p.id === producto.id ? { ...p, [campo]: nuevoValor } : p)),
+      );
+      try {
+        const res = await fetch(`/api/productos/${producto.id}`, {
+          method: "PATCH",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [campo]: nuevoValor }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      } catch (err) {
+        console.error("[InventarioDesktop] toggleFlag fallo", err);
+        // Revertir: traer el estado real del backend.
+        setRefreshKey((k) => k + 1);
+        if (typeof window !== "undefined") {
+          window.alert("No se pudo actualizar el producto. Probá de nuevo.");
+        }
+      } finally {
+        marcarMutando(producto.id, false);
+      }
+    },
+    [mutandoIds, marcarMutando],
+  );
+
+  const borrarProducto = useCallback(
+    async (producto: Producto) => {
+      if (mutandoIds.has(producto.id)) return;
+      if (typeof window !== "undefined") {
+        const ok = window.confirm(
+          `¿Borrar "${producto.nombre}"? El producto quedará inactivo y dejará de aparecer en el catálogo.`,
+        );
+        if (!ok) return;
+      }
+      marcarMutando(producto.id, true);
+      try {
+        const res = await fetch(`/api/productos/${producto.id}`, {
+          method: "DELETE",
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // Refrescamos la lista (no quitamos del array — el soft-delete deja
+        // el producto con activo=false; el filtrado lo decide la UI).
+        setRefreshKey((k) => k + 1);
+      } catch (err) {
+        console.error("[InventarioDesktop] borrarProducto fallo", err);
+        if (typeof window !== "undefined") {
+          window.alert("No se pudo borrar el producto. Probá de nuevo.");
+        }
+      } finally {
+        marcarMutando(producto.id, false);
+      }
+    },
+    [mutandoIds, marcarMutando],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -572,14 +657,15 @@ export default function InventarioPage() {
                     <span title="(precio - costo) / precio × 100">Margen s/venta</span>
                   </th>
                 )}
-                <th className="py-3 pl-4 font-medium text-center w-28">Acción</th>
+                <th className="py-3 pl-4 font-medium text-center w-56">Acciones</th>
+                <th className="py-3 pl-4 font-medium text-center w-28">Editar</th>
               </tr>
             </thead>
 
             <tbody>
               {cargandoLista && (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
+                  <td colSpan={11} className="py-16 text-center text-sm text-slate-400">
                     <div className="inline-flex items-center gap-2">
                       <svg className="h-4 w-4 animate-spin text-[#4FAEB2]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
@@ -592,7 +678,7 @@ export default function InventarioPage() {
               )}
               {!cargandoLista && productosPagina.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
+                  <td colSpan={11} className="py-16 text-center text-sm text-slate-400">
                     {todos.length === 0
                       ? "Todavía no cargaste productos. Probá con \"+ Nuevo producto\" o \"Importar Excel\"."
                       : "No hay productos que coincidan con los filtros aplicados."}
@@ -667,6 +753,63 @@ export default function InventarioPage() {
                         {margen.toFixed(2)}%
                       </td>
                     )}
+                    <td className="py-4 pl-4 text-center">
+                      {(() => {
+                        const mutando = mutandoIds.has(p.id);
+                        const activo = p.activo !== false; // default true si null/undef
+                        const visibleWeb = p.visible_web === true;
+                        const destacado = p.destacado_web === true;
+                        const baseBtn =
+                          "inline-flex items-center justify-center h-8 w-8 rounded-md border transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+                        const onCls =
+                          "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100";
+                        const offCls =
+                          "border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100";
+                        return (
+                          <div className={`flex items-center justify-center gap-1 ${mutando ? "opacity-60" : ""}`}>
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => toggleFlag(p, "activo")}
+                              title={activo ? "Activo — click para desactivar" : "Inactivo — click para activar"}
+                              className={`${baseBtn} ${activo ? onCls : offCls}`}
+                              aria-pressed={activo}
+                            >
+                              {activo ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => toggleFlag(p, "visible_web")}
+                              title={visibleWeb ? "Visible en la web — click para ocultar" : "Oculto en la web — click para mostrar"}
+                              className={`${baseBtn} ${visibleWeb ? onCls : offCls}`}
+                              aria-pressed={visibleWeb}
+                            >
+                              {visibleWeb ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => toggleFlag(p, "destacado_web")}
+                              title={destacado ? "Destacado (Top) — click para quitar" : "No destacado — click para marcar como Top"}
+                              className={`${baseBtn} ${destacado ? "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100" : offCls}`}
+                              aria-pressed={destacado}
+                            >
+                              <Star className={`h-4 w-4 ${destacado ? "fill-amber-400" : ""}`} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={mutando}
+                              onClick={() => borrarProducto(p)}
+                              title="Borrar producto (soft delete)"
+                              className={`${baseBtn} border-red-200 bg-red-50 text-red-600 hover:bg-red-100`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="py-4 pl-4 text-center">
                       <Link
                         href={`/inventario/${p.id}/editar`}
