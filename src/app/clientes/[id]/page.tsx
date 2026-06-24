@@ -58,6 +58,11 @@ import {
   type TributarioFormState,
 } from "@/components/clientes/ClientePerfilTributarioForm";
 import { ClienteDatosSifenReceptorForm } from "@/components/clientes/ClienteDatosSifenReceptorForm";
+import { SUPABASE_APP_SCHEMA as NEURA_CLIENT_SCHEMA } from "@/lib/supabase/schema";
+import ClienteVehiculoEditor from "@/components/clientes/ClienteVehiculoEditor";
+
+/** Instancia monocliente Reserva: formulario/detalle de clientes simplificado (sin campos SaaS/Neura). */
+const SIMPLE_CLIENTE = NEURA_CLIENT_SCHEMA === "reservacaacupe";
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
 const inputClass =
@@ -74,10 +79,11 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 // ── Tipos de pestaña ──────────────────────────────────────────────────────────
 
-type TabId = "informacion" | "estado_cuenta" | "suscripciones" | "marketing" | "proyectos" | "actividad" | "notas";
+type TabId = "informacion" | "vehiculos" | "estado_cuenta" | "suscripciones" | "marketing" | "proyectos" | "actividad" | "notas";
 
 const TABS: { id: TabId; label: string; showWhen?: (c: Cliente) => boolean }[] = [
   { id: "informacion",   label: "Información"      },
+  { id: "vehiculos",     label: "Vehículos"        },
   { id: "estado_cuenta", label: "Estado de cuenta" },
   { id: "suscripciones", label: "Suscripciones"    },
   { id: "marketing",     label: "Marketing",        showWhen: (c) => c.tipo_servicio_cliente === "marketing" },
@@ -122,7 +128,7 @@ function ClienteFichaSkeleton() {
       <div className={`h-3 w-28 ${bar}`} aria-hidden />
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="h-40 bg-gradient-to-r from-slate-200 via-slate-100 to-slate-200 animate-pulse" aria-hidden />
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-x divide-gray-100 border-t border-gray-100">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 border-t border-gray-100">
           {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="px-5 py-3 space-y-2">
               <div className={`h-2.5 w-16 ${bar}`} />
@@ -204,6 +210,7 @@ export default function ClienteDetailPage() {
     vendedor_usuario_id:   "",
     tipo_servicio_cliente: "" as string,
     estado:                "activo" as Cliente["estado"],
+    usa_nota_remision:     false,
     sifen_receptor_manual: false,
     sifen_receptor_naturaleza: "" as string,
     sifen_ti_ope: "" as string,
@@ -360,6 +367,7 @@ export default function ClienteDetailPage() {
         vendedor_usuario_id:  c.vendedor_usuario_id ?? "",
         tipo_servicio_cliente: c.tipo_servicio_cliente ?? "",
         estado:               c.estado,
+        usa_nota_remision:    c.usa_nota_remision === true,
         sifen_receptor_manual: Boolean(c.sifen_receptor_manual),
         sifen_receptor_naturaleza: c.sifen_receptor_naturaleza ?? "",
         sifen_ti_ope: c.sifen_ti_ope != null ? String(c.sifen_ti_ope) : "",
@@ -641,6 +649,7 @@ export default function ClienteDetailPage() {
         vendedor_usuario_id: form.vendedor_usuario_id.trim() || null,
         tipo_servicio_cliente: tipoTs || null,
         estado:              form.estado,
+        usa_nota_remision:   form.usa_nota_remision,
         ...sifenManualPayload,
       });
     } catch (err) {
@@ -945,37 +954,42 @@ export default function ClienteDetailPage() {
       </button>
 
       {/* ── Panel resumen ─────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-[#0EA5E9] to-[#0284C7] px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
-              {/* Avatar */}
-              <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold text-white shrink-0 ${
-                cliente.tipo_cliente === "empresa" ? "bg-blue-500/80" : "bg-violet-500/80"
-              }`}>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-b from-[#E5F4F4]/40 to-white px-6 py-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-start gap-4 min-w-0 flex-1">
+              {/* Avatar — fondo soft teal, sin colores chillones */}
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-[#3F8E91] bg-[#E5F4F4] border border-[#4FAEB2]/30 shrink-0">
                 {nombre.slice(0, 2).toUpperCase()}
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-white leading-tight">{nombre}</h1>
-                <div className="flex items-center gap-3 mt-1 flex-wrap">
-                  <span className="text-gray-300 font-mono text-xs">{cliente.codigo_cliente}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#3F8E91] flex items-center gap-1.5">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#4FAEB2]" />
+                  Cliente
+                </p>
+                <h1 className="text-2xl font-bold text-slate-900 leading-tight mt-1">{nombre}</h1>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                    {cliente.codigo_cliente}
+                  </span>
                   {cliente.ruc && (
-                    <span className="text-gray-300 text-xs">RUC: {cliente.ruc}</span>
+                    <span className="text-xs text-slate-500">RUC: <span className="text-slate-700 font-medium">{cliente.ruc}</span></span>
                   )}
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
                     cliente.estado === "activo"
-                      ? "bg-green-500/20 text-green-300"
-                      : "bg-gray-500/30 text-gray-300"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-slate-100 text-slate-600"
                   }`}>
-                    ● {cliente.estado === "activo" ? "Activo" : "Inactivo"}
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full ${cliente.estado === "activo" ? "bg-green-500" : "bg-slate-400"}`} />
+                    {cliente.estado === "activo" ? "Activo" : "Inactivo"}
                   </span>
                   {cliente.perfil_tributario_activo && (
-                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-white/15 text-white border border-white/25">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#E5F4F4] text-[#3F8E91] border border-[#4FAEB2]/30">
                       Tributario
                     </span>
                   )}
-                  <span className="text-xs text-gray-400">
-                    Cliente desde {formatFecha(cliente.created_at)}
+                  <span className="text-xs text-slate-500">
+                    Cliente desde <span className="font-medium text-slate-700">{formatFecha(cliente.created_at)}</span>
                   </span>
                 </div>
               </div>
@@ -986,14 +1000,14 @@ export default function ClienteDetailPage() {
                 esAdmin ? (
                   <button
                     onClick={abrirModalBajaOperativa}
-                    className="text-xs font-medium border border-amber-400/60 text-amber-200 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                    className="text-xs font-medium border border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    Dar de baja cliente
+                    Dar de baja
                   </button>
                 ) : (
                   <button
                     onClick={handleToggleEstado}
-                    className="text-xs font-medium border border-white/20 text-white/80 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"
+                    className="text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors"
                   >
                     Desactivar
                   </button>
@@ -1001,7 +1015,7 @@ export default function ClienteDetailPage() {
               ) : (
                 <button
                   onClick={handleToggleEstado}
-                  className="text-xs font-medium border border-white/20 text-white/80 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-colors"
+                  className="text-xs font-medium border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors"
                 >
                   Reactivar
                 </button>
@@ -1010,10 +1024,10 @@ export default function ClienteDetailPage() {
                 <button
                   type="button"
                   onClick={() => void abrirModalEliminar()}
-                  className="text-red-200 hover:text-white hover:bg-red-900/40 border border-red-400/40 flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors text-xs font-medium"
+                  className="text-xs font-medium border border-rose-300 text-rose-700 bg-rose-50 hover:bg-rose-100 flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors"
                   title="Eliminar cliente (baja lógica)"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0" aria-hidden>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 shrink-0" aria-hidden>
                     <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
                   </svg>
                   Eliminar
@@ -1021,7 +1035,7 @@ export default function ClienteDetailPage() {
               )}
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-white/15 flex flex-wrap gap-2">
+          <div className="mt-4 pt-4 border-t border-slate-200 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => {
@@ -1036,9 +1050,9 @@ export default function ClienteDetailPage() {
                 });
                 setModalSuscripcion(true);
               }}
-              className="text-xs font-medium bg-white/15 hover:bg-white/25 text-white border border-white/30 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-semibold bg-[#4FAEB2] hover:bg-[#3F8E91] text-white inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors"
             >
-              Nueva suscripción
+              <span className="text-base leading-none">+</span> Nueva suscripción
             </button>
             <button
               type="button"
@@ -1047,14 +1061,14 @@ export default function ClienteDetailPage() {
                 setErrorFacturaContado(null);
                 setModalFacturaContado(true);
               }}
-              className="text-xs font-medium bg-white/15 hover:bg-white/25 text-white border border-white/30 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-medium border border-[#4FAEB2] text-[#3F8E91] bg-white hover:bg-[#E5F4F4] px-3 py-1.5 rounded-lg transition-colors"
             >
               Factura al contado
             </button>
             <button
               type="button"
               onClick={abrirRegistrarPago}
-              className="text-xs font-medium bg-white/15 hover:bg-white/25 text-white border border-white/30 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs font-medium border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors"
             >
               Registrar pago
             </button>
@@ -1062,7 +1076,7 @@ export default function ClienteDetailPage() {
         </div>
 
         {/* Estadísticas rápidas */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-x divide-gray-100 border-t border-gray-100">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 border-t border-gray-100">
           {(
             [
               { label: "Origen", value: cliente.origen },
@@ -1099,7 +1113,9 @@ export default function ClienteDetailPage() {
               },
               { label: "Creado por", value: cliente.created_by_nombre?.trim() || "—" },
             ] as { label: string; value: ReactNode }[]
-          ).map((item) => (
+          )
+            .filter((item) => !SIMPLE_CLIENTE || !["Origen", "Tipo servicio", "Plan activo", "Vendedor"].includes(item.label))
+            .map((item) => (
             <div key={item.label} className="px-5 py-3">
               <p className="text-xs text-gray-400">{item.label}</p>
               <div className="text-sm font-semibold text-gray-700 mt-0.5">{item.value}</div>
@@ -1471,6 +1487,7 @@ export default function ClienteDetailPage() {
                   </div>
                 </div>
 
+                {!SIMPLE_CLIENTE && (
                 <div>
                   <label className={labelClass}>Tipo de servicio</label>
                   <select
@@ -1488,6 +1505,7 @@ export default function ClienteDetailPage() {
                     ))}
                   </select>
                 </div>
+                )}
 
                 {form.tipo_cliente === "empresa" && (
                   <div>
@@ -1543,6 +1561,17 @@ export default function ClienteDetailPage() {
                   <input type="text" name="direccion" value={form.direccion} onChange={handleChange} className={inputClass} />
                 </div>
 
+                <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.usa_nota_remision}
+                    onChange={(e) => setForm((p) => ({ ...p, usa_nota_remision: e.target.checked }))}
+                    className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                  />
+                  Usa nota de remisión
+                  <span className="text-xs text-slate-400">(se generará junto al ticket al venderle)</span>
+                </label>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Ciudad</label>
@@ -1554,6 +1583,7 @@ export default function ClienteDetailPage() {
                   </div>
                 </div>
 
+                {!SIMPLE_CLIENTE && (
                 <ClienteDatosSifenReceptorForm
                   value={{
                     sifen_receptor_manual: form.sifen_receptor_manual,
@@ -1620,6 +1650,7 @@ export default function ClienteDetailPage() {
                     });
                   }}
                 />
+                )}
               </section>
 
               {/* Digital */}
@@ -1645,7 +1676,7 @@ export default function ClienteDetailPage() {
               <section className="space-y-4">
                 <SectionTitle>Datos comerciales</SectionTitle>
 
-                {suscripcionActiva && (
+                {!SIMPLE_CLIENTE && suscripcionActiva && (
                   <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/90">
                     <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wide">Plan mensual activo</p>
                     <p className="text-sm text-emerald-950 mt-1">
@@ -1680,7 +1711,7 @@ export default function ClienteDetailPage() {
                       <option value="30 DÍAS">30 días</option>
                       <option value="60 DÍAS">60 días</option>
                       <option value="90 DÍAS">90 días</option>
-                      <option value="MENSUAL">Mensual</option>
+                      {!SIMPLE_CLIENTE && <option value="MENSUAL">Mensual</option>}
                     </select>
                   </div>
                   <div>
@@ -1701,6 +1732,7 @@ export default function ClienteDetailPage() {
                   </div>
                 </div>
 
+                {!SIMPLE_CLIENTE && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Vendedor responsable (usuario ERP)</label>
@@ -1728,6 +1760,7 @@ export default function ClienteDetailPage() {
                     <input type="text" name="vendedor_asignado" value={form.vendedor_asignado} onChange={handleChange} className={`${inputClass} uppercase`} />
                   </div>
                 </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1790,7 +1823,7 @@ export default function ClienteDetailPage() {
                 )}
 
                 {/* Campos de suscripción (solo cuando condicion_pago = MENSUAL y no tiene suscripciones) */}
-                {form.condicion_pago === "MENSUAL" && (
+                {!SIMPLE_CLIENTE && form.condicion_pago === "MENSUAL" && (
                   <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
                     <SectionTitle>Configuración de suscripción</SectionTitle>
                     {suscripciones.length > 0 ? (
@@ -1923,6 +1956,13 @@ export default function ClienteDetailPage() {
                 </button>
               </div>
             </form>
+          )}
+
+          {/* ── VEHÍCULOS (rubro autopartes) ─────────────────────────────── */}
+          {activeTab === "vehiculos" && cliente && (
+            <div className="rounded-xl border border-slate-200 bg-white p-5">
+              <ClienteVehiculoEditor clienteId={cliente.id} />
+            </div>
           )}
 
           {/* ── ESTADO DE CUENTA ─────────────────────────────────────────── */}

@@ -1,8 +1,5 @@
-import DeviceRouter from "@/shared/device/DeviceRouter";
-import NotasCreditoDesktop from "@/desktop/pages/NotasCreditoDesktop";
-import NotasCreditoMobile from "@/mobile/pages/NotasCreditoMobile";
+import NotasCreditoListClient from "./NotasCreditoListClient";
 
-/** Módulo Notas de Crédito. DeviceRouter elige desktop vs mobile. */
-export default function Page() {
-  return <DeviceRouter desktop={<NotasCreditoDesktop />} mobile={<NotasCreditoMobile />} />;
+export default function NotasCreditoPage() {
+  return <NotasCreditoListClient />;
 }

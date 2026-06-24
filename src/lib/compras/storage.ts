@@ -1,5 +1,4 @@
 import type { Compra } from "./types";
-import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
 
 interface CompraApiRow {
   id: string; numero_control: string; proveedor_id: string; proveedor_nombre: string;
@@ -10,6 +9,9 @@ interface CompraApiRow {
   precio_venta: string | number; margen_venta: string | number | null;
   tipo_pago: string; plazo_dias: number | null; nro_timbrado: string; estado: string;
   fecha: string;
+  comprobante_storage_path?: string | null;
+  comprobante_nombre?: string | null;
+  comprobante_mime_type?: string | null;
 }
 
 function mapRow(r: CompraApiRow): Compra {
@@ -34,13 +36,16 @@ function mapRow(r: CompraApiRow): Compra {
     tipo_pago: r.tipo_pago as Compra["tipo_pago"],
     plazo_dias: r.plazo_dias ?? undefined,
     nro_timbrado: r.nro_timbrado,
+    comprobante_storage_path: r.comprobante_storage_path ?? null,
+    comprobante_nombre: r.comprobante_nombre ?? null,
+    comprobante_mime_type: r.comprobante_mime_type ?? null,
     fecha: r.fecha,
   };
 }
 
 export async function getCompras(): Promise<Compra[]> {
   try {
-    const r = await fetchWithSupabaseSession("/api/compras", { cache: "no-store" });
+    const r = await fetch("/api/compras", { credentials: "include", cache: "no-store" });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j?.success) {
       console.error("[compras] getCompras:", (j as { error?: string })?.error ?? r.status);
@@ -64,12 +69,107 @@ export interface SaveCompraError {
   error: string;
 }
 
+// ── Compra multiproducto ────────────────────────────────────────────────────
+
+export interface CompraItemPayload {
+  producto_id: string;
+  producto_nombre: string;
+  cantidad: number;
+  costo_unitario: number;
+  costo_unitario_original: number;
+  iva_tipo: string;
+  subtotal: number;
+  monto_iva: number;
+  total: number;
+  precio_venta: number;
+  margen_venta: number | null;
+}
+export interface CompraHeaderPayload {
+  proveedor_id: string;
+  proveedor_nombre: string;
+  moneda: "PYG" | "USD";
+  tipo_cambio: number;
+  tipo_pago: "contado" | "credito";
+  plazo_dias?: number;
+  nro_timbrado: string;
+  comprobante_storage_path?: string | null;
+  comprobante_nombre?: string | null;
+  comprobante_mime_type?: string | null;
+}
+
+export interface UploadComprobanteResult {
+  comprobante_storage_path: string;
+  comprobante_nombre: string;
+  comprobante_mime_type: string;
+}
+
+/** Sube el comprobante (imagen/PDF) y devuelve su referencia para asociarla a la compra. */
+export async function uploadComprobante(
+  file: File
+): Promise<{ ok: true; data: UploadComprobanteResult } | { ok: false; error: string }> {
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    const r = await fetch("/api/compras/comprobante/upload", {
+      method: "POST",
+      credentials: "include",
+      body: fd,
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j?.success) {
+      return { ok: false, error: (j as { error?: string })?.error ?? `Error ${r.status} al subir el comprobante.` };
+    }
+    return { ok: true, data: j.data as UploadComprobanteResult };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Error de red al subir el comprobante." };
+  }
+}
+export interface SaveComprasMultiResult {
+  success: true;
+  numero_control: string;
+  compras: Compra[];
+  warning?: string | null;
+}
+
+/** Guarda una compra con N líneas (un solo numero_control). */
+export async function saveCompraMulti(
+  header: CompraHeaderPayload,
+  items: CompraItemPayload[]
+): Promise<SaveComprasMultiResult | SaveCompraError> {
+  try {
+    const r = await fetch("/api/compras", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...header, items }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j?.success) {
+      const err = (j as { error?: string })?.error ?? `Error ${r.status} al guardar la compra.`;
+      console.error("[compras] saveCompraMulti:", err);
+      return { success: false, error: err };
+    }
+    const data = j.data as { numero_control?: string; compras?: CompraApiRow[]; warning?: string | null };
+    return {
+      success: true,
+      numero_control: data.numero_control ?? "",
+      compras: (data.compras ?? []).map(mapRow),
+      warning: data.warning ?? null,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Error de red";
+    console.error("[compras] saveCompraMulti:", e);
+    return { success: false, error: msg };
+  }
+}
+
 export async function saveCompra(
   datos: Omit<Compra, "id" | "numero_control" | "fecha">
 ): Promise<SaveCompraResult | SaveCompraError> {
   try {
-    const r = await fetchWithSupabaseSession("/api/compras", {
+    const r = await fetch("/api/compras", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(datos),
     });

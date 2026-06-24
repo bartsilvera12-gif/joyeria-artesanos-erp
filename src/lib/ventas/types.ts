@@ -2,6 +2,8 @@ export type TipoIvaVenta = "EXENTA" | "5%" | "10%";
 export type TipoVenta   = "CONTADO" | "CREDITO";
 export type MonedaVenta = "GS" | "USD";
 export type MetodoPago  = "efectivo" | "tarjeta" | "transferencia";
+/** Nivel de precio elegido para la línea de venta.
+ *  'costo' se conserva SOLO como histórico (ventas viejas); ya no se ofrece en la UI. */
 export type TipoPrecioVenta = "minorista" | "mayorista" | "distribuidor" | "costo";
 
 /** Un ítem dentro de una venta (una línea de producto). */
@@ -13,16 +15,11 @@ export interface LineaVenta {
   precio_venta_original: number;  // en la moneda elegida
   precio_venta:          number;  // siempre en GS
   tipo_iva:              TipoIvaVenta;
+  /** Nivel de precio aplicado: minorista (precio_venta) | mayorista (precio_mayorista) | costo (costo_promedio). */
+  tipo_precio?:          TipoPrecioVenta;
   subtotal:              number;  // precio_venta × cantidad
   monto_iva:             number;
   total_linea:           number;  // subtotal + monto_iva
-  /** Fase Decants: ítem entregado como obsequio (decant). Precios = 0,
-   *  no infla total de la venta, descuenta stock igual. */
-  es_sin_cargo?:         boolean;
-  motivo_sin_cargo?:     string | null;
-  /** Costo total promocional (cantidad × costo_promedio snapshot) cuando
-   *  es_sin_cargo=true. Server-side only; el cliente puede leerlo para métricas. */
-  costo_promocional_total?: number | null;
 }
 
 /** Cabecera de venta: condiciones comerciales + totales consolidados. */
@@ -43,9 +40,12 @@ export interface Venta {
   tipo_venta: TipoVenta;
   plazo_dias?: number;       // solo si tipo_venta === "CREDITO"
 
-  fecha: string;             // ISO string, generado automáticamente
+  metodo_pago?: MetodoPago;  // En lo de Mari: efectivo/tarjeta/transferencia
 
-  metodo_pago?: MetodoPago;
+  /** La venta emite nota de remisión (documento no fiscal). */
   genera_nota_remision?: boolean;
+  /** Número de nota de remisión (NR-XXXXXX) si genera_nota_remision. */
   nota_remision_numero?: string | null;
+
+  fecha: string;             // ISO string, generado automáticamente
 }

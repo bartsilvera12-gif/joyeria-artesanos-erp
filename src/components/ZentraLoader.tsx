@@ -19,16 +19,15 @@ export default function ZentraLoader({
   overlay?: boolean;
 }) {
   const letters = Array.from(label);
-
   return (
     <div
       className={`flex flex-col items-center justify-center gap-7 bg-[#4FAEB2] ${
         overlay
           ? "fixed inset-0 z-[200] h-screen w-screen overflow-hidden"
           : "w-full"
-      } ${
-        fullscreen && !overlay ? "min-h-screen" : ""
-      } ${!fullscreen && !overlay ? "min-h-[40vh] py-16" : ""}`}
+      } ${fullscreen && !overlay ? "min-h-screen" : ""} ${
+        !fullscreen && !overlay ? "min-h-[40vh] py-16" : ""
+      }`}
       aria-busy="true"
       role="status"
     >
@@ -41,7 +40,6 @@ export default function ZentraLoader({
             "radial-gradient(circle at 50% 40%, rgba(255,255,255,0.10), transparent 65%)",
         }}
       />
-
       <div className="relative z-10 h-32 w-[15rem] sm:h-40 sm:w-[18rem]">
         <Image
           src="/brand/zentra-logo-official.png"
@@ -52,7 +50,6 @@ export default function ZentraLoader({
           priority
         />
       </div>
-
       {/* "Cargando" con wave + shimmer */}
       <p
         className="zentra-loader-label relative z-10 inline-flex items-end gap-[0.18em] text-sm font-semibold tracking-[0.42em] text-white uppercase"
@@ -68,7 +65,6 @@ export default function ZentraLoader({
             {ch === " " ? " " : ch}
           </span>
         ))}
-        {/* Dots al final */}
         <span className="ml-[0.4em] inline-flex items-end gap-[0.25em]">
           <span
             className="zentra-loader-letter inline-block h-1 w-1 rounded-full bg-white"
@@ -87,11 +83,9 @@ export default function ZentraLoader({
           />
         </span>
       </p>
-
       <style jsx>{`
         .zentra-loader-letter {
-          animation: zentraLetterWave 1400ms cubic-bezier(0.4, 0, 0.2, 1)
-            infinite both;
+          animation: zentraLetterWave 1400ms cubic-bezier(0.4, 0, 0.2, 1) infinite both;
         }
         @keyframes zentraLetterWave {
           0%,
@@ -115,7 +109,6 @@ export default function ZentraLoader({
           }
         }
       `}</style>
-
       <span className="sr-only">Cargando contenido…</span>
     </div>
   );

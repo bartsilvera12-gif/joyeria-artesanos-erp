@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import MontoInput from "@/components/ui/MontoInput";
+import SearchableSelect from "@/components/ui/SearchableSelect";
 import { getProductos, saveMovimiento } from "@/lib/inventario/storage";
 import type { Producto, TipoMovimiento, OrigenMovimiento } from "@/lib/inventario/types";
 
@@ -26,8 +27,7 @@ export default function NuevoMovimientoPage() {
     return () => { cancelled = true; };
   }, []);
 
-  function handleProductoChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const id = e.target.value;
+  function handleProductoChange(id: string) {
     const producto = productos.find((p) => p.id === id);
     setForm((prev) => ({
       ...prev,
@@ -35,6 +35,17 @@ export default function NuevoMovimientoPage() {
       costo_unitario: producto ? String(producto.costo_promedio) : "",
     }));
   }
+
+  // Pre-construye las opciones del selector. Memoizado para no rehacer en cada
+  // keystroke del input de búsqueda.
+  const productoOptions = useMemo(
+    () => productos.map((p) => ({
+      id: p.id,
+      label: p.nombre,
+      sublabel: `${p.sku} · stock: ${p.stock_actual}`,
+    })),
+    [productos]
+  );
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -91,23 +102,18 @@ export default function NuevoMovimientoPage() {
       <div className="bg-white rounded-xl shadow p-6 max-w-2xl">
         <form className="space-y-6" onSubmit={handleSubmit}>
 
-          {/* Producto */}
+          {/* Producto — combobox con buscador (necesario porque el catálogo
+              tiene miles de productos y el <select> nativo es inusable). */}
           <div>
             <label className={labelClass}>Producto</label>
-            <select
-              name="producto_id"
+            <SearchableSelect
               value={form.producto_id}
               onChange={handleProductoChange}
-              className={inputClass}
+              options={productoOptions}
+              placeholder="Seleccionar producto…"
+              emptyText="Ningún producto coincide"
               required
-            >
-              <option value="">Seleccionar producto...</option>
-              {productos.map((p) => (
-                <option key={p.id} value={String(p.id)}>
-                  {p.nombre} — {p.sku} (stock actual: {p.stock_actual})
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* Tipo + Origen */}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
 import { useParams, useSearchParams } from "next/navigation";
+import { useAutoClearFlag } from "@/hooks/useAutoClearFlag";
 import {
   SectionCard,
   emptyUsuarioForm,
@@ -138,7 +139,8 @@ function UsuarioDetailContent() {
   const [editing, setEditing] = useState(editMode);
   const [form, setForm] = useState<UsuarioFormValues>(() => emptyUsuarioForm());
   const [formError, setFormError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Auto-clear a 5s. Reemplaza setTimeout(() => setSuccessMessage(null), 5000) inseguro.
+  const [successMessage, setSuccessMessage] = useAutoClearFlag<string>(5000);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -146,7 +148,8 @@ function UsuarioDetailContent() {
   const [pwdNew2, setPwdNew2] = useState("");
   const [pwdLoading, setPwdLoading] = useState(false);
   const [pwdError, setPwdError] = useState<string | null>(null);
-  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
+  // Auto-clear a 6s. Idem successMessage.
+  const [pwdSuccess, setPwdSuccess] = useAutoClearFlag<string>(6000);
 
   const [omniAgent, setOmniAgent] = useState(false);
   const [omniScheduleId, setOmniScheduleId] = useState<string>("");
@@ -341,7 +344,7 @@ function UsuarioDetailContent() {
       });
       setEditing(false);
       setSuccessMessage("Cambios guardados correctamente en la base de datos.");
-      setTimeout(() => setSuccessMessage(null), 5000);
+      // Reset a null por useAutoClearFlag (5s con cleanup en unmount).
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -373,7 +376,7 @@ function UsuarioDetailContent() {
       setPwdSuccess("Contraseña actualizada. El usuario puede iniciar sesión con la nueva clave.");
       setPwdNew("");
       setPwdNew2("");
-      setTimeout(() => setPwdSuccess(null), 6000);
+      // Reset por useAutoClearFlag (6s, cleanup garantizado).
     } catch (err) {
       setPwdError(err instanceof Error ? err.message : "Error al restablecer");
     } finally {

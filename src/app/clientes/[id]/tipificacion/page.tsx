@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCliente, clienteNombre } from "@/lib/clientes/storage";
 import { getTipificaciones, saveTipificacion } from "@/lib/gestion-clientes/storage";
+import { useAutoClearFlag } from "@/hooks/useAutoClearFlag";
 import type { Cliente } from "@/lib/clientes/types";
 import type { Tipificacion, TipoGestion, ResultadoTipificacion } from "@/lib/gestion-clientes/types";
 
@@ -65,7 +66,10 @@ export default function TipificacionPage() {
   const [cliente,        setCliente]        = useState<Cliente | null>(null);
   const [notFound,       setNotFound]       = useState(false);
   const [tipificaciones, setTipificaciones] = useState<Tipificacion[]>([]);
-  const [exito,          setExito]          = useState(false);
+  // useAutoClearFlag(3000): se desactiva solo a los 3s con cleanup en unmount.
+  const [exitoValue, setExitoFlag] = useAutoClearFlag<true>(3000);
+  const exito = exitoValue === true;
+  const setExito = (v: boolean) => setExitoFlag(v ? true : null);
 
   const [form, setForm] = useState<{
     tipo_gestion: TipoGestion;
@@ -122,7 +126,7 @@ export default function TipificacionPage() {
       setForm({ tipo_gestion: "Consulta", resultado: "Pendiente", observacion: "" });
       setExito(true);
       cargar();
-      setTimeout(() => setExito(false), 3000);
+      // El timer de 3s lo arma useAutoClearFlag (cancelado en unmount).
     } else {
       setError("Error al guardar la tipificación.");
     }

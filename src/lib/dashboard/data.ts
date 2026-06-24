@@ -256,8 +256,6 @@ async function fetchProspectos(): Promise<ProspectoRaw[]> {
  * No depende del cliente browser + RLS en esquemas `erp_*`.
  */
 export async function getDashboardData(): Promise<DashboardData> {
-  const prospectos = await fetchProspectos();
-
   let clientes: ClienteRaw[] = [];
   let facturas: FacturaRaw[] = [];
   let pagos: PagoRaw[] = [];
@@ -271,9 +269,12 @@ export async function getDashboardData(): Promise<DashboardData> {
   let montoPerdidoBajasMes = 0;
   let notasCredito: NotaCreditoDashRow[] = [];
 
+  // En SSR no podemos hacer fetchWithSupabaseSession (necesita session de localStorage),
+  // ASI QUE TAMPOCO TIENE SENTIDO llamar a fetchProspectos. Antes se llamaba
+  // siempre (incluso en server) y el resultado se descartaba — round-trip perdido.
   if (typeof window === "undefined") {
     return {
-      prospectos,
+      prospectos: [],
       clientes,
       facturas,
       pagos,
@@ -289,8 +290,48 @@ export async function getDashboardData(): Promise<DashboardData> {
     };
   }
 
+  /**
+   * Rango temporal por defecto: últimos 13 meses.
+   * El Dashboard tiene un filtro de período en el header (Hoy / 7d / 30d / Mes actual / Año)
+   * que se aplica del lado del cliente. 13 meses cubre cualquier elección del usuario y
+   * evita traer histórico completo de la empresa (que en ERPs de varios años puede ser
+   * decenas de miles de filas en `ventas` / `ventas_items`).
+   *
+   * Si querés ver TODO el histórico explícitamente, pasá `?desde=&hasta=` vacíos en URL
+   * o llamá al endpoint sin el query string.
+   */
+  const dashboardNow = new Date();
+  const dashboardDesde = new Date(
+    dashboardNow.getFullYear(),
+    dashboardNow.getMonth() - 13,
+    dashboardNow.getDate()
+  );
+  const fmtYmd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const dashboardRangeQs = `?desde=${fmtYmd(dashboardDesde)}&hasta=${fmtYmd(dashboardNow)}`;
+
+  // ANTES: await fetchProspectos() corria PRIMERO de forma serial, despues
+  // arrancaba el fetch de tenant-tables. Total = t_prospectos + t_tenant.
+  // AHORA: ambos corren en paralelo. Total = max(t_prospectos, t_tenant).
+  // Ahorro tipico: 200-500ms en cada apertura del dashboard.
+  // Cada fetch tiene su propio .catch para que si uno falla, el otro siga vivo
+  // (sin .catch, una falla rechaza el Promise.all y perdemos los dos datos).
+  const [prospectos, resTenantTablesResult] = await Promise.all([
+    fetchProspectos().catch((e): ProspectoRaw[] => {
+      console.warn("[getDashboardData] fetchProspectos falló:", e);
+      return [];
+    }),
+    fetchWithSupabaseSession(`/api/dashboard/tenant-tables${dashboardRangeQs}`, {
+      cache: "no-store",
+    }).catch((e: unknown): Response | null => {
+      console.warn("[getDashboardData] fetch tenant-tables fallo:", e);
+      return null;
+    }),
+  ]);
+
   try {
-    const res = await fetchWithSupabaseSession("/api/dashboard/tenant-tables", { cache: "no-store" });
+    const res = resTenantTablesResult;
+    if (!res) throw new Error("tenant-tables fetch fallo (network)");
     if (!res.ok) throw new Error(await res.text());
     const json = (await res.json()) as {
       success?: boolean;

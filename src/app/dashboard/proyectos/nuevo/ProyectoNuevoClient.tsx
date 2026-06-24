@@ -147,7 +147,7 @@ export default function ProyectoNuevoClient() {
           ← Volver
         </Link>
       </div>
-      <h1 className="text-xl font-semibold text-slate-900">Nuevo proyecto</h1>
+      <h1 className="text-xl font-semibold text-slate-900">Nuevo pedido</h1>
 
       {err ? <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{err}</div> : null}
 

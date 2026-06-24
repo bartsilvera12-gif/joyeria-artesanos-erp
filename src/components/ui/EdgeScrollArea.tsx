@@ -10,17 +10,23 @@ import {
 
 export type EdgeScrollAreaProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
-  /** Ancho de la zona sensible en píxeles cerca de cada borde. */
+  /** Distancia desde el borde (en px) dentro de la cual se activa el auto-scroll. */
   edgeZone?: number;
-  /** Velocidad máxima de scroll en píxeles por frame (~60fps). */
+  /** Velocidad máxima de scroll por frame (px). */
   maxSpeed?: number;
-  /** Mostrar degradados sutiles en los bordes como hint visual. */
+  /** Si true, dibuja gradientes laterales como hint visual. */
   showHints?: boolean;
 };
 
 /**
- * Contenedor con scroll horizontal automático al acercar el cursor a los bordes.
- * Funciona junto con overflow-x-auto: el scroll manual sigue habilitado.
+ * Contenedor que hace auto-scroll horizontal cuando el mouse se acerca a los
+ * bordes laterales. Útil para tablas con muchas columnas, donde la barra de
+ * scroll nativa es engorrosa y el usuario querría arrastrar sin click+drag.
+ *
+ * Uso típico:
+ *   <EdgeScrollArea>
+ *     <table className="min-w-[900px]">...</table>
+ *   </EdgeScrollArea>
  */
 export default function EdgeScrollArea({
   children,
@@ -50,7 +56,6 @@ export default function EdgeScrollArea({
       const x = e.clientX - rect.left;
       const fromLeft = x;
       const fromRight = rect.width - x;
-
       let speed = 0;
       if (fromLeft < edgeZone) {
         const intensity = (edgeZone - fromLeft) / edgeZone;
@@ -59,9 +64,7 @@ export default function EdgeScrollArea({
         const intensity = (edgeZone - fromRight) / edgeZone;
         speed = Math.ceil(maxSpeed * intensity);
       }
-
       speedRef.current = speed;
-
       if (speed !== 0 && rafRef.current === null) {
         const step = () => {
           const node = containerRef.current;
@@ -70,7 +73,10 @@ export default function EdgeScrollArea({
             return;
           }
           const maxScroll = node.scrollWidth - node.clientWidth;
-          const next = Math.min(Math.max(node.scrollLeft + speedRef.current, 0), maxScroll);
+          const next = Math.min(
+            Math.max(node.scrollLeft + speedRef.current, 0),
+            maxScroll
+          );
           if (next === node.scrollLeft) {
             speedRef.current = 0;
             rafRef.current = null;
@@ -95,7 +101,7 @@ export default function EdgeScrollArea({
     <div className={`relative ${className}`} {...rest}>
       <div
         ref={containerRef}
-        className="overflow-x-auto"
+        className="overflow-x-auto overscroll-x-contain pb-2"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
