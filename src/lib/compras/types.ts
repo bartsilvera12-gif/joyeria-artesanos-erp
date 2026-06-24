@@ -33,4 +33,6 @@ export interface Compra {
   nro_timbrado: string;
 
   fecha: string;                 // ISO string, generado automáticamente
+
+  comprobante_storage_path?: string | null;
 }

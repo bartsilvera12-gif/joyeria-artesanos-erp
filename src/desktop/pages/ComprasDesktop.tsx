@@ -1,16 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCompras } from "@/lib/compras/storage";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
+import EdgeScrollArea from "@/components/ui/EdgeScrollArea";
+import { FancySelect } from "@/components/ui/FancySelect";
+import MobileFab from "@/components/ui/MobileFab";
 import type { Compra, TipoPago } from "@/lib/compras/types";
 
 const inputFilterClass =
   "border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none bg-white";
 
 function formatGs(valor: number) {
-  return `Gs. ${valor.toLocaleString("es-PY")}`;
+  return `Gs. ${Math.round(valor).toLocaleString("es-PY")}`;
 }
 
 function formatFecha(iso: string) {
@@ -32,57 +35,117 @@ const tipoPagoBadge: Record<TipoPago, string> = {
   credito: "bg-orange-50 text-orange-700",
 };
 
-const ivaLabel: Record<string, string> = {
-  exenta: "Exenta",
-  "5": "IVA 5%",
-  "10": "IVA 10%",
+// ── Agrupación por numero_control: 1 compra = N filas ─────────────────────────
+type GrupoCompra = {
+  numero_control: string;
+  proveedor_nombre: string;
+  fecha: string;
+  tipo_pago: TipoPago;
+  plazo_dias?: number;
+  items: Compra[];
+  total: number;
+  comprobante: boolean;
 };
+
+function agrupar(rows: Compra[]): GrupoCompra[] {
+  const map = new Map<string, GrupoCompra>();
+  for (const c of rows) {
+    const key = c.numero_control || c.id;
+    let g = map.get(key);
+    if (!g) {
+      g = {
+        numero_control: c.numero_control,
+        proveedor_nombre: c.proveedor_nombre,
+        fecha: c.fecha,
+        tipo_pago: c.tipo_pago,
+        plazo_dias: c.plazo_dias,
+        items: [],
+        total: 0,
+        comprobante: false,
+      };
+      map.set(key, g);
+    }
+    g.items.push(c);
+    g.total += Number(c.total) || 0;
+    if (c.comprobante_storage_path) g.comprobante = true;
+  }
+  return [...map.values()].sort(
+    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+  );
+}
+
+function resumenProductos(items: Compra[]): string {
+  if (items.length === 0) return "—";
+  if (items.length === 1) return items[0].producto_nombre;
+  return `${items[0].producto_nombre} + ${items.length - 1} más`;
+}
 
 export default function ComprasPage() {
   const [todas, setTodas] = useState<Compra[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipoPago, setFiltroTipoPago] = useState<TipoPago | "">("");
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const [cargandoLista, setCargandoLista] = useState(true);
 
   useEffect(() => {
     let cancel = false;
+    setCargandoLista(true);
     getCompras().then((data) => {
       if (cancel) return;
-      setTodas([...data].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
+      setTodas(data);
+    }).finally(() => {
+      if (!cancel) setCargandoLista(false);
     });
     return () => { cancel = true; };
   }, []);
 
-  const filtradas = todas.filter((c) => {
-    const texto = busqueda.toLowerCase();
-    const coincideTexto =
-      texto === "" ||
-      c.proveedor_nombre.toLowerCase().includes(texto) ||
-      c.producto_nombre.toLowerCase().includes(texto) ||
-      c.numero_control.toLowerCase().includes(texto);
-    const coincideTipoPago = filtroTipoPago === "" || c.tipo_pago === filtroTipoPago;
-    return coincideTexto && coincideTipoPago;
-  });
+  const grupos = useMemo(() => agrupar(todas), [todas]);
+
+  const filtrados = useMemo(() => {
+    const texto = busqueda.toLowerCase().trim();
+    return grupos.filter((g) => {
+      const coincideTexto =
+        texto === "" ||
+        g.proveedor_nombre.toLowerCase().includes(texto) ||
+        g.numero_control.toLowerCase().includes(texto) ||
+        g.items.some((i) => i.producto_nombre.toLowerCase().includes(texto));
+      const coincideTipoPago = filtroTipoPago === "" || g.tipo_pago === filtroTipoPago;
+      return coincideTexto && coincideTipoPago;
+    });
+  }, [grupos, busqueda, filtroTipoPago]);
 
   const hayFiltros = busqueda || filtroTipoPago;
+
+  function toggle(numero: string) {
+    setExpandidos((prev) => {
+      const next = new Set(prev);
+      if (next.has(numero)) next.delete(numero);
+      else next.add(numero);
+      return next;
+    });
+  }
 
   return (
     <div className="space-y-8">
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Compras</h1>
-        <p className="text-gray-600">Registro de órdenes de compra a proveedores</p>
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[#4FAEB2]"
+            style={{ boxShadow: "0 0 0 3px rgba(79, 174, 178, 0.18)" }} />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4FAEB2]">Zentra · Adquisiciones</p>
+        </div>
+        <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Compras</h1>
+        <p className="mt-0.5 text-xs text-slate-500">Registro de órdenes de compra a proveedores</p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-[#4FAEB2]/15 sm:p-5 lg:p-6">
 
-        <div className="flex justify-between items-center mb-5">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Órdenes de compra</h2>
           <div className="flex items-center gap-3">
             <ExportExcelButton url="/api/compras/export" />
-            <Link
-              href="/compras/nueva"
-              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-            >
+            <Link href="/compras/nueva"
+              className="rounded-lg bg-[#4FAEB2] px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-[#4FAEB2]/25 transition-colors hover:bg-[#3F8E91] active:scale-95">
               + Nueva compra
             </Link>
           </div>
@@ -90,111 +153,129 @@ export default function ComprasPage() {
 
         {/* Filtros */}
         <div className="flex flex-wrap items-center gap-3 mb-5 pb-5 border-b border-gray-100">
-          <input
-            type="text"
-            placeholder="Buscar por proveedor, producto o N° control..."
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            className={`${inputFilterClass} min-w-72`}
-          />
-          <select
-            value={filtroTipoPago}
-            onChange={(e) => setFiltroTipoPago(e.target.value as TipoPago | "")}
-            className={inputFilterClass}
-          >
-            <option value="">Todos los pagos</option>
-            <option value="contado">Contado</option>
-            <option value="credito">Crédito</option>
-          </select>
+          <input type="text" placeholder="Buscar por distribuidor, producto o N° control..."
+            value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+            className={`${inputFilterClass} min-w-0 flex-1 sm:min-w-72`} />
+          <FancySelect value={filtroTipoPago} onChange={(v) => setFiltroTipoPago(v as TipoPago | "")}
+            ariaLabel="Filtrar por tipo de pago" className="w-44" size="sm"
+            options={[
+              { value: "", label: "Todos los pagos" },
+              { value: "contado", label: "Contado" },
+              { value: "credito", label: "Crédito" },
+            ]} />
           {hayFiltros && (
-            <button
-              onClick={() => { setBusqueda(""); setFiltroTipoPago(""); }}
-              className="text-sm text-gray-400 hover:text-gray-600 transition-colors px-2"
-            >
+            <button onClick={() => { setBusqueda(""); setFiltroTipoPago(""); }}
+              className="text-sm text-gray-400 hover:text-gray-600 transition-colors px-2">
               Limpiar filtros
             </button>
           )}
           <span className="ml-auto text-sm text-gray-400">
-            {filtradas.length} de {todas.length} compras
+            {filtrados.length} de {grupos.length} compras
           </span>
         </div>
 
-        {/* Tabla */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        {/* Tabla agrupada por compra */}
+        <EdgeScrollArea>
+          <table className="w-full min-w-[760px] lg:min-w-0 text-left text-sm">
             <thead>
               <tr className="border-b text-gray-500">
                 <th className="py-3 pr-4 font-medium">N° Control</th>
-                <th className="py-3 pr-4 font-medium">Proveedor</th>
-                <th className="py-3 pr-4 font-medium">Producto</th>
-                <th className="py-3 pr-4 font-medium text-right">Cant.</th>
-                <th className="py-3 pr-4 font-medium text-right">Costo unit.</th>
-                <th className="py-3 pr-4 font-medium">IVA</th>
+                <th className="py-3 pr-4 font-medium">Distribuidor</th>
+                <th className="py-3 pr-4 font-medium">Productos</th>
+                <th className="py-3 pr-4 font-medium text-right">Ítems</th>
                 <th className="py-3 pr-4 font-medium text-right">Total</th>
-                <th className="py-3 pr-4 font-medium text-right">Margen</th>
-                <th className="py-3 pr-4 font-medium">Pago</th>
+                <th className="hidden py-3 pr-4 font-medium lg:table-cell">Pago</th>
                 <th className="py-3 font-medium">Fecha</th>
               </tr>
             </thead>
             <tbody>
-              {filtradas.length === 0 ? (
+              {cargandoLista ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-gray-400">
-                    {todas.length === 0
-                      ? "No hay compras registradas"
-                      : "Ninguna compra coincide con los filtros"}
+                  <td colSpan={7} className="py-12 text-center text-sm text-slate-400">
+                    <div className="inline-flex items-center gap-2">
+                      <svg className="h-4 w-4 animate-spin text-[#4FAEB2]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                        <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Cargando compras…
+                    </div>
+                  </td>
+                </tr>
+              ) : filtrados.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                    {grupos.length === 0 ? "No hay compras registradas" : "Ninguna compra coincide con los filtros"}
                   </td>
                 </tr>
               ) : (
-                filtradas.map((c) => (
-                  <tr key={c.id} className="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors">
-                    <td className="py-4 pr-4 font-mono text-xs text-gray-500">
-                      {c.numero_control}
-                    </td>
-                    <td className="py-4 pr-4 font-medium text-gray-800">
-                      {c.proveedor_nombre}
-                    </td>
-                    <td className="py-4 pr-4 text-gray-600">{c.producto_nombre}</td>
-                    <td className="py-4 pr-4 text-right tabular-nums text-gray-700">
-                      {c.cantidad}
-                    </td>
-                    <td className="py-4 pr-4 text-right tabular-nums text-gray-600 text-xs">
-                      {c.moneda === "USD" && c.costo_unitario_original != null ? (
-                        <span>
-                          USD {c.costo_unitario_original.toLocaleString("es-PY")}
-                          <br />
-                          <span className="text-gray-400">≈ {formatGs(c.costo_unitario)}</span>
-                        </span>
-                      ) : (
-                        formatGs(c.costo_unitario ?? c.total)
-                      )}
-                    </td>
-                    <td className="py-4 pr-4 text-xs text-gray-500">
-                      {c.iva_tipo ? ivaLabel[c.iva_tipo] : "—"}
-                    </td>
-                    <td className="py-4 pr-4 text-right tabular-nums font-semibold text-gray-800">
-                      {formatGs(c.total)}
-                    </td>
-                    <td className="py-4 pr-4 text-right tabular-nums text-sm font-medium text-green-600">
-                      {c.margen_venta != null ? `${c.margen_venta.toFixed(1)}%` : "—"}
-                    </td>
-                    <td className="py-4 pr-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${c.tipo_pago ? tipoPagoBadge[c.tipo_pago] : "bg-gray-100 text-gray-500"}`}>
-                        {c.tipo_pago === "contado" ? "Contado" : c.tipo_pago === "credito" ? `Crédito ${c.plazo_dias ?? ""}d` : "—"}
-                      </span>
-                    </td>
-                    <td className="py-4 text-gray-500 text-xs tabular-nums">
-                      {formatFecha(c.fecha)}
-                    </td>
-                  </tr>
-                ))
+                filtrados.map((g) => {
+                  const abierto = expandidos.has(g.numero_control);
+                  const multi = g.items.length > 1;
+                  return (
+                    <FragmentRow key={g.numero_control}>
+                      <tr
+                        className={`border-b border-slate-200 transition-colors hover:bg-[#4FAEB2]/[0.04] ${multi ? "cursor-pointer" : ""}`}
+                        onClick={() => multi && toggle(g.numero_control)}
+                      >
+                        <td className="py-4 pr-4 font-mono text-xs text-gray-500">
+                          {multi && <span className="mr-1 inline-block text-gray-400">{abierto ? "▾" : "▸"}</span>}
+                          {g.numero_control}
+                        </td>
+                        <td className="py-4 pr-4 font-medium text-gray-800">{g.proveedor_nombre}</td>
+                        <td className="py-4 pr-4 text-gray-600">
+                          <div>{resumenProductos(g.items)}</div>
+                          {g.comprobante && (
+                            <a
+                              href={`/api/compras/comprobante?numero_control=${encodeURIComponent(g.numero_control)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-[#4FAEB2] hover:text-[#3F8E91] hover:underline"
+                            >
+                              📎 Ver comprobante
+                            </a>
+                          )}
+                        </td>
+                        <td className="py-4 pr-4 text-right tabular-nums text-gray-700">{g.items.length}</td>
+                        <td className="py-4 pr-4 text-right tabular-nums font-semibold text-gray-800">{formatGs(g.total)}</td>
+                        <td className="hidden py-4 pr-4 lg:table-cell">
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${g.tipo_pago ? tipoPagoBadge[g.tipo_pago] : "bg-gray-100 text-gray-500"}`}>
+                            {g.tipo_pago === "contado" ? "Contado" : g.tipo_pago === "credito" ? `Crédito ${g.plazo_dias ?? ""}d` : "—"}
+                          </span>
+                        </td>
+                        <td className="py-4 text-gray-500 text-xs tabular-nums">{formatFecha(g.fecha)}</td>
+                      </tr>
+
+                      {abierto && multi && g.items.map((it) => (
+                        <tr key={it.id} className="border-b border-slate-100 bg-slate-50/50 text-xs">
+                          <td className="py-2 pr-4" />
+                          <td className="py-2 pr-4" />
+                          <td className="py-2 pr-4 text-gray-700">
+                            <span className="font-medium">{it.producto_nombre}</span>
+                            <span className="ml-2 font-mono text-gray-400">{formatGs(it.costo_unitario)}/u</span>
+                          </td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-gray-600">{it.cantidad}</td>
+                          <td className="py-2 pr-4 text-right tabular-nums text-gray-700">{formatGs(it.total)}</td>
+                          <td className="hidden lg:table-cell" />
+                          <td />
+                        </tr>
+                      ))}
+                    </FragmentRow>
+                  );
+                })
               )}
             </tbody>
           </table>
-        </div>
+        </EdgeScrollArea>
 
       </div>
 
+      <MobileFab href="/compras/nueva" label="Nueva compra" />
     </div>
   );
+}
+
+/** Wrapper para agrupar fila principal + filas de detalle sin <div> en <tbody>. */
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }

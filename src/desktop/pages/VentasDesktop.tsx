@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import EdgeScrollArea from "@/components/ui/EdgeScrollArea";
+import { FancySelect } from "@/components/ui/FancySelect";
+import MobileFab from "@/components/ui/MobileFab";
 import { getVentas } from "@/lib/ventas/storage";
+import PedidosPendientesCaja from "@/app/ventas/PedidosPendientesCaja";
+import { esMismoDiaAsuncion } from "@/lib/fecha/asuncion";
 import type { Venta, TipoVenta, TipoIvaVenta } from "@/lib/ventas/types";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -44,14 +49,11 @@ const ivaLabel: Record<TipoIvaVenta, string> = {
 // ── Métricas del día ──────────────────────────────────────────────────────────
 
 function esDeHoy(iso: string): boolean {
+  // Compara por día calendario de Paraguay (America/Asuncion), no por el TZ del
+  // runtime: una venta hecha de noche PY se guarda con fecha UTC del día siguiente
+  // y con `getDate()` local se contaría/descartaría mal.
   try {
-    const fecha = new Date(iso);
-    const hoy   = new Date();
-    return (
-      fecha.getFullYear() === hoy.getFullYear() &&
-      fecha.getMonth()    === hoy.getMonth()    &&
-      fecha.getDate()     === hoy.getDate()
-    );
+    return esMismoDiaAsuncion(iso);
   } catch {
     return false;
   }
@@ -84,18 +86,22 @@ function MetricCard({
   label: string; value: string; sub?: string; accent?: boolean;
 }) {
   return (
-    <div className={`rounded-xl border px-5 py-4 flex flex-col gap-1 ${
-      accent ? "bg-[#0EA5E9] border-[#0EA5E9]" : "bg-white border-slate-200"
+    <div className={`rounded-2xl border px-5 py-4 flex flex-col gap-1 shadow-sm ${
+      accent
+        ? "bg-[#4FAEB2] border-[#4FAEB2] ring-1 ring-[#4FAEB2]/25"
+        : "bg-white border-[#4FAEB2]/30 ring-1 ring-[#4FAEB2]/10"
     }`}>
-      <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+      <span className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${
+        accent ? "text-white/90" : "text-[#4FAEB2]"
+      }`}>
         {label}
       </span>
       <span className={`text-2xl font-bold tabular-nums leading-tight ${
-        accent ? "text-white" : "text-gray-800"
+        accent ? "text-white" : "text-[#3F8E91]"
       }`}>
         {value}
       </span>
-      {sub && <span className="text-xs text-gray-400">{sub}</span>}
+      {sub && <span className={`text-xs ${accent ? "text-white/80" : "text-slate-500"}`}>{sub}</span>}
     </div>
   );
 }
@@ -142,9 +148,11 @@ export default function VentasPage() {
   const [busqueda,   setBusqueda]   = useState("");
   const [filtroTipo, setFiltroTipo] = useState<TipoVenta | "">("");
   const [filtroIva,  setFiltroIva]  = useState<TipoIvaVenta | "">("");
+  const [cargandoLista, setCargandoLista] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    setCargandoLista(true);
     getVentas().then((data) => {
       if (cancelled) return;
       const ordenadas = [...data].sort((a, b) => {
@@ -153,6 +161,8 @@ export default function VentasPage() {
         return tb - ta || b.numero_control.localeCompare(a.numero_control);
       });
       setTodas(ordenadas);
+    }).finally(() => {
+      if (!cancelled) setCargandoLista(false);
     });
     return () => {
       cancelled = true;
@@ -188,9 +198,21 @@ export default function VentasPage() {
     <div className="space-y-8">
 
       <div>
-        <h1 className="text-3xl font-bold text-gray-800">Ventas</h1>
-        <p className="text-gray-600">Registro de ventas y salidas de inventario</p>
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="inline-block h-1.5 w-1.5 rounded-full bg-[#4FAEB2]"
+            style={{ boxShadow: "0 0 0 3px rgba(79, 174, 178, 0.18)" }}
+          />
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4FAEB2]">
+            Zentra · Operaciones
+          </p>
+        </div>
+        <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Caja</h1>
+        <p className="mt-0.5 text-xs text-slate-500">Cobro, facturación y cierre de pedidos</p>
       </div>
+
+      <PedidosPendientesCaja />
 
       {/* ── Métricas del día ──────────────────────────────────────────────────── */}
       <div>
@@ -198,9 +220,10 @@ export default function VentasPage() {
           Resumen de hoy —{" "}
           {new Date().toLocaleDateString("es-PY", {
             weekday: "long", day: "numeric", month: "long", year: "numeric",
+            timeZone: "America/Asuncion",
           })}
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             label="Facturación de hoy"
             value={`Gs. ${metricas.facturacion.toLocaleString("es-PY")}`}
@@ -230,9 +253,9 @@ export default function VentasPage() {
       </div>
 
       {/* ── Tabla de ventas ───────────────────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-[#4FAEB2]/15 sm:p-5 lg:p-6">
 
-        <div className="flex justify-between items-center mb-5">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Órdenes de venta</h2>
           <Link
             href="/ventas/nueva"
@@ -249,27 +272,33 @@ export default function VentasPage() {
             placeholder="Buscar por número, producto o SKU..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            className={`${inputFilterClass} min-w-64`}
+            className={`${inputFilterClass} min-w-0 flex-1 sm:min-w-64`}
           />
-          <select
+          <FancySelect
             value={filtroTipo}
-            onChange={(e) => setFiltroTipo(e.target.value as TipoVenta | "")}
-            className={inputFilterClass}
-          >
-            <option value="">Todos los tipos</option>
-            <option value="CONTADO">Contado</option>
-            <option value="CREDITO">Crédito</option>
-          </select>
-          <select
+            onChange={(v) => setFiltroTipo(v as TipoVenta | "")}
+            ariaLabel="Filtrar por tipo de venta"
+            className="w-44"
+            size="sm"
+            options={[
+              { value: "", label: "Todos los tipos" },
+              { value: "CONTADO", label: "Contado" },
+              { value: "CREDITO", label: "Crédito" },
+            ]}
+          />
+          <FancySelect
             value={filtroIva}
-            onChange={(e) => setFiltroIva(e.target.value as TipoIvaVenta | "")}
-            className={inputFilterClass}
-          >
-            <option value="">Todos los IVA</option>
-            <option value="EXENTA">Exenta</option>
-            <option value="5%">IVA 5%</option>
-            <option value="10%">IVA 10%</option>
-          </select>
+            onChange={(v) => setFiltroIva(v as TipoIvaVenta | "")}
+            ariaLabel="Filtrar por IVA"
+            className="w-44"
+            size="sm"
+            options={[
+              { value: "", label: "Todos los IVA" },
+              { value: "EXENTA", label: "Exenta" },
+              { value: "5%", label: "IVA 5%" },
+              { value: "10%", label: "IVA 10%" },
+            ]}
+          />
           {hayFiltros && (
             <button
               onClick={() => { setBusqueda(""); setFiltroTipo(""); setFiltroIva(""); }}
@@ -283,25 +312,40 @@ export default function VentasPage() {
           </span>
         </div>
 
-        {/* Tabla */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+        {/* Tabla — min-w fuerza scroll horizontal en mobile; columnas secundarias
+            (Items, Cant total, IVA, Pago) se ocultan progresivamente. */}
+        <EdgeScrollArea>
+          <table className="w-full min-w-[760px] lg:min-w-0 text-left text-sm">
             <thead>
               <tr className="bg-slate-50 text-slate-600 text-sm font-semibold">
                 <th className="py-3 pr-4 font-medium">Número</th>
                 <th className="py-3 pr-4 font-medium">Productos</th>
-                <th className="py-3 pr-4 font-medium text-center">Ítems</th>
-                <th className="py-3 pr-4 font-medium text-right">Cant. total</th>
-                <th className="py-3 pr-4 font-medium">IVA</th>
+                <th className="hidden py-3 pr-4 text-center font-medium lg:table-cell">Ítems</th>
+                <th className="py-3 pr-4 font-medium text-right hidden lg:table-cell">Cant. total</th>
+                <th className="py-3 pr-4 font-medium hidden lg:table-cell">IVA</th>
                 <th className="py-3 pr-4 font-medium text-right">Total</th>
-                <th className="py-3 pr-4 font-medium">Tipo</th>
-                <th className="py-3 font-medium">Fecha</th>
+                <th className="hidden py-3 pr-4 font-medium lg:table-cell">Tipo</th>
+                <th className="hidden py-3 pr-4 font-medium lg:table-cell">Pago</th>
+                <th className="py-3 pr-4 font-medium">Fecha</th>
+                <th className="py-3 font-medium text-center">Ticket</th>
               </tr>
             </thead>
             <tbody>
-              {filtradas.length === 0 ? (
+              {cargandoLista ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-400">
+                  <td colSpan={10} className="py-12 text-center text-sm text-slate-400">
+                    <div className="inline-flex items-center gap-2">
+                      <svg className="h-4 w-4 animate-spin text-[#4FAEB2]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                        <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Cargando ventas…
+                    </div>
+                  </td>
+                </tr>
+              ) : filtradas.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-12 text-center text-gray-400">
                     {todas.length === 0
                       ? "No hay ventas registradas"
                       : "Ninguna venta coincide con los filtros"}
@@ -311,22 +355,22 @@ export default function VentasPage() {
                 filtradas.map((v) => {
                   const cantTotal = v.items.reduce((s, i) => s + i.cantidad, 0);
                   return (
-                    <tr key={v.id} className="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors">
+                    <tr key={v.id} className="border-b border-slate-200 last:border-0 hover:bg-[#4FAEB2]/[0.04] transition-colors">
                       <td className="py-4 pr-4 font-mono text-xs text-gray-500 align-middle">
                         {v.numero_control}
                       </td>
                       <td className="py-4 pr-4 align-middle">
                         <ResumenProductos v={v} />
                       </td>
-                      <td className="py-4 pr-4 text-center align-middle">
+                      <td className="hidden py-4 pr-4 text-center align-middle lg:table-cell">
                         <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-xs font-semibold text-gray-600">
                           {v.items.length}
                         </span>
                       </td>
-                      <td className="py-4 pr-4 text-right tabular-nums text-gray-700 align-middle">
+                      <td className="py-4 pr-4 text-right tabular-nums text-gray-700 align-middle hidden lg:table-cell">
                         {cantTotal}
                       </td>
-                      <td className="py-4 pr-4 align-middle">
+                      <td className="py-4 pr-4 align-middle hidden lg:table-cell">
                         <span className="px-2 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
                           {ivaResumen(v)}
                         </span>
@@ -334,15 +378,45 @@ export default function VentasPage() {
                       <td className="py-4 pr-4 text-right tabular-nums font-semibold text-gray-800 align-middle">
                         {formatGs(v.total)}
                       </td>
-                      <td className="py-4 pr-4 align-middle">
+                      <td className="hidden py-4 pr-4 align-middle lg:table-cell">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${tipoVentaBadge[v.tipo_venta]}`}>
                           {v.tipo_venta === "CONTADO"
                             ? "Contado"
                             : `Crédito ${v.plazo_dias ?? ""}d`}
                         </span>
                       </td>
-                      <td className="py-4 text-gray-500 text-xs tabular-nums align-middle">
+                      <td className="hidden py-4 pr-4 align-middle text-xs text-gray-600 lg:table-cell">
+                        {v.metodo_pago === "tarjeta" ? "Tarjeta"
+                          : v.metodo_pago === "transferencia" ? "Transfer."
+                          : v.metodo_pago === "efectivo" ? "Efectivo"
+                          : "—"}
+                      </td>
+                      <td className="py-4 pr-4 text-gray-500 text-xs tabular-nums align-middle">
                         {formatFecha(v.fecha)}
+                      </td>
+                      <td className="py-4 text-center align-middle">
+                        <div className="inline-flex items-center gap-1.5">
+                          <a
+                            href={`/api/ventas/${v.id}/ticket?mode=comandas`}
+                            target="_blank"
+                            rel="noopener"
+                            className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                            title="Abrir comandas + ticket cliente"
+                          >
+                            Imprimir
+                          </a>
+                          {v.genera_nota_remision && (
+                            <a
+                              href={`/api/ventas/${v.id}/ticket?tipo=remision`}
+                              target="_blank"
+                              rel="noopener"
+                              className="inline-flex items-center justify-center rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100 transition-colors"
+                              title="Nota de remisión (documento no fiscal)"
+                            >
+                              Nota de remisión
+                            </a>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -350,10 +424,12 @@ export default function VentasPage() {
               )}
             </tbody>
           </table>
-        </div>
+        </EdgeScrollArea>
 
       </div>
 
+      {/* FAB mobile: acceso 1-tap a "+ Nueva venta" desde cualquier scroll position */}
+      <MobileFab href="/ventas/nueva" label="Nueva venta" />
     </div>
   );
 }
