@@ -3,6 +3,30 @@ import { isErpRolSupervisor } from "@/lib/usuarios/erp-rol-normalize";
 export type ModuloRow = { id: string; nombre: string; slug: string };
 
 /**
+ * Modo de instancia dedicada single-client (ej. Elevate).
+ *
+ * Cuando `NEURA_INSTANCE_MODE=single_client`, la resolución de módulos aplica
+ * una allowlist estricta SOLO a nivel empresa:
+ *   - Sin filas en `empresa_modulos` ⇒ ningún módulo (NO fallback al catálogo
+ *     completo, a diferencia del modo multitenant legacy).
+ *   - Si un módulo no tiene fila en `empresa_modulos` o tiene `activo=false`,
+ *     queda bloqueado para todos.
+ *
+ * Importante: la allowlist estricta NO se aplica a `usuario_modulos`. Un
+ * usuario sin filas en `usuario_modulos` HEREDA los módulos activos de la
+ * empresa (comportamiento natural — usuarios sin permisos granulares ven
+ * todo lo que la empresa tiene activo). Filtrar a `[]` rebotaría al usuario
+ * fuera del ERP en el caso por defecto.
+ *
+ * El modo no-single_client mantiene el comportamiento legacy retrocompatible.
+ */
+export function isStrictAllowlistMode(): boolean {
+  if (typeof process === "undefined") return false;
+  const v = (process.env.NEURA_INSTANCE_MODE ?? "").trim().toLowerCase();
+  return v === "single_client";
+}
+
+/**
  * Cliente Supabase para consultas a tablas ERP en PostgREST.
  * Debe ser `any` aquí: en Vercel/TS estricto, `SupabaseClient<…, "zentra_erp", …>` no asigna a
  * alias con genéricos y rompe el build al pasar `createClient(..., { db: { schema: "zentra_erp" } })`.
@@ -92,9 +116,15 @@ export async function resolveEffectiveModules(
     ),
   ];
 
-  /** Sin filas en empresa_modulos: misma UX que “ERP completo” (empresas nuevas / legado). */
+  /**
+   * Single-client (NEURA_INSTANCE_MODE=single_client): allowlist estricta. Sin
+   * filas en empresa_modulos ⇒ ningún módulo. NO fallback al catálogo completo.
+   *
+   * Modo legacy: misma UX que "ERP completo" para empresas nuevas / legado.
+   */
+  const strict = isStrictAllowlistMode();
   let effectiveEmpresaModuloIds = empresaModuloIds;
-  if (effectiveEmpresaModuloIds.length === 0) {
+  if (effectiveEmpresaModuloIds.length === 0 && !strict) {
     effectiveEmpresaModuloIds = await allModuloIdsFromCatalog(supabase);
   }
   if (effectiveEmpresaModuloIds.length === 0) return [];
@@ -120,7 +150,13 @@ export async function resolveEffectiveModules(
 
   let moduloIds: string[];
   if (userIds.length === 0) {
-    /** Retrocompat: sin usuario_modulos → todos los módulos habilitados para la empresa. */
+    /**
+     * Sin filas en usuario_modulos: HEREDAR los módulos activos de la empresa.
+     * Aplica igual en modo strict y legacy — la allowlist estricta solo gatea
+     * a nivel empresa_modulos, no a nivel usuario. Filtrar a [] aquí dejaría
+     * sin acceso a usuarios non-admin que aún no tienen permisos granulares
+     * y los rebotaría fuera del ERP.
+     */
     moduloIds = effectiveEmpresaModuloIds;
   } else {
     const empresaSet = new Set(effectiveEmpresaModuloIds);

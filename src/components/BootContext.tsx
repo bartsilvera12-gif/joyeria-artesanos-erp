@@ -1,43 +1,34 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useState } from "react";
 
-/**
- * Context para sincronizar el loader inicial + el estado del Sidebar mobile.
- *
- * - sidebarReady: el Sidebar ya cargo modulos (loader inicial puede cerrarse).
- * - mobileSidebarOpen: el Sidebar esta abierto como drawer en mobile.
- *
- * El loader del AuthGuard espera sidebarReady para desaparecer.
- * El Header expone un boton hamburger que abre/cierra mobileSidebarOpen.
- * El Sidebar lee mobileSidebarOpen para renderizarse fijo o como drawer.
- */
 type BootContextValue = {
+  /** El Sidebar terminó de cargar los módulos del usuario. */
   sidebarReady: boolean;
+  /** Marca el estado de carga del sidebar. true = listo, false = volvió a cargar. */
   setSidebarReady: (v: boolean) => void;
-  mobileSidebarOpen: boolean;
-  setMobileSidebarOpen: (v: boolean) => void;
 };
 
 const BootContext = createContext<BootContextValue>({
   sidebarReady: false,
   setSidebarReady: () => {},
-  mobileSidebarOpen: false,
-  setMobileSidebarOpen: () => {},
 });
 
-export function BootProvider({ children }: { children: ReactNode }) {
-  const [sidebarReady, setSidebarReady] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  // useMemo evita crear un objeto nuevo en cada render del Provider:
-  // sin esto, todos los consumers (Sidebar, Header, AuthGuard) se re-renderizaban
-  // por cualquier cambio del shell, aunque sus props no cambiaran.
-  const value = useMemo(
-    () => ({ sidebarReady, setSidebarReady, mobileSidebarOpen, setMobileSidebarOpen }),
-    [sidebarReady, mobileSidebarOpen],
-  );
+/**
+ * Provider de señales de arranque del shell. Permite al AuthGuard mantener
+ * la pantalla de carga visible hasta que el Sidebar haya completado su
+ * fetch de módulos. Se mantiene reactivo a recargas posteriores (p. ej.
+ * al volver a la pestaña, supabase emite un auth event que recarga el
+ * menú; mostramos el loader durante esa recarga también).
+ */
+export function BootProvider({ children }: { children: React.ReactNode }) {
+  // Default true: NO bloqueamos el primer paint esperando al Sidebar. El sidebar
+  // tiene su propio skeleton interno mientras carga los módulos. En mobile, el
+  // Sidebar ni siquiera se monta — antes el loader quedaba colgado para siempre.
+  const [sidebarReady, setSidebarReady] = useState(true);
+
   return (
-    <BootContext.Provider value={value}>
+    <BootContext.Provider value={{ sidebarReady, setSidebarReady }}>
       {children}
     </BootContext.Provider>
   );
