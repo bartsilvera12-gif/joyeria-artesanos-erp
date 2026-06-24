@@ -26,6 +26,10 @@ import { ClienteDatosSifenReceptorForm } from "@/components/clientes/ClienteDato
 import type { ClienteTipoServicioRow } from "@/lib/clientes/tipo-servicio-catalogo";
 import { filasTiposDesdeSistemaEstatico, fetchTiposFormCliente } from "@/lib/clientes/fetch-tipos-servicio-form";
 import type { Plan } from "@/lib/planes/types";
+import { SUPABASE_APP_SCHEMA as NEURA_CLIENT_SCHEMA } from "@/lib/supabase/schema";
+
+/** Instancia monocliente Reserva: formulario de clientes simplificado (sin campos SaaS/Neura). */
+const SIMPLE_CLIENTE = NEURA_CLIENT_SCHEMA === "reservacaacupe";
 
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +84,7 @@ function NuevoClienteForm() {
     prospecto_id:          null as string | null,
     tipo_servicio_cliente: "" as string,
     estado:                "activo" as "activo" | "inactivo",
+    usa_nota_remision:     false,
     sifen_receptor_manual: false,
     sifen_receptor_naturaleza: "" as string,
     sifen_ti_ope: "" as string,
@@ -319,6 +324,7 @@ function NuevoClienteForm() {
       condicion_pago: form.condicion_pago.trim().toUpperCase() || undefined,
       moneda_preferida: form.moneda_preferida,
       estado: form.estado,
+      usa_nota_remision: form.usa_nota_remision,
       plan_comercial_id: formSusc.plan_id.trim() || null,
       vendedor_asignado: form.vendedor_asignado.trim().toUpperCase() || undefined,
       vendedor_usuario_id: form.vendedor_usuario_id.trim() || null,
@@ -451,6 +457,7 @@ function NuevoClienteForm() {
               </div>
             )}
 
+            {!SIMPLE_CLIENTE && (
             <div>
               <label className={labelClass}>Tipo de servicio</label>
               <select
@@ -467,8 +474,9 @@ function NuevoClienteForm() {
                 ))}
               </select>
             </div>
+            )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>
                   {form.tipo_cliente === "empresa" ? "Persona de contacto" : "Nombre completo"}{" "}
@@ -515,7 +523,7 @@ function NuevoClienteForm() {
           <section className="space-y-4">
             <SectionTitle>Contacto</SectionTitle>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>Teléfono principal</label>
                 <input
@@ -540,7 +548,7 @@ function NuevoClienteForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>Email principal</label>
                 <input
@@ -577,7 +585,18 @@ function NuevoClienteForm() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={form.usa_nota_remision}
+                onChange={(e) => setForm((p) => ({ ...p, usa_nota_remision: e.target.checked }))}
+                className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+              />
+              Usa nota de remisión
+              <span className="text-xs text-slate-400">(se generará junto al ticket al venderle)</span>
+            </label>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className={labelClass}>Ciudad</label>
                 <input
@@ -601,6 +620,7 @@ function NuevoClienteForm() {
               </div>
             </div>
 
+            {!SIMPLE_CLIENTE && (
             <ClienteDatosSifenReceptorForm
               value={{
                 sifen_receptor_manual: form.sifen_receptor_manual,
@@ -667,13 +687,14 @@ function NuevoClienteForm() {
                 });
               }}
             />
+            )}
           </section>
 
           {/* ── Datos comerciales ────────────────────────────────────────── */}
           <section className="space-y-4">
             <SectionTitle>Datos comerciales</SectionTitle>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className={`grid gap-4 ${SIMPLE_CLIENTE ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-3"}`}>
               <div>
                 <label className={labelClass}>Condición de pago</label>
                 <select
@@ -687,7 +708,7 @@ function NuevoClienteForm() {
                   <option value="30 DÍAS">30 días</option>
                   <option value="60 DÍAS">60 días</option>
                   <option value="90 DÍAS">90 días</option>
-                  <option value="MENSUAL">Mensual</option>
+                  {!SIMPLE_CLIENTE && <option value="MENSUAL">Mensual</option>}
                 </select>
               </div>
               <div>
@@ -702,6 +723,7 @@ function NuevoClienteForm() {
                   <option value="USD">Dólares (USD)</option>
                 </select>
               </div>
+              {!SIMPLE_CLIENTE && (
               <div>
                 <label className={labelClass}>Vendedor responsable (usuario ERP)</label>
                 <select
@@ -723,6 +745,8 @@ function NuevoClienteForm() {
                   <p className="mt-1 text-xs text-slate-500">No hay usuarios activos disponibles para asignar.</p>
                 ) : null}
               </div>
+              )}
+              {!SIMPLE_CLIENTE && (
               <div>
                 <label className={labelClass}>Vendedor asignado (texto libre)</label>
                 <input
@@ -734,9 +758,11 @@ function NuevoClienteForm() {
                   className={`${inputClass} uppercase`}
                 />
               </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {!SIMPLE_CLIENTE && (
               <div>
                 <label className={labelClass}>Origen del cliente</label>
                 <select
@@ -751,6 +777,7 @@ function NuevoClienteForm() {
                   <option value="VENTA">Venta</option>
                 </select>
               </div>
+              )}
               <div>
                 <label className={labelClass}>Estado inicial</label>
                 <select
@@ -765,6 +792,7 @@ function NuevoClienteForm() {
               </div>
             </div>
 
+            {!SIMPLE_CLIENTE && (
             <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
               <SectionTitle>Plan</SectionTitle>
               <div>
@@ -790,6 +818,7 @@ function NuevoClienteForm() {
                 </select>
               </div>
             </div>
+            )}
 
             {/* Campos factura inicial Contado */}
             {form.condicion_pago === "CONTADO" && (
@@ -853,7 +882,7 @@ function NuevoClienteForm() {
                     min={1}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
                     <label className={labelClass}>Día facturación (1–28)</label>
                     <input

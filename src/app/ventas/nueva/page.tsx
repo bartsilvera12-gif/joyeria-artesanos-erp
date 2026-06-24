@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import MontoInput from "@/components/ui/MontoInput";
 import ProductPickerModal, { type ProductoPickerItem, type AgregarVentaPayload } from "@/components/inventario/ProductPickerModal";
-import { saveVenta } from "@/lib/ventas/storage";
+import { saveVenta, type FaltanteStock } from "@/lib/ventas/storage";
 import { getProductos } from "@/lib/inventario/storage";
-import type { TipoIvaVenta, TipoVenta, MonedaVenta, LineaVenta } from "@/lib/ventas/types";
+import { generarYAbrirRecibo } from "@/lib/recibos/client";
+import type { TipoIvaVenta, TipoVenta, MonedaVenta, LineaVenta, MetodoPago, TipoPrecioVenta } from "@/lib/ventas/types";
 import type { Producto } from "@/lib/inventario/types";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -16,28 +17,40 @@ function formatGs(valor: number) {
 }
 
 /**
- * IVA INCLUIDO en el precio.
- *
- * Regla de negocio Elevate: el precio de venta cargado en el ERP ya incluye
- * IVA. Si el vendedor ingresa Gs. 670.000 con IVA 10%, el total de la línea
- * es Gs. 670.000 — el IVA es un COMPONENTE interno (Gs. 60.909 aprox), no se
- * suma encima.
- *
- * Fórmula:
- *   IVA incluido = total_con_iva - total_con_iva / (1 + tasa)
- *   - 10% → total/11 ≈ 9.09% del total final
- *   -  5% → total/21 ≈ 4.76% del total final
- *   EXENTA → 0
- *
- * Devuelve el monto de IVA contenido en `totalConIva`. La base imponible
- * (subtotal SET) se obtiene como `totalConIva - ivaIncluido`.
+ * IVA INFORMATIVO (Autorepuestos Felix Bogado): el precio NO incluye IVA y el
+ * IVA tampoco se suma al total. `subtotal` es precio × cantidad y `total línea`
+ * es igual al subtotal. Sólo se calcula el monto de IVA para mostrarlo a modo
+ * informativo (subtotal × tasa).
+ *   EXENTA → 0 · 5% → subtotal × 0.05 · 10% → subtotal × 0.10
  */
-function ivaIncluido(tipo: TipoIvaVenta, totalConIva: number) {
+function calcIva(tipo: TipoIvaVenta, subtotal: number) {
   if (tipo === "EXENTA") return 0;
-  if (totalConIva <= 0)  return 0;
-  const tasa = tipo === "5%" ? 0.05 : 0.10;
-  return totalConIva - totalConIva / (1 + tasa);
+  if (tipo === "5%")     return subtotal * 0.05;
+  return subtotal * 0.10;
 }
+
+/**
+ * Precio unitario (Gs.) según el tipo elegido, con fallbacks:
+ *  minorista → precio_venta;
+ *  mayorista → precio_mayorista (>0) o fallback a precio_venta;
+ *  costo     → costo_promedio.
+ */
+function precioPorTipo(p: Producto, tipo: TipoPrecioVenta): number {
+  if (tipo === "mayorista") return p.precio_mayorista != null && p.precio_mayorista > 0 ? p.precio_mayorista : p.precio_venta;
+  if (tipo === "distribuidor") return p.precio_distribuidor != null && p.precio_distribuidor > 0 ? p.precio_distribuidor : p.precio_venta;
+  if (tipo === "costo") return p.costo_promedio ?? 0; // histórico: ya no se ofrece en la UI
+  return p.precio_venta;
+}
+
+/** Tipos de precio ofrecidos en la UI (sin 'costo', que queda solo como histórico). */
+const TIPOS_PRECIO_UI: TipoPrecioVenta[] = ["minorista", "mayorista", "distribuidor"];
+
+const tipoPrecioLabel: Record<TipoPrecioVenta, string> = {
+  minorista: "Minorista",
+  mayorista: "Mayorista",
+  distribuidor: "Distribuidor",
+  costo: "Al costo",
+};
 
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
@@ -97,41 +110,64 @@ const ivaLabel: Record<TipoIvaVenta, string> = {
 
 export default function NuevaVentaPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const pedidoWebId = searchParams.get("pedido_web_id");
 
   // ── Estado global ──────────────────────────────────────────────────────────
   const [productos, setProductos]   = useState<Producto[]>([]);
   const [items, setItems]           = useState<LineaVenta[]>([]);
   const [errorLinea, setErrorLinea] = useState<string | null>(null);
   const [errorVenta, setErrorVenta] = useState<string | null>(null);
-  /** Bloquea doble click en "Confirmar venta" mientras el POST a /api/ventas/create
-   *  está en vuelo. El backend tiene transacción + lock FOR UPDATE pero NO usa
-   *  client_request_id idempotente — la mejor defensa es no permitir 2 submits. */
-  const [submitting, setSubmitting] = useState(false);
+  // Venta sin stock: faltantes devueltos por el backend + modal de confirmación.
+  const [faltantes, setFaltantes] = useState<FaltanteStock[]>([]);
+  const [confirmSinStockOpen, setConfirmSinStockOpen] = useState(false);
+  // Panel post-venta: tras confirmar, ofrece abrir ticket y (si aplica) nota de remisión.
+  const [postVenta, setPostVenta] = useState<{ id: string; numero: string; generaNota: boolean; credito: boolean } | null>(null);
+  // Guard anti doble-submit: estado para UI (botón/spinner) + ref para bloqueo síncrono
+  // inmediato (React puede tardar en aplicar el estado; el ref corta el segundo disparo ya).
+  const [guardando, setGuardando] = useState(false);
+  const isSubmittingRef = useRef(false);
 
-  // ── Condiciones de la venta ────────────────────────────────────────────────
-  const [moneda,     setMoneda]     = useState<MonedaVenta>("GS");
-  const [tipoCambio, setTipoCambio] = useState("");
-  const [tipoVenta,  setTipoVenta]  = useState<TipoVenta>("CONTADO");
-  const [plazoDias,  setPlazoDias]  = useState("");
+  // Facturación de un pedido enviado a Caja (?pedido_id=...). Precarga items + cliente.
+  const [pedidoId, setPedidoId] = useState<string | null>(null);
+  const [pedidoNumero, setPedidoNumero] = useState<string | null>(null);
+
+  // ── Condiciones de la venta ───────────────────────────────────────────────
+  // Instancia dedicada: siempre Guaraníes.
+  const moneda: MonedaVenta = "GS";
+
+  // Contado / Crédito (campos ya existentes en `ventas`: tipo_venta + plazo_dias).
+  const [tipoVenta, setTipoVenta] = useState<TipoVenta>("CONTADO");
+  const [plazoDias, setPlazoDias] = useState("");
+
+  // Cliente (opcional). Si se selecciona, se envía cliente_id al crear la venta.
+  type ClienteLite = { id: string; label: string; ruc: string | null; usa_nota_remision: boolean };
+  const [clientes, setClientes] = useState<ClienteLite[]>([]);
+  const [clienteId, setClienteId] = useState("");
+  const [clienteQuery, setClienteQuery] = useState("");
+  const [clienteOpen, setClienteOpen] = useState(false);
+  const clienteContainerRef = useRef<HTMLDivElement>(null);
+  // Nota de remisión: activada si el cliente la usa; toggle manual solo con cliente.
+  const [generaNotaRemision, setGeneraNotaRemision] = useState(false);
 
   // ── Cobro (solo CONTADO, no se persiste — solo ayuda al cajero) ───────────
   const [montoRecibido, setMontoRecibido] = useState("");
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>("efectivo");
 
-  function handleTipoVentaChange(v: TipoVenta) {
-    setTipoVenta(v);
-    if (v === "CREDITO") {
-      setMontoRecibido("");
-      setErrorVenta(null);
-    }
-  }
+  // ── Detalle de cobro (conciliación bancaria) ──────────────────────────────
+  const [entidades, setEntidades] = useState<{ id: string; codigo: string | null; nombre: string; tipo: string | null }[]>([]);
+  const [pagoEntidadId, setPagoEntidadId] = useState("");
+  const [pagoReferencia, setPagoReferencia] = useState("");
+  const [pagoTitular, setPagoTitular] = useState("");
+  const [pagoObservacion] = useState("");
+  // Modal de cobro (transferencia / tarjeta) + buscador de entidad.
+  const [cobroModalOpen, setCobroModalOpen] = useState(false);
+  const [entidadQuery, setEntidadQuery] = useState("");
 
   // ── Línea en construcción ─────────────────────────────────────────────────
   const [lineaProdId, setLineaProdId] = useState("");
   const [lineaCant,   setLineaCant]   = useState("");
   const [lineaPrecio, setLineaPrecio] = useState("");
-  const [lineaIva,    setLineaIva]    = useState<TipoIvaVenta>("10%");
+  const [lineaIva,    setLineaIva]    = useState<TipoIvaVenta>("EXENTA");
+  const [lineaTipoPrecio, setLineaTipoPrecio] = useState<TipoPrecioVenta>("minorista");
 
   // ── Combobox de producto ───────────────────────────────────────────────────
   const [comboQuery,     setComboQuery]     = useState("");
@@ -149,9 +185,11 @@ export default function NuevaVentaPage() {
       nombre: p.nombre,
       sku: p.sku,
       precio_venta: p.precio_venta,
+      precio_mayorista: p.precio_mayorista ?? null,
+      precio_distribuidor: p.precio_distribuidor ?? null,
       stock_actual: p.stock_actual,
       unidad_medida: p.unidad_medida,
-      costo_promedio: 0,
+      costo_promedio: p.costo_promedio ?? 0,
       stock_minimo: 0,
       metodo_valuacion: "CPP",
       codigo_barras: p.codigo_barras,
@@ -174,29 +212,17 @@ export default function NuevaVentaPage() {
    * por el form inline. Mantiene el modal abierto si todo OK.
    */
   function handleAgregarDesdePicker(payload: AgregarVentaPayload): boolean {
-    const { producto: p, cantidad, precio_input, iva, es_sin_cargo, motivo_sin_cargo } = payload;
-    const sinCargo = es_sin_cargo === true;
-    // Validar tipo de cambio si moneda=USD (no aplica si es regalo, precio=0)
-    if (!sinCargo && moneda === "USD" && (tipoCambioNum <= 0)) {
-      setErrorVenta("Cargá el tipo de cambio antes de agregar productos en USD.");
-      return false;
-    }
-    // Convertir precio a PYG
-    const precioPyg = sinCargo
-      ? 0
-      : moneda === "USD" ? precio_input * tipoCambioNum : precio_input;
-    // Verificar stock vs lo ya cargado
-    const yaEnCarrito = items.filter((i) => i.producto_id === p.id).reduce((s, i) => s + i.cantidad, 0);
-    const disp = p.stock_actual - yaEnCarrito;
-    if (cantidad > disp) {
-      // El modal mostrara su propio feedback; tambien actualizamos el banner.
-      return false;
-    }
-    // Precio ingresado YA incluye IVA (regla Elevate). total = precio*cantidad,
-    // monto_iva es el componente IVA dentro del total y subtotal = base imponible.
-    const totalLinea = sinCargo ? 0 : cantidad * precioPyg;
-    const montoIva = sinCargo ? 0 : ivaIncluido(iva, totalLinea);
-    const subtotal = sinCargo ? 0 : totalLinea - montoIva;
+    const { producto: p, cantidad, precio_input, iva, tipo_precio } = payload;
+    const precioPyg = precio_input;
+    // Verificar stock vs lo ya cargado SOLO si el producto controla stock.
+    // Venta sin stock (Fase 5): NO se bloquea por falta de stock al agregar; la
+    // confirmación se pide al registrar la venta. El Menú (controla_stock=false) tampoco valida.
+    // IVA informativo: el subtotal es precio × cantidad y el total de la línea
+    // es igual al subtotal. El monto de IVA se calcula sólo para mostrarse en
+    // ticket/recibo, no se suma al total.
+    const subtotal = cantidad * precioPyg;
+    const montoIva = calcIva(iva, subtotal);
+    const totalLinea = subtotal;
 
     // Asegurar que el producto este en el array local (para que stock_actual
     // se conozca en validaciones posteriores del form inline).
@@ -210,14 +236,13 @@ export default function NuevaVentaPage() {
         producto_nombre: p.nombre,
         sku: p.sku,
         cantidad,
-        precio_venta_original: sinCargo ? 0 : precio_input,
+        precio_venta_original: precio_input,
         precio_venta: precioPyg,
-        tipo_iva: sinCargo ? "EXENTA" : iva,
+        tipo_iva: iva,
+        tipo_precio,
         subtotal,
         monto_iva: montoIva,
         total_linea: totalLinea,
-        es_sin_cargo: sinCargo,
-        motivo_sin_cargo: sinCargo ? (motivo_sin_cargo ?? "decant_obsequio") : null,
       },
     ]);
     setErrorVenta(null);
@@ -232,55 +257,115 @@ export default function NuevaVentaPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Precarga: si vienen con ?pedido_web_id=..., traemos el pedido web pendiente
-  // y armamos las lineas de venta automaticamente. El cajero solo confirma.
+  // Precarga al facturar un pedido (Caja): lee ?pedido_id=, trae el pedido y carga sus
+  // items + cliente en el carrito. NO crea nada acá; la venta se genera al confirmar.
   useEffect(() => {
-    if (!pedidoWebId) return;
     let cancelled = false;
+    let pid: string | null = null;
+    try {
+      pid = new URLSearchParams(window.location.search).get("pedido_id");
+    } catch { pid = null; }
+    if (!pid) return;
+    setPedidoId(pid);
     (async () => {
       try {
-        const res = await fetch("/api/caja/pedidos-web-pendientes", {
-          credentials: "include",
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/proyectos/${pid}`, { credentials: "include", cache: "no-store" });
         const j = await res.json();
-        const lista: Array<{
-          id: string;
-          items: Array<{ producto_id: string; nombre: string; cantidad: number; precio_unitario: number }>;
-        }> = j?.data?.pedidos ?? [];
-        const pedido = lista.find((p) => p.id === pedidoWebId);
-        if (!pedido || cancelled) return;
-        // Mapear items a LineaVenta. IVA por defecto 10% (precio ya incluye IVA).
-        const lineas: LineaVenta[] = pedido.items.map((it) => {
-          const totalLinea = it.precio_unitario * it.cantidad;
-          const montoIva = totalLinea - totalLinea / 1.1;
-          const subtotal = totalLinea - montoIva;
-          return {
-            producto_id: it.producto_id,
-            producto_nombre: it.nombre,
-            sku: "",
-            cantidad: it.cantidad,
-            precio_venta_original: it.precio_unitario,
-            precio_venta: it.precio_unitario,
-            tipo_iva: "10%",
-            subtotal,
-            monto_iva: montoIva,
-            total_linea: totalLinea,
-          };
-        });
-        setItems(lineas);
-      } catch (err) {
-        console.warn("[ventas/nueva] no se pudo precargar pedido web:", err);
-      }
+        if (cancelled || !j?.success || !j.data?.proyecto) return;
+        const p = j.data.proyecto as { brief_data?: unknown; cliente_id?: string | null; metadata?: unknown };
+        const brief = (p.brief_data && typeof p.brief_data === "object" && !Array.isArray(p.brief_data))
+          ? (p.brief_data as Record<string, unknown>) : {};
+        const meta = (p.metadata && typeof p.metadata === "object" && !Array.isArray(p.metadata))
+          ? (p.metadata as Record<string, unknown>) : {};
+        setPedidoNumero(
+          (typeof brief.numero_control === "string" && brief.numero_control) ||
+          (typeof brief.numero_presupuesto === "string" && brief.numero_presupuesto) ||
+          (typeof meta.numero_presupuesto === "string" && meta.numero_presupuesto) || null
+        );
+        const itemsRaw = Array.isArray(brief.items) ? (brief.items as Record<string, unknown>[]) : [];
+        const lineas: LineaVenta[] = itemsRaw
+          .filter((it) => it.producto_id && (Number(it.cantidad) || 0) > 0)
+          .map((it) => {
+            const cantidad = Number(it.cantidad) || 0;
+            const precio = Number(it.precio_venta) || 0;
+            const iva: TipoIvaVenta = "EXENTA";
+            // IVA informativo: subtotal = precio × cantidad; total línea = subtotal.
+            const subtotal = cantidad * precio;
+            const montoIva = calcIva(iva, subtotal);
+            const totalLinea = subtotal;
+            return {
+              producto_id: String(it.producto_id),
+              producto_nombre: typeof it.producto_nombre === "string" ? it.producto_nombre : "",
+              sku: typeof it.sku === "string" ? it.sku : "",
+              cantidad,
+              precio_venta_original: precio,
+              precio_venta: precio,
+              tipo_iva: iva,
+              tipo_precio: "minorista" as TipoPrecioVenta,
+              subtotal,
+              monto_iva: montoIva,
+              total_linea: totalLinea,
+            };
+          });
+        if (!cancelled && lineas.length) setItems(lineas);
+        if (!cancelled && p.cliente_id) setClienteId(String(p.cliente_id));
+      } catch { /* el aviso seguirá visible; el cajero puede cargar manualmente */ }
     })();
     return () => { cancelled = true; };
-  }, [pedidoWebId]);
+  }, []);
+
+  // Cargar entidades bancarias (caja/banco/tarjeta/billetera) para el detalle de cobro.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/entidades-bancarias", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled && j?.success) setEntidades(j.data?.entidades ?? []); })
+      .catch(() => { /* no bloquea la venta si falla */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Cargar clientes (buscador opcional de cliente en la venta).
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/clientes", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled || !j?.success || !Array.isArray(j.data)) return;
+        const s = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+        const lite: ClienteLite[] = (j.data as Record<string, unknown>[]).map((r) => ({
+          id: String(r.id),
+          label: s(r.empresa) || s(r.nombre_contacto) || s(r.nombre) || "Cliente",
+          ruc: s(r.ruc) || null,
+          usa_nota_remision: r.usa_nota_remision === true,
+        }));
+        setClientes(lite);
+      })
+      .catch(() => { /* el buscador de cliente es opcional, no bloquea la venta */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // UX rápida: abrir el buscador de productos al entrar (carrito vacío).
+  // Si el usuario lo cierra, sigue usando el formulario normal (no queda atrapado).
+  // EXCEPCIÓN: al facturar un pedido (?pedido_id=...) NO se auto-abre, porque el
+  // carrito viene precargado; el usuario usa el botón "+ Agregar producto" si quiere más.
+  // Se lee la URL directamente (no el estado pedidoId) para evitar la carrera de montaje.
+  useEffect(() => {
+    let tienePedido = false;
+    try {
+      tienePedido = !!new URLSearchParams(window.location.search).get("pedido_id");
+    } catch { tienePedido = false; }
+    if (!tienePedido) setPickerOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (comboContainerRef.current && !comboContainerRef.current.contains(e.target as Node)) {
         setComboOpen(false);
+      }
+      if (clienteContainerRef.current && !clienteContainerRef.current.contains(e.target as Node)) {
+        setClienteOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -295,43 +380,71 @@ export default function NuevaVentaPage() {
   }, [comboHighlight]);
 
   // ── Cálculos ───────────────────────────────────────────────────────────────
-  const tipoCambioNum   = moneda === "USD" ? (parseFloat(tipoCambio) || 0) : 1;
-  const monedaBloqueada = items.length > 0;
+  const tipoCambioNum = 1;
 
   const prodSel     = productos.find((p) => p.id === lineaProdId);
   const cantNum     = parseInt(lineaCant) || 0;
   const precioInput = parseFloat(lineaPrecio) || 0;
-  const precioGs    = precioInput * tipoCambioNum;
+  const precioGs    = precioInput;
 
   const enCarrito = items
     .filter((i) => i.producto_id === lineaProdId)
     .reduce((s, i) => s + i.cantidad, 0);
+  const prodSelControlaStock = prodSel ? prodSel.controla_stock !== false : true;
   const stockDisp = (prodSel?.stock_actual ?? 0) - enCarrito;
 
-  // Precio cargado ya incluye IVA: total línea = precio × cantidad,
-  // IVA es componente interno, subtotal (base imponible) = total − IVA.
-  const lineaTotalLinea = cantNum > 0 && precioGs > 0 ? cantNum * precioGs : 0;
-  const lineaMontoIva   = ivaIncluido(lineaIva, lineaTotalLinea);
-  const lineaSubtotal   = lineaTotalLinea - lineaMontoIva;
+  // IVA informativo: subtotal = precio × cantidad; total línea = subtotal
+  // (no se suma IVA). El monto IVA queda visible para ticket/recibo.
+  const lineaSubtotal   = cantNum > 0 && precioGs > 0 ? cantNum * precioGs : 0;
+  const lineaMontoIva   = calcIva(lineaIva, lineaSubtotal);
+  const lineaTotalLinea = lineaSubtotal;
 
-  const stockInsuf  = prodSel !== undefined && cantNum > 0 && cantNum > stockDisp;
+  // Aviso de stock (no bloquea): si falta stock se permite agregar igual y se pide
+  // confirmación al confirmar la venta (venta sin stock con confirmación, Fase 5).
+  // Productos del Menú (controla_stock=false) no controlan stock.
+  const stockInsuf  = prodSel !== undefined && prodSelControlaStock && cantNum > 0 && cantNum > stockDisp;
   const lineaValida =
-    !!prodSel && cantNum > 0 && precioGs > 0 && !stockInsuf &&
-    (moneda === "GS" || tipoCambioNum > 0);
+    !!prodSel && cantNum > 0 && precioGs > 0;
 
   const totalSubtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const totalIva      = items.reduce((s, i) => s + i.monto_iva, 0);
   const totalGeneral  = items.reduce((s, i) => s + i.total_linea, 0);
-  const ventaValida   = items.length > 0 && (moneda === "GS" || tipoCambioNum > 0);
+  // Condición de venta: si es Crédito, exigir plazo de al menos 1 día.
+  const plazoDiasNum = parseInt(plazoDias) || 0;
+  // Crédito exige cliente seleccionado Y plazo/vencimiento (≥1 día). Genera cuenta por cobrar.
+  const creditoValido = tipoVenta === "CONTADO" || (plazoDiasNum >= 1 && !!clienteId);
+  const ventaValida   = items.length > 0 && creditoValido;
+
+  // Cliente (opcional) — selección + filtrado del buscador.
+  const clienteSel = clientes.find((c) => c.id === clienteId) ?? null;
+  const clientesFiltrados = (clienteQuery.trim() === ""
+    ? clientes
+    : clientes.filter((c) => {
+        const q = clienteQuery.toLowerCase();
+        return c.label.toLowerCase().includes(q) || (c.ruc ?? "").toLowerCase().includes(q);
+      })
+  ).slice(0, 50);
+
+  // Cobro: entidad seleccionada + filtrado por código/nombre.
+  const entidadSel = entidades.find((e) => e.id === pagoEntidadId) ?? null;
+  const entidadesFiltradas = (entidadQuery.trim() === ""
+    ? entidades
+    : entidades.filter((e) => {
+        const q = entidadQuery.toLowerCase();
+        return e.nombre.toLowerCase().includes(q) || (e.codigo ?? "").toLowerCase().includes(q);
+      })
+  ).slice(0, 50);
 
   // Vuelto (solo informativo, no se persiste)
   const montoRecibidoNum = parseFloat(montoRecibido) || 0;
   const vuelto           = montoRecibidoNum - totalGeneral;
 
   // ── Productos filtrados para el combobox ──────────────────────────────────
+  // Solo vendibles (Reventa + Menú). Excluye materia prima / insumos.
+  const productosVendibles = productos.filter((p) => p.es_vendible !== false);
   const comboFiltrados = comboQuery.trim() === ""
-    ? productos
-    : productos.filter((p) => {
+    ? productosVendibles
+    : productosVendibles.filter((p) => {
         const q = comboQuery.toLowerCase();
         return p.nombre.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
       });
@@ -339,12 +452,35 @@ export default function NuevaVentaPage() {
   // ── Selección de un producto desde el combobox ────────────────────────────
   function seleccionarProducto(p: Producto) {
     setLineaProdId(String(p.id));
-    setLineaPrecio(String(p.precio_venta));
+    setLineaTipoPrecio("minorista");
+    setLineaPrecio(String(precioPorTipo(p, "minorista")));
     setLineaCant("1");
-    setLineaIva("10%");
+    setLineaIva("EXENTA");
     setComboQuery(`${p.nombre} — ${p.sku}`);
     setComboOpen(false);
     setComboHighlight(-1);
+    setErrorLinea(null);
+  }
+
+  /** Selecciona método de cobro. Efectivo no pide datos; transferencia/tarjeta abren modal. */
+  function handleSelectMetodo(m: MetodoPago) {
+    setMetodoPago(m);
+    if (m === "efectivo") {
+      setCobroModalOpen(false);
+      // "Caja efectivo" por defecto si existe una entidad tipo caja.
+      const caja = entidades.find((e) => e.tipo === "caja");
+      setPagoEntidadId(caja ? caja.id : "");
+      setPagoTitular("");
+    } else {
+      setEntidadQuery("");
+      setCobroModalOpen(true);
+    }
+  }
+
+  /** Cambia el tipo de precio de la línea en construcción y ajusta el precio unitario. */
+  function handleLineaTipoPrecio(tipo: TipoPrecioVenta) {
+    setLineaTipoPrecio(tipo);
+    if (prodSel) setLineaPrecio(String(precioPorTipo(prodSel, tipo)));
     setErrorLinea(null);
   }
 
@@ -391,12 +527,7 @@ export default function NuevaVentaPage() {
     if (!prodSel)          return setErrorLinea("Seleccioná un producto.");
     if (cantNum <= 0)      return setErrorLinea("La cantidad debe ser mayor a 0.");
     if (precioGs <= 0)     return setErrorLinea("El precio de venta debe ser mayor a 0.");
-    if (moneda === "USD" && tipoCambioNum <= 0)
-                           return setErrorLinea("Ingresá el tipo de cambio antes de agregar.");
-    if (stockInsuf)
-      return setErrorLinea(
-        `Stock insuficiente para "${prodSel.nombre}". Disponible: ${stockDisp} u.`
-      );
+    // Nota: si falta stock NO se bloquea; se confirma al registrar la venta.
 
     setItems((prev) => [
       ...prev,
@@ -408,6 +539,7 @@ export default function NuevaVentaPage() {
         precio_venta_original: precioInput,
         precio_venta:          precioGs,
         tipo_iva:              lineaIva,
+        tipo_precio:           lineaTipoPrecio,
         subtotal:              lineaSubtotal,
         monto_iva:             lineaMontoIva,
         total_linea:           lineaTotalLinea,
@@ -418,7 +550,8 @@ export default function NuevaVentaPage() {
     setLineaProdId("");
     setLineaCant("");
     setLineaPrecio("");
-    setLineaIva("10%");
+    setLineaIva("EXENTA");
+    setLineaTipoPrecio("minorista");
     setComboQuery("");
     setComboOpen(false);
     setTimeout(() => comboInputRef.current?.focus(), 0);
@@ -428,51 +561,82 @@ export default function NuevaVentaPage() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
+  /** Envía la venta. Con `permitirSinStock=true` autoriza vender aunque falte stock. */
+  async function enviarVenta(permitirSinStock: boolean) {
+    // Guard duro contra doble submit: si ya hay una confirmación en vuelo, cortar
+    // inmediatamente. El ref se evalúa de forma síncrona (no espera al re-render de React),
+    // así que un segundo click/Enter casi simultáneo no puede disparar otra venta.
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setGuardando(true);
+    try {
+      const resultado = await saveVenta(
+        {
+          items,
+          moneda,
+          tipo_cambio:  tipoCambioNum,
+          subtotal:     totalSubtotal,
+          monto_iva:    totalIva,
+          total:        totalGeneral,
+          tipo_venta:   tipoVenta,
+          plazo_dias:   tipoVenta === "CREDITO" ? plazoDiasNum : undefined,
+          metodo_pago:  metodoPago,
+          cliente_id:   clienteId || null,
+          genera_nota_remision: !!clienteId && generaNotaRemision,
+        },
+        undefined,
+        {
+          entidad_bancaria_id: pagoEntidadId || null,
+          entidad_nombre_snapshot: entidades.find((e) => e.id === pagoEntidadId)?.nombre ?? null,
+          referencia: pagoReferencia.trim() || null,
+          titular: metodoPago === "transferencia" ? pagoTitular.trim() || null : null,
+          observacion: pagoObservacion.trim() || null,
+        },
+        { permitirSinStock, pedidoId }
+      );
+
+      if (!resultado.success) {
+        // Falta stock sin autorizar → abrir modal de confirmación con el detalle.
+        // (El guard se libera en el finally para permitir confirmar sin stock.)
+        if (resultado.faltantes && resultado.faltantes.length > 0) {
+          setFaltantes(resultado.faltantes);
+          setConfirmSinStockOpen(true);
+          return;
+        }
+        setErrorVenta(resultado.error);
+        return;
+      }
+      // Documentos de la venta. La nota de remisión se abre además del ticket
+      // SOLO si la venta la genera (cliente con usa_nota_remision o toggle activo).
+      const v = resultado.venta;
+      const generaNota = v.genera_nota_remision === true || !!v.nota_remision_numero;
+      const ticketUrl = `/api/ventas/${v.id}/ticket?mode=comandas&auto=1`;
+      const remisionUrl = `/api/ventas/${v.id}/ticket?tipo=remision&auto=1`;
+      // Intento de apertura automática (el ticket sale por el gesto de click; la
+      // segunda pestaña puede ser bloqueada por el navegador → fallback con botones).
+      try { window.open(ticketUrl, "_blank", "noopener"); } catch {}
+      if (generaNota) { try { window.open(remisionUrl, "_blank", "noopener"); } catch {} }
+      // Panel post-venta: botones siempre disponibles aunque el popup se bloquee.
+      // NOTA: abrir el ticket / la nota / el panel NO vuelve a llamar saveVenta.
+      setPostVenta({ id: v.id, numero: v.numero_control, generaNota, credito: tipoVenta === "CREDITO" });
+    } finally {
+      // Liberar el guard SIEMPRE: éxito, error o flujo de "confirmar sin stock".
+      isSubmittingRef.current = false;
+      setGuardando(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorVenta(null);
     if (!ventaValida) return;
-    if (submitting) return; // guard contra doble click / Enter rápido
+    await enviarVenta(false);
+  }
 
-    setSubmitting(true);
-    try {
-      const resultado = await saveVenta({
-        items,
-        moneda,
-        tipo_cambio:  tipoCambioNum,
-        subtotal:     totalSubtotal,
-        monto_iva:    totalIva,
-        total:        totalGeneral,
-        tipo_venta:   tipoVenta,
-        plazo_dias:
-          tipoVenta === "CREDITO" && plazoDias ? parseInt(plazoDias) : undefined,
-      });
-
-      if (!resultado.success) {
-        setErrorVenta(resultado.error);
-        return;
-      }
-      // Si la venta fue por un pedido web, cerramos el pedido web
-      // (estado=confirmado_manual + venta_id). Si falla no bloqueamos:
-      // la venta ya esta creada, solo queda el pedido en pendiente.
-      if (pedidoWebId) {
-        try {
-          await fetch(`/api/caja/pedidos-web/${pedidoWebId}/cerrar`, {
-            method: "PATCH",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              venta_id: resultado.venta?.id ?? null,
-            }),
-          });
-        } catch (err) {
-          console.warn("[ventas/nueva] no se pudo cerrar pedido web:", err);
-        }
-      }
-      router.push("/ventas");
-    } finally {
-      setSubmitting(false);
-    }
+  async function confirmarVentaSinStock() {
+    setConfirmSinStockOpen(false);
+    setErrorVenta(null);
+    await enviarVenta(true);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -480,268 +644,143 @@ export default function NuevaVentaPage() {
   return (
     <div className="space-y-8">
 
-      <div>
-        <h1 className="text-3xl font-bold text-gray-800">Nueva venta</h1>
-        <p className="text-gray-600">
-          Agregá uno o más productos. Al confirmar se generan las salidas de inventario.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">Nueva venta</h1>
+          <p className="text-gray-600">
+            Agregá productos de reventa o del catálogo. Al confirmar se registra la venta.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[#0EA5E9] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#0284C7] active:scale-95"
+        >
+          + Agregar producto
+        </button>
       </div>
+
+      {pedidoId && (
+        <div className="rounded-lg border border-[#4FAEB2]/40 bg-[#4FAEB2]/[0.08] px-4 py-3 text-sm text-slate-700">
+          <span className="font-semibold text-[#3F8E91]">Estás facturando un pedido{pedidoNumero ? ` (${pedidoNumero})` : ""}.</span>{" "}
+          La venta se generará al confirmar y el pedido quedará marcado como facturado. Podés ajustar items, precios y método de pago.
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6 max-w-7xl">
 
-        {/* ── SECCIÓN 1: Condiciones generales ─────────────────────────────── */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <SectionTitle>Condiciones de la venta</SectionTitle>
+        {/* ── SECCIÓN 0: Datos de la venta (cliente opcional + condición) ────── */}
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6">
+          <SectionTitle>Datos de la venta</SectionTitle>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cliente (opcional) */}
+            <div ref={clienteContainerRef} className="relative">
+              <label className={labelClass}>
+                Cliente <span className="text-xs font-normal text-gray-400">(opcional)</span>
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={clienteSel ? clienteSel.label : clienteQuery}
+                  onChange={(e) => { setClienteId(""); setClienteQuery(e.target.value); setClienteOpen(true); }}
+                  onFocus={() => setClienteOpen(true)}
+                  placeholder="Buscar por nombre o RUC…"
+                  className={`${inputClass} ${clienteSel ? "font-medium" : ""}`}
+                />
+                {clienteSel && (
+                  <button
+                    type="button"
+                    onClick={() => { setClienteId(""); setClienteQuery(""); setGeneraNotaRemision(false); }}
+                    className="shrink-0 rounded-lg border border-slate-200 px-3 text-xs text-slate-500 hover:bg-slate-50"
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
+              {clienteOpen && !clienteSel && (
+                <div className="absolute z-20 mt-1 w-full max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                  {clientesFiltrados.length === 0 ? (
+                    <p className="px-3 py-2 text-xs text-gray-400">Sin clientes que coincidan.</p>
+                  ) : (
+                    clientesFiltrados.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => { setClienteId(c.id); setClienteQuery(""); setClienteOpen(false); setGeneraNotaRemision(c.usa_nota_remision); }}
+                        className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
+                      >
+                        <span className="font-medium text-gray-800">{c.label}</span>
+                        {c.ruc && <span className="ml-2 text-xs text-gray-400">RUC {c.ruc}</span>}
+                        {c.usa_nota_remision && <span className="ml-2 text-[10px] rounded-full bg-sky-100 text-sky-700 px-1.5 py-0.5 font-semibold">Nota remisión</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              <p className="mt-1 text-[11px] text-gray-400">
+                Si no seleccionás cliente, la venta se registra sin cliente.
+              </p>
 
-            {/* Fila 1: Moneda | Tipo de venta (lado a lado) */}
-            <div>
-              <label className={labelClass}>Moneda</label>
-              <SegmentedControl<MonedaVenta>
-                value={moneda}
-                disabled={monedaBloqueada}
-                options={[
-                  { value: "GS",  label: "Guaraníes (₲)" },
-                  { value: "USD", label: "Dólares (USD)"  },
-                ]}
-                onChange={(v) => { setMoneda(v); setTipoCambio(""); }}
-              />
-              {monedaBloqueada && (
-                <p className="mt-1 text-xs text-gray-400">
-                  La moneda no puede cambiarse con ítems en el carrito.
-                </p>
+              {/* Nota de remisión: solo con cliente. Si el cliente la usa, viene activada. */}
+              {clienteSel && (
+                <div className="mt-2 rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2">
+                  {clienteSel.usa_nota_remision && (
+                    <p className="mb-1.5 text-[11px] text-sky-700">
+                      Este cliente usa nota de remisión. Se generará junto al ticket.
+                    </p>
+                  )}
+                  <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={generaNotaRemision}
+                      onChange={(e) => setGeneraNotaRemision(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                    />
+                    Generar nota de remisión
+                  </label>
+                </div>
               )}
             </div>
 
+            {/* Condición: Contado / Crédito */}
             <div>
-              <label className={labelClass}>Tipo de venta</label>
+              <label className={labelClass}>Condición</label>
               <SegmentedControl<TipoVenta>
                 value={tipoVenta}
                 options={[
                   { value: "CONTADO", label: "Contado" },
                   { value: "CREDITO", label: "Crédito" },
                 ]}
-                onChange={handleTipoVentaChange}
+                onChange={(v) => { setTipoVenta(v); if (v === "CONTADO") setPlazoDias(""); }}
               />
-            </div>
-
-            {/* Fila 2: sub-campos condicionales (alineados bajo su parent) */}
-            {moneda === "USD" && (
-              <div className="md:col-start-1">
-                <label className={labelClass}>Tipo de cambio (USD → Gs.)</label>
-                <MontoInput
-                  value={tipoCambio}
-                  onChange={(n) => setTipoCambio(String(n))}
-                  placeholder="Ej: 7500"
-                  className={inputClass}
-                  decimals={false}
-                  disabled={monedaBloqueada}
-                />
-              </div>
-            )}
-
-            {tipoVenta === "CREDITO" && (
-              <div className="md:col-start-2">
-                <label className={labelClass}>Plazo (días)</label>
-                <input
-                  type="number"
-                  value={plazoDias}
-                  onChange={(e) => setPlazoDias(e.target.value)}
-                  placeholder="Ej: 30"
-                  className={inputClass}
-                  min={1} step={1}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── SECCIÓN 2: Agregar producto ───────────────────────────────────── */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
-          <SectionTitle>Agregar producto</SectionTitle>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-
-            {/* ── Combobox con búsqueda — 4 cols ────────────────────────────── */}
-            <div className="md:col-span-4" ref={comboContainerRef}>
-              <label className={labelClass}>
-                Producto
-                <span className="ml-1 text-gray-400 font-normal normal-case tracking-normal text-xs">
-                  — escribí o usá el buscador
-                </span>
-              </label>
-
-              {/* Input de búsqueda + botón modal */}
-              <div className="flex gap-2">
-               <div className="relative flex-1">
-                <input
-                  ref={comboInputRef}
-                  type="text"
-                  value={comboQuery}
-                  readOnly
-                  onFocus={() => setPickerOpen(true)}
-                  onClick={() => setPickerOpen(true)}
-                  placeholder="Click para abrir buscador — nombre, SKU, código, categoría, ubicación..."
-                  autoComplete="off"
-                  className={`${inputClass} pr-8 cursor-pointer bg-white`}
-                />
-                {/* Icono chevron */}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
-                  className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                >
-                  <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clipRule="evenodd" />
-                </svg>
-
-                {/* Dropdown */}
-                {comboOpen && comboFiltrados.length > 0 && (
-                  <ul className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg py-1">
-                    {comboFiltrados.map((p, idx) => {
-                      const enCarro    = items.filter(i => i.producto_id === p.id).reduce((s, i) => s + i.cantidad, 0);
-                      const disponible = p.stock_actual - enCarro;
-                      const sinStock   = disponible <= 0;
-                      const isActive   = idx === comboHighlight;
-                      return (
-                        <li
-                          key={p.id}
-                          id={`combo-opt-${idx}`}
-                          onMouseDown={(e) => { e.preventDefault(); if (!sinStock) seleccionarProducto(p); }}
-                          onMouseEnter={() => !sinStock && setComboHighlight(idx)}
-                          className={`px-3 py-2.5 text-sm cursor-pointer
-                            ${sinStock ? "opacity-40 cursor-not-allowed" : ""}
-                            ${isActive && !sinStock ? "bg-[#0EA5E9] text-white" : "hover:bg-slate-50"}
-                          `}
-                        >
-                          <span className="font-medium">{p.nombre}</span>
-                          <span className={`ml-2 text-xs ${isActive ? "text-gray-300" : "text-gray-400"}`}>
-                            — {p.sku}
-                          </span>
-                          {sinStock && (
-                            <span className="ml-2 text-xs text-red-400 font-medium">SIN STOCK</span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-
-                {/* Sin resultados */}
-                {comboOpen && comboQuery.trim() !== "" && comboFiltrados.length === 0 && (
-                  <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-3 text-sm text-gray-400">
-                    Sin resultados para &ldquo;{comboQuery}&rdquo;
-                  </div>
-                )}
-               </div>
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  title="Abrir buscador avanzado (catálogo completo, con imagen)"
-                  className="shrink-0 inline-flex items-center justify-center gap-1.5 border border-slate-200 hover:bg-slate-50 text-slate-700 px-3 rounded-lg text-sm font-medium transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                    <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM2 9a7 7 0 1 1 12.452 4.391l3.328 3.329a.75.75 0 1 1-1.06 1.06l-3.329-3.328A7 7 0 0 1 2 9Z" clipRule="evenodd" />
-                  </svg>
-                  Buscar
-                </button>
-              </div>
-
-              {/* Info del producto seleccionado */}
-              {prodSel && (
-                <div className="mt-1.5 flex gap-3 text-xs text-gray-500">
-                  <span>Precio: <strong>{formatGs(prodSel.precio_venta)}</strong></span>
-                  <span>Disp: <strong className={stockDisp <= 0 ? "text-red-600" : "text-gray-700"}>
-                    {stockDisp} u.
-                  </strong></span>
+              {tipoVenta === "CREDITO" && (
+                <div className="mt-3">
+                  <label className={labelClass}>Plazo de crédito (días)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={plazoDias}
+                    onChange={(e) => setPlazoDias(e.target.value)}
+                    placeholder="Ej: 30"
+                    className={`${inputClass} ${plazoDiasNum < 1 ? "border-red-300 bg-red-50" : ""}`}
+                  />
+                  {plazoDiasNum < 1 && (
+                    <p className="mt-1 text-[11px] text-red-600">Ingresá un plazo de al menos 1 día.</p>
+                  )}
+                  {!clienteId && (
+                    <p className="mt-1 text-[11px] text-red-600">La venta a crédito requiere un cliente seleccionado.</p>
+                  )}
+                  <p className="mt-1 text-[11px] text-slate-500">Al confirmar se genera una cuenta por cobrar por el total.</p>
                 </div>
               )}
             </div>
 
-            {/* Cantidad — 2 cols */}
-            <div className="md:col-span-2">
-              <label className={labelClass}>Cantidad</label>
-              <input
-                type="number"
-                value={lineaCant}
-                onChange={(e) => { setErrorLinea(null); setLineaCant(e.target.value); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAgregarLinea(); }}}
-                placeholder="Cant."
-                className={`${inputClass} ${stockInsuf ? "border-red-400 bg-red-50" : ""}`}
-                min={1} step={1}
-              />
-            </div>
-
-            {/* Precio — 2 cols */}
-            <div className="md:col-span-2">
-              <label className={labelClass}>
-                Precio ({moneda === "USD" ? "USD" : "Gs."})
-              </label>
-              <MontoInput
-                value={lineaPrecio}
-                onChange={(n) => { setErrorLinea(null); setLineaPrecio(String(n)); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAgregarLinea(); }}}
-                placeholder="Precio"
-                className={inputClass}
-                decimals={moneda === "USD"}
-              />
-              {moneda === "USD" && precioInput > 0 && tipoCambioNum > 0 && (
-                <p className="mt-1 text-xs text-gray-400">≈ {formatGs(precioGs)}</p>
-              )}
-            </div>
-
-            {/* IVA — 2 cols */}
-            <div className="md:col-span-2">
-              <label className={labelClass}>IVA</label>
-              <SegmentedControl<TipoIvaVenta>
-                value={lineaIva}
-                options={[
-                  { value: "EXENTA", label: "Ex"  },
-                  { value: "5%",     label: "5%"  },
-                  { value: "10%",    label: "10%" },
-                ]}
-                onChange={setLineaIva}
-              />
-            </div>
-
-            {/* Botón — 2 cols */}
-            <div className="md:col-span-2 flex flex-col">
-              <label className="invisible text-xs mb-1.5">.</label>
-              <button
-                type="button"
-                onClick={handleAgregarLinea}
-                disabled={!lineaValida}
-                className="flex items-center justify-center gap-1.5 w-full bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 shrink-0">
-                  <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-                </svg>
-                Agregar producto
-              </button>
-            </div>
-
           </div>
-
-          {/* Preview totales de la línea */}
-          {lineaSubtotal > 0 && (
-            <div className="mt-3 flex gap-4 text-xs text-gray-500">
-              <span>Subtotal: <strong className="text-gray-800">{formatGs(lineaSubtotal)}</strong></span>
-              <span>IVA: <strong className="text-gray-800">
-                {lineaIva === "EXENTA" ? "—" : formatGs(lineaMontoIva)}
-              </strong></span>
-              <span>Total línea: <strong className="text-gray-900">{formatGs(lineaTotalLinea)}</strong></span>
-            </div>
-          )}
-
-          {/* Error agregar */}
-          {errorLinea && (
-            <div className="mt-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-xs text-red-700">
-              <span>⚠</span><span className="font-medium">{errorLinea}</span>
-            </div>
-          )}
         </div>
 
         {/* ── SECCIÓN 3: Carrito + totales + confirmar ─────────────────────── */}
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6">
           <SectionTitle>Productos en esta venta</SectionTitle>
 
           {items.length === 0 ? (
@@ -750,17 +789,20 @@ export default function NuevaVentaPage() {
             </div>
           ) : (
             <>
+              {/* min-w fuerza scroll horizontal en mobile (9 columnas).
+                  Columnas secundarias (SKU, Subtotal, IVA Gs) se ocultan
+                  progresivamente: en mobile solo Producto/Cant/Precio/Total/eliminar. */}
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
+                <table className="w-full min-w-[760px] sm:min-w-0 text-sm text-left">
                   <thead>
                     <tr className="bg-slate-50 text-slate-600 text-sm font-semibold">
                       <th className="py-2.5 pr-3 font-medium">Producto</th>
-                      <th className="py-2.5 pr-3 font-medium">SKU</th>
+                      <th className="hidden py-2.5 pr-3 font-medium lg:table-cell">SKU</th>
                       <th className="py-2.5 pr-3 font-medium text-right">Cant.</th>
                       <th className="py-2.5 pr-3 font-medium text-right">Precio unit.</th>
-                      <th className="py-2.5 pr-3 font-medium text-center">IVA</th>
-                      <th className="py-2.5 pr-3 font-medium text-right">Subtotal</th>
-                      <th className="py-2.5 pr-3 font-medium text-right">IVA Gs.</th>
+                      <th className="hidden py-2.5 pr-3 text-center font-medium lg:table-cell">IVA</th>
+                      <th className="py-2.5 pr-3 font-medium text-right hidden lg:table-cell">Subtotal</th>
+                      <th className="py-2.5 pr-3 font-medium text-right hidden lg:table-cell">IVA Gs.</th>
                       <th className="py-2.5 pr-3 font-medium text-right">Total</th>
                       <th className="py-2.5 font-medium"></th>
                     </tr>
@@ -769,36 +811,34 @@ export default function NuevaVentaPage() {
                     {items.map((item, idx) => (
                       <tr key={idx} className="border-b border-slate-200 last:border-0 hover:bg-slate-50 transition-colors">
                         <td className="py-3 pr-3 font-medium text-gray-800">
-                          {item.producto_nombre}
-                          {item.es_sin_cargo === true && (
-                            <span className="ml-2 inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-emerald-100 text-emerald-700 border border-emerald-200">
-                              Obsequio
-                            </span>
-                          )}
+                          <span>{item.producto_nombre}</span>
+                          <span className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold align-middle ${
+                            item.tipo_precio === "mayorista" ? "bg-indigo-100 text-indigo-700"
+                            : item.tipo_precio === "distribuidor" ? "bg-emerald-100 text-emerald-700"
+                            : item.tipo_precio === "costo" ? "bg-amber-100 text-amber-700"
+                            : "bg-slate-100 text-slate-600"
+                          }`}>
+                            {tipoPrecioLabel[item.tipo_precio ?? "minorista"]}
+                          </span>
                         </td>
-                        <td className="py-3 pr-3 font-mono text-xs text-gray-500">
+                        <td className="hidden py-3 pr-3 font-mono text-xs text-gray-500 lg:table-cell">
                           {item.sku}
                         </td>
                         <td className="py-3 pr-3 text-right tabular-nums">
                           {item.cantidad}
                         </td>
                         <td className="py-3 pr-3 text-right tabular-nums text-gray-600 text-xs">
-                          {moneda === "USD"
-                            ? <>USD {item.precio_venta_original.toLocaleString("es-PY")}
-                                <br/><span className="text-gray-400">≈ {formatGs(item.precio_venta)}</span>
-                              </>
-                            : formatGs(item.precio_venta)
-                          }
+                          {formatGs(item.precio_venta)}
                         </td>
-                        <td className="py-3 pr-3 text-center">
+                        <td className="hidden py-3 pr-3 text-center lg:table-cell">
                           <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
                             {ivaLabel[item.tipo_iva]}
                           </span>
                         </td>
-                        <td className="py-3 pr-3 text-right tabular-nums text-gray-600 text-xs">
+                        <td className="py-3 pr-3 text-right tabular-nums text-gray-600 text-xs hidden lg:table-cell">
                           {formatGs(item.subtotal)}
                         </td>
-                        <td className="py-3 pr-3 text-right tabular-nums text-gray-500 text-xs">
+                        <td className="py-3 pr-3 text-right tabular-nums text-gray-500 text-xs hidden lg:table-cell">
                           {item.monto_iva > 0 ? formatGs(item.monto_iva) : "—"}
                         </td>
                         <td className="py-3 pr-3 text-right tabular-nums font-semibold text-gray-800">
@@ -808,7 +848,7 @@ export default function NuevaVentaPage() {
                           <button
                             type="button"
                             onClick={() => handleEliminarLinea(idx)}
-                            className="text-red-400 hover:text-red-700 transition-colors p-1 rounded hover:bg-red-50"
+                            className="inline-flex items-center justify-center min-w-[40px] min-h-[40px] text-red-400 hover:text-red-700 transition-colors rounded hover:bg-red-50"
                             title="Eliminar producto"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -824,7 +864,7 @@ export default function NuevaVentaPage() {
 
               {/* Totales + Cobro (vuelto) */}
               <div className="mt-5 flex justify-end">
-                <div className="w-full md:w-80 space-y-3">
+                <div className="w-full space-y-3 lg:w-80">
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-sm text-gray-600">
                       <span>Subtotal</span>
@@ -843,61 +883,75 @@ export default function NuevaVentaPage() {
                   </div>
 
                   {tipoVenta === "CONTADO" && (
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
-                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                        Cobro
-                      </p>
-                      <div>
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Monto recibido (Gs.)
-                        </label>
-                        <MontoInput
-                          value={montoRecibido}
-                          onChange={(n) => setMontoRecibido(String(n))}
-                          placeholder="Ej: 100.000"
-                          className={inputClass}
-                          decimals={false}
-                        />
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5">
+                      <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Cobro</p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {([
+                          { v: "efectivo", label: "Efectivo" },
+                          { v: "transferencia", label: "Transferencia" },
+                          { v: "tarjeta", label: "Tarjeta/Débito" },
+                        ] as { v: MetodoPago; label: string }[]).map((m) => (
+                          <button
+                            key={m.v}
+                            type="button"
+                            onClick={() => handleSelectMetodo(m.v)}
+                            className={`text-xs py-2 rounded-md border transition-colors ${
+                              metodoPago === m.v
+                                ? "border-[#0EA5E9] bg-[#0EA5E9]/10 text-[#0EA5E9] font-medium"
+                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
                       </div>
-                      {montoRecibidoNum > 0 && (
-                        <div className="flex justify-between text-sm pt-2 border-t border-slate-200">
-                          {vuelto >= 0 ? (
-                            <>
-                              <span className="text-gray-600">Vuelto</span>
-                              <span className="font-bold text-emerald-600 tabular-nums">
-                                {formatGs(vuelto)}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-gray-600">Falta</span>
-                              <span className="font-bold text-red-600 tabular-nums">
+
+                      {/* Efectivo: monto recibido + vuelto, sin datos extra */}
+                      {metodoPago === "efectivo" && (
+                        <div className="space-y-1.5">
+                          <MontoInput
+                            value={montoRecibido}
+                            onChange={(n) => setMontoRecibido(String(n))}
+                            placeholder="Monto recibido (Gs.) — opcional"
+                            className={inputClass}
+                            decimals={false}
+                          />
+                          {montoRecibidoNum > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-gray-600">{vuelto >= 0 ? "Vuelto" : "Falta"}</span>
+                              <span className={`font-bold tabular-nums ${vuelto >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                                 {formatGs(Math.abs(vuelto))}
                               </span>
-                            </>
+                            </div>
                           )}
                         </div>
                       )}
-                      <p className="text-[11px] text-gray-400 leading-snug">
-                        Cálculo solo informativo — no se guarda en la venta.
-                      </p>
+
+                      {/* Transferencia / Tarjeta: resumen compacto + editar */}
+                      {(metodoPago === "transferencia" || metodoPago === "tarjeta") && (
+                        <div className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-slate-700">
+                              {metodoPago === "transferencia" ? "Transferencia" : "Tarjeta / Débito"}
+                            </span>
+                            <button type="button" onClick={() => { setEntidadQuery(""); setCobroModalOpen(true); }} className="text-sky-600 font-medium hover:underline">
+                              Editar
+                            </button>
+                          </div>
+                          <p className="text-slate-500">
+                            Entidad: <span className="text-slate-700">{entidadSel ? `${entidadSel.codigo ? entidadSel.codigo + " · " : ""}${entidadSel.nombre}` : "— sin especificar —"}</span>
+                          </p>
+                          {pagoReferencia.trim() && <p className="text-slate-500">Comprobante: <span className="text-slate-700">{pagoReferencia}</span></p>}
+                          {metodoPago === "transferencia" && pagoTitular.trim() && (
+                            <p className="text-slate-500">Titular: <span className="text-slate-700">{pagoTitular}</span></p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               </div>
             </>
-          )}
-
-          {/* Banner impacto inventario */}
-          {items.length > 0 && (
-            <div className="mt-5 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-xs text-blue-700">
-              <span className="text-base leading-none mt-0.5">↓</span>
-              <span>
-                Al confirmar se registrarán{" "}
-                <strong>{items.length} movimiento{items.length > 1 ? "s" : ""} de SALIDA</strong>{" "}
-                en el inventario, uno por cada producto listado.
-              </span>
-            </div>
           )}
 
           {/* Error confirmar */}
@@ -908,21 +962,23 @@ export default function NuevaVentaPage() {
             </div>
           )}
 
-          {/* Acciones */}
-          <div className="mt-6 flex gap-4">
-            <button
-              type="submit"
-              disabled={!ventaValida || submitting}
-              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
-            >
-              {submitting ? "Guardando..." : "Confirmar venta"}
-            </button>
+          {/* Acciones — stack vertical full-width en mobile (mas facil de tappear),
+              fila en sm+. Confirmar en orden visual primero (primary). */}
+          <div className="mt-6 flex flex-col-reverse sm:flex-row gap-3">
             <button
               type="button"
               onClick={() => router.push("/ventas")}
-              className="border border-slate-200 px-6 py-3 rounded-lg text-sm hover:bg-slate-50 transition-colors"
+              className="border border-slate-200 px-6 py-3 rounded-lg text-sm hover:bg-slate-50 transition-colors min-h-[48px] w-full sm:w-auto"
             >
               Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={!ventaValida || guardando}
+              aria-busy={guardando}
+              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 min-h-[48px] w-full sm:w-auto"
+            >
+              {guardando ? "Guardando…" : "Confirmar venta"}
             </button>
           </div>
 
@@ -939,6 +995,185 @@ export default function NuevaVentaPage() {
         tipoCambio={tipoCambioNum}
         ivaDefault={lineaIva}
       />
+
+      {/* Modal de cobro (transferencia / tarjeta-débito) */}
+      {cobroModalOpen && (metodoPago === "transferencia" || metodoPago === "tarjeta") && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setCobroModalOpen(false)}>
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-800">
+                {metodoPago === "transferencia" ? "Datos de transferencia" : "Datos de tarjeta / débito"}
+              </h3>
+              <button type="button" onClick={() => setCobroModalOpen(false)} className="text-slate-400 hover:text-slate-700 text-lg leading-none">✕</button>
+            </div>
+
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">
+                {metodoPago === "tarjeta" ? "Entidad / banco / POS" : "Entidad / banco"}
+              </label>
+              <input
+                type="text"
+                value={entidadQuery}
+                onChange={(e) => setEntidadQuery(e.target.value)}
+                placeholder="Buscar por código o nombre…"
+                className={inputClass}
+                autoFocus
+              />
+              <div className="mt-1 max-h-40 overflow-auto rounded-lg border border-slate-100">
+                {entidadesFiltradas.length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-gray-400">Sin entidades. Cargalas en Configuración → Entidades bancarias.</p>
+                ) : (
+                  entidadesFiltradas.map((en) => (
+                    <button
+                      key={en.id}
+                      type="button"
+                      onClick={() => { setPagoEntidadId(en.id); setEntidadQuery(""); }}
+                      className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-50 ${pagoEntidadId === en.id ? "bg-sky-50" : ""}`}
+                    >
+                      {en.codigo && <span className="font-mono text-xs text-slate-400 mr-2">{en.codigo}</span>}
+                      {en.nombre}
+                    </button>
+                  ))
+                )}
+              </div>
+              {entidadSel && <p className="mt-1 text-[11px] text-emerald-600">Seleccionada: {entidadSel.nombre}</p>}
+            </div>
+
+            {metodoPago === "transferencia" && (
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Titular que transfirió</label>
+                <input type="text" value={pagoTitular} onChange={(e) => setPagoTitular(e.target.value)} placeholder="Nombre del titular" className={inputClass} />
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">N° de comprobante / referencia</label>
+              <input type="text" value={pagoReferencia} onChange={(e) => setPagoReferencia(e.target.value)} placeholder="Comprobante / transacción" className={inputClass} />
+            </div>
+
+            <button type="button" onClick={() => setCobroModalOpen(false)} className="w-full rounded-lg bg-[#0EA5E9] py-2 text-sm font-medium text-white hover:bg-[#0284C7]">
+              Listo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación: venta sin stock suficiente */}
+      {confirmSinStockOpen && faltantes.length > 0 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirmSinStockOpen(false)}>
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl space-y-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-2">
+              <span className="text-amber-500 text-xl leading-none">⚠</span>
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">Hay productos/insumos sin stock suficiente</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Revisá el detalle. Podés vender igual: el stock quedará negativo y se registrará el movimiento de salida.</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 text-xs">
+                    <th className="py-2 px-3 font-medium">Producto / Insumo</th>
+                    <th className="py-2 px-3 font-medium text-right">Stock actual</th>
+                    <th className="py-2 px-3 font-medium text-right">Solicitado</th>
+                    <th className="py-2 px-3 font-medium text-right">Faltante</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {faltantes.map((f) => (
+                    <tr key={f.producto_id} className="border-t border-slate-100">
+                      <td className="py-2 px-3">
+                        <span className="font-medium text-slate-800">{f.nombre}</span>
+                        <span className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${f.tipo === "insumo" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600"}`}>
+                          {f.tipo === "insumo" ? "Insumo" : "Producto"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 text-right tabular-nums">{f.stock_actual}</td>
+                      <td className="py-2 px-3 text-right tabular-nums">{f.solicitado}</td>
+                      <td className="py-2 px-3 text-right tabular-nums font-semibold text-red-600">{f.faltante}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
+              <button type="button" onClick={() => setConfirmSinStockOpen(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button type="button" disabled={guardando} aria-busy={guardando} onClick={() => void confirmarVentaSinStock()} className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                {guardando ? "Guardando…" : "Confirmar venta de todos modos"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel post-venta: abrir ticket y (si aplica) nota de remisión */}
+      {postVenta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl space-y-4 text-center">
+            <div className="text-3xl">✅</div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Venta {postVenta.numero} registrada</h3>
+              {postVenta.credito && (
+                <p className="mt-1 text-sm font-medium text-amber-700">Venta a crédito registrada. Cuenta por cobrar generada.</p>
+              )}
+              {postVenta.generaNota && (
+                <p className="mt-1 text-sm text-sky-700">Esta venta genera nota de remisión.</p>
+              )}
+              <p className="mt-1 text-xs text-gray-400">
+                Si tu navegador bloqueó las pestañas, abrí los documentos con estos botones.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <a
+                href={`/api/ventas/${postVenta.id}/ticket?mode=comandas&auto=1`}
+                target="_blank"
+                rel="noopener"
+                className="rounded-lg bg-[#0EA5E9] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0284C7]"
+              >
+                Abrir ticket
+              </a>
+              {postVenta.generaNota && (
+                <a
+                  href={`/api/ventas/${postVenta.id}/ticket?tipo=remision&auto=1`}
+                  target="_blank"
+                  rel="noopener"
+                  className="rounded-lg border border-sky-300 bg-sky-50 px-4 py-2.5 text-sm font-medium text-sky-700 hover:bg-sky-100"
+                >
+                  Abrir nota de remisión
+                </a>
+              )}
+              {/* Recibo de dinero solo para venta contado (en crédito el recibo sale al cobrar). */}
+              {!postVenta.credito && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const r = await generarYAbrirRecibo({ origen: "venta_contado", venta_id: postVenta.id });
+                    if (!r.ok) setErrorVenta(r.error ?? "No se pudo generar el recibo.");
+                  }}
+                  className="rounded-lg border border-[#4FAEB2]/40 bg-[#4FAEB2]/[0.08] px-4 py-2.5 text-sm font-medium text-[#3F8E91] hover:bg-[#4FAEB2]/[0.16]"
+                >
+                  Generar recibo de dinero
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => { setPostVenta(null); router.push("/ventas"); }}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Ir a ventas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

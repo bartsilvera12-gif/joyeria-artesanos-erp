@@ -83,6 +83,22 @@ export interface Producto {
   modo_receta?: string;
   distribuidor_nombre?: string | null;
   ubicacion_deposito?: string | null;
+
+  /* Campos heredados del ERP autorepuestos. Opcionales — no se persisten en
+   * joyería; sólo permiten compilar los formularios portados. */
+  precio_distribuidor?: number | null;
+  codigo_oem?: string | null;
+  codigo_alternativo?: string | null;
+  marca_repuesto?: string | null;
+  garantia_meses?: number | null;
+  distribuidor_comision_pct?: number | null;
+  permitir_venta_sin_stock?: boolean;
+  descripcion?: string | null;
+  valorizado?: boolean;
+  unidad_compra?: string | null;
+  unidad_receta?: string | null;
+  factor_compra_receta?: number | null;
+  tiempo_prep_minutos?: number | null;
 }
 
 /** Fase Presentaciones: cada presentación por ml de un producto. */

@@ -24,10 +24,17 @@ type Theme = "light";
 
 const STORAGE_KEY = "neura_theme";
 
-const ThemeContext = createContext<{
+type ThemeContextValue = {
   theme: Theme;
   toggleTheme: () => void;
-}>({ theme: "light", toggleTheme: () => {} });
+};
+
+// Value estatico extraido como const (theme siempre es "light").
+// Si esto vive dentro del JSX del Provider, React crea un objeto nuevo en cada render
+// y todos los useTheme() se invalidan sin razon.
+const THEME_VALUE: ThemeContextValue = { theme: "light", toggleTheme: () => {} };
+
+const ThemeContext = createContext<ThemeContextValue>(THEME_VALUE);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -41,7 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme: "light", toggleTheme: () => {} }}>
+    <ThemeContext.Provider value={THEME_VALUE}>
       {children}
     </ThemeContext.Provider>
   );

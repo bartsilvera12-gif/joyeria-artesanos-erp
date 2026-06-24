@@ -8,13 +8,11 @@ export default function ProyectoDetalleModal({
   open,
   onClose,
   onUpdated,
-  dataSchema,
 }: {
   projectId: string | null;
   open: boolean;
   onClose: () => void;
   onUpdated: () => void;
-  dataSchema: string;
 }) {
   const [dirty, setDirty] = useState(false);
 
@@ -39,19 +37,10 @@ export default function ProyectoDetalleModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, requestClose]);
 
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
-
   if (!open || !projectId) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 md:p-6">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6">
       <button
         type="button"
         aria-label="Cerrar modal"
@@ -62,19 +51,14 @@ export default function ProyectoDetalleModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="proyecto-detalle-titulo"
-        className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-none border-0 border-slate-200 bg-white shadow-2xl shadow-[#4FAEB2]/10 ring-1 ring-[#4FAEB2]/15 sm:h-[88dvh] sm:max-h-[920px] sm:rounded-2xl sm:border"
+        className="relative flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20"
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#4FAEB2] via-[#4FAEB2]/80 to-[#4FAEB2]/40"
-        />
         <ProyectoDetalleInner
           projectId={projectId}
           variant="modal"
           onClose={requestClose}
           onProjectUpdated={onUpdated}
           onDirtyChange={setDirty}
-          dataSchema={dataSchema}
         />
       </div>
     </div>

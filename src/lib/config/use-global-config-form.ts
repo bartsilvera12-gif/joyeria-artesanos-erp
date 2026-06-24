@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ConfigGlobal } from "@/lib/config/types";
 import { getConfig, resetConfig, saveConfig } from "@/lib/config/storage";
+import { useAutoClearFlag } from "@/hooks/useAutoClearFlag";
 
 export type GlobalConfigFormState = Omit<ConfigGlobal, "updated_at" | "updated_by">;
 
@@ -33,7 +34,12 @@ function formFromConfig(cfg: ConfigGlobal): GlobalConfigFormState {
 export function useGlobalConfigForm() {
   const [config, setConfig] = useState<ConfigGlobal | null>(null);
   const [form, setForm] = useState<GlobalConfigFormState | null>(null);
-  const [success, setSuccess] = useState(false);
+  // Antes: setSuccess(true) + setTimeout(...setSuccess(false), 3000) sin cleanup.
+  // Si la pagina se desmontaba durante esos 3s, setState-after-unmount + memory leak.
+  // useAutoClearFlag cancela el timer en cleanup automaticamente.
+  const [successValue, setSuccessFlag] = useAutoClearFlag<true>(3000);
+  const success = successValue === true;
+  const setSuccess = (v: boolean) => setSuccessFlag(v ? true : null);
 
   const reload = useCallback(() => {
     const cfg = getConfig();
@@ -61,8 +67,8 @@ export function useGlobalConfigForm() {
     if (!form) return;
     const saved = saveConfig(form);
     setConfig(saved);
+    // useAutoClearFlag programa el reset a los 3s con cleanup seguro.
     setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
   }
 
   function handleResetFormToDefaults() {
@@ -70,7 +76,6 @@ export function useGlobalConfigForm() {
     setConfig(cfg);
     setForm(formFromConfig(cfg));
     setSuccess(true);
-    setTimeout(() => setSuccess(false), 3000);
   }
 
   return {

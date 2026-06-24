@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
 
 export interface ProductoPickerItem {
   id: string;
@@ -10,12 +9,8 @@ export interface ProductoPickerItem {
   codigo_barras: string | null;
   codigo_barras_interno: boolean;
   precio_venta: number;
-  /** Precio promocional cargado en el editor (0 si no hay). */
-  precio_oferta?: number;
-  /** Vigencia ISO de la oferta. null = vigente indefinido si precio_oferta > 0. */
-  oferta_hasta?: string | null;
-  /** Precio sugerido a usar en la venta: oferta si vigente, sino precio_venta. Calculado server-side. */
-  precio_efectivo?: number;
+  precio_mayorista: number;
+  precio_distribuidor?: number | null;
   costo_promedio: number;
   stock_actual: number;
   stock_minimo: number;
@@ -27,24 +22,23 @@ export interface ProductoPickerItem {
   proveedor_nombre: string | null;
   ubicacion_nombre: string | null;
   ubicacion_tipo: string | null;
-  /** Fase Decants: si true el producto puede entregarse como obsequio en ventas. */
-  es_decant?: boolean;
+  /** Si false → producto preparado (Menú): no valida stock ni muestra "Sin stock". */
+  controla_stock?: boolean;
+  /** Modo de receta: 'produccion_previa' (Menú stockeado) muestra stock real. */
+  modo_receta?: string;
+  // Autopartes (Fase 1/3) — opcionales.
+  codigo_oem?: string | null;
+  codigo_alternativo?: string | null;
+  marca_repuesto?: string | null;
+  /** Unidades vendidas en últimos 90 días (devuelto por el endpoint cuando
+   *  no hay query). Sirve para el badge "🔥 Top". */
+  ventas_90d?: number;
 }
 
-/** True si el producto tiene oferta cargada y vigente. */
-function tieneOfertaVigente(p: ProductoPickerItem): boolean {
-  const po = Number(p.precio_oferta ?? 0);
-  if (!(po > 0)) return false;
-  if (!p.oferta_hasta) return true;
-  const t = Date.parse(p.oferta_hasta);
-  if (!Number.isFinite(t)) return false;
-  return t >= Date.now();
-}
-
-/** Devuelve el precio en Gs. a usar como sugerido en la línea de venta. */
-function precioSugerido(p: ProductoPickerItem): number {
-  if (typeof p.precio_efectivo === "number" && p.precio_efectivo > 0) return p.precio_efectivo;
-  return tieneOfertaVigente(p) ? Number(p.precio_oferta ?? 0) : p.precio_venta;
+/** Un Menú con produccion_previa maneja stock real del terminado (como reventa para mostrar). */
+function manejaStock(p: { controla_stock?: boolean; modo_receta?: string }): boolean {
+  if (p.controla_stock !== false) return true;
+  return p.modo_receta === "produccion_previa";
 }
 
 /**
@@ -58,9 +52,23 @@ export interface AgregarVentaPayload {
   cantidad: number;
   precio_input: number;
   iva: "EXENTA" | "5%" | "10%";
-  /** Fase Decants: true si el ítem se entrega como obsequio (sin cargo). */
-  es_sin_cargo?: boolean;
-  motivo_sin_cargo?: string | null;
+  /** Nivel de precio elegido en el panel de detalle. */
+  tipo_precio: "minorista" | "mayorista" | "distribuidor";
+}
+
+/**
+ * Precio unitario (en PYG) según el tipo elegido, con fallbacks:
+ *  minorista → precio_venta;
+ *  mayorista    → precio_mayorista (>0) o fallback a precio_venta;
+ *  distribuidor → precio_distribuidor (>0) o fallback a precio_venta.
+ */
+function precioPorTipoPicker(
+  p: ProductoPickerItem,
+  tipo: "minorista" | "mayorista" | "distribuidor"
+): number {
+  if (tipo === "mayorista") return p.precio_mayorista != null && p.precio_mayorista > 0 ? p.precio_mayorista : p.precio_venta;
+  if (tipo === "distribuidor") return p.precio_distribuidor != null && p.precio_distribuidor > 0 ? p.precio_distribuidor : p.precio_venta;
+  return p.precio_venta;
 }
 
 interface Props {
@@ -84,9 +92,11 @@ function formatGs(v: number): string {
 }
 
 export default function ProductPickerModal({
-  open, onClose, onAgregar, excludeIds = [], moneda = "GS", tipoCambio = 1, ivaDefault = "10%",
+  open, onClose, onAgregar, excludeIds = [], moneda = "GS", tipoCambio = 1, ivaDefault = "EXENTA",
 }: Props) {
   const [q, setQ] = useState("");
+  /** Filtro opcional por vehículo compatible (marca o modelo). */
+  const [vehiculoFiltro, setVehiculoFiltro] = useState("");
   const [items, setItems] = useState<ProductoPickerItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,12 +108,23 @@ export default function ProductPickerModal({
   const [cantidad, setCantidad] = useState("1");
   const [precio, setPrecio] = useState("");
   const [iva, setIva] = useState<"EXENTA" | "5%" | "10%">(ivaDefault);
+  const [tipoPrecio, setTipoPrecio] = useState<"minorista" | "mayorista" | "distribuidor">("minorista");
   const [feedback, setFeedback] = useState<string | null>(null);
-  /** Fase Decants: para productos con es_decant=true el vendedor elige entre
-   *  Cobrar (precio normal) o Regalar (precio=0, registra costo promocional). */
-  const [modo, setModo] = useState<"cobrar" | "regalar">("cobrar");
 
-  useEffect(() => { if (open) { setQ(""); setError(null); setSel(null); setTimeout(() => inputRef.current?.focus(), 50); } }, [open]);
+  /** Precio en la moneda activa de la venta (string para el input). */
+  function precioEnMonedaStr(precioGs: number): string {
+    if (moneda === "USD" && tipoCambio > 0) return String(Math.round((precioGs / tipoCambio) * 100) / 100);
+    return String(Math.round(precioGs));
+  }
+
+  /** Cambia el tipo de precio del producto seleccionado y ajusta el precio unitario. */
+  function handleTipoPrecio(tipo: "minorista" | "mayorista" | "distribuidor") {
+    setTipoPrecio(tipo);
+    if (sel) setPrecio(precioEnMonedaStr(precioPorTipoPicker(sel, tipo)));
+    setFeedback(null);
+  }
+
+  useEffect(() => { if (open) { setQ(""); setVehiculoFiltro(""); setError(null); setSel(null); setTimeout(() => inputRef.current?.focus(), 50); } }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -120,8 +141,12 @@ export default function ProductPickerModal({
       try {
         const url = new URL("/api/productos/search", window.location.origin);
         if (q.trim().length >= 2) url.searchParams.set("q", q.trim());
-        url.searchParams.set("limit", "50");
-        const res = await fetchWithSupabaseSession(url.toString());
+        if (vehiculoFiltro.trim().length >= 2) url.searchParams.set("vehiculo", vehiculoFiltro.trim());
+        // 500 = MAX_LIMIT del endpoint. Para catálogos > 500 productos el camino
+        // feliz es tipear en el buscador (filtra server-side); el cap es solo
+        // para que el listado inicial sin búsqueda no sienta cortado.
+        url.searchParams.set("limit", "500");
+        const res = await fetch(url.toString(), { credentials: "include" });
         const json = await res.json();
         if (!res.ok || !json?.success) {
           setError(json?.error ?? "Error al buscar productos");
@@ -135,46 +160,28 @@ export default function ProductPickerModal({
       } finally { setLoading(false); }
     }, 200);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [q, open]);
+  }, [q, vehiculoFiltro, open]);
 
   function selectProducto(p: ProductoPickerItem) {
     setSel(p);
     setCantidad("1");
-    // Precio inicial sugerido: oferta vigente si existe, sino precio_venta.
-    // El vendedor puede editarlo libremente en el form de la línea.
-    const precioGs = precioSugerido(p);
-    if (moneda === "USD" && tipoCambio > 0) {
-      setPrecio(String(Math.round((precioGs / tipoCambio) * 100) / 100));
-    } else {
-      setPrecio(String(Math.round(precioGs)));
-    }
+    // Precio inicial: minorista (precio_venta) en la moneda de la venta.
+    setTipoPrecio("minorista");
+    setPrecio(precioEnMonedaStr(precioPorTipoPicker(p, "minorista")));
     setIva(ivaDefault);
     setFeedback(null);
-    setModo("cobrar"); // default seguro; el toggle solo se muestra si es_decant
   }
 
   function handleAgregar() {
     if (!sel) return;
     const cantNum = parseInt(cantidad, 10) || 0;
     const precioNum = parseFloat(precio) || 0;
-    const regalar = sel.es_decant === true && modo === "regalar";
     if (cantNum <= 0) { setFeedback("Cantidad debe ser > 0"); return; }
-    if (!regalar && precioNum <= 0) { setFeedback("Precio debe ser > 0"); return; }
-    if (!regalar && moneda === "USD" && tipoCambio <= 0) { setFeedback("Falta tipo de cambio en la venta"); return; }
-    const enCarrito = excludeIds.filter((id) => id === sel.id).length;
-    const disp = sel.stock_actual - enCarrito;
-    if (cantNum > disp) {
-      setFeedback(`Stock insuficiente (disponible ${disp})`);
-      return;
-    }
-    const ok = onAgregar({
-      producto: sel,
-      cantidad: cantNum,
-      precio_input: regalar ? 0 : precioNum,
-      iva: regalar ? "EXENTA" : iva,
-      es_sin_cargo: regalar,
-      motivo_sin_cargo: regalar ? "decant_obsequio" : null,
-    });
+    if (precioNum <= 0) { setFeedback("Precio debe ser > 0"); return; }
+    if (moneda === "USD" && tipoCambio <= 0) { setFeedback("Falta tipo de cambio en la venta"); return; }
+    // Venta sin stock (Fase 5): NO se bloquea por falta de stock; se permite agregar
+    // y la confirmación se pide al registrar la venta.
+    const ok = onAgregar({ producto: sel, cantidad: cantNum, precio_input: precioNum, iva, tipo_precio: tipoPrecio });
     if (ok !== false) {
       setFeedback("Producto agregado ✓");
       setCantidad("1");
@@ -187,26 +194,18 @@ export default function ProductPickerModal({
   if (!open) return null;
   const enCarritoSel = sel ? excludeIds.filter((id) => id === sel.id).length : 0;
   const dispSel = sel ? sel.stock_actual - enCarritoSel : 0;
-  const esRegalar = sel?.es_decant === true && modo === "regalar";
-  const precioGsEquiv = esRegalar
-    ? 0
-    : moneda === "USD"
-      ? (parseFloat(precio) || 0) * (tipoCambio || 0)
-      : (parseFloat(precio) || 0);
-  // Regla Elevate: precio cargado YA incluye IVA. Total línea = precio × cantidad;
-  // IVA es componente interno; subtotal (base) = total − IVA.
-  const totalLineaPicker = (parseInt(cantidad, 10) || 0) * precioGsEquiv;
-  const ivaMonto = esRegalar || iva === "EXENTA" || totalLineaPicker <= 0
-    ? 0
-    : totalLineaPicker - totalLineaPicker / (1 + (iva === "5%" ? 0.05 : 0.10));
-  const subtotal = totalLineaPicker - ivaMonto;
-  const costoPromocional = esRegalar && sel
-    ? Number(sel.costo_promedio ?? 0) * (parseInt(cantidad, 10) || 0)
-    : 0;
+  const precioGsEquiv = moneda === "USD" ? (parseFloat(precio) || 0) * (tipoCambio || 0) : (parseFloat(precio) || 0);
+  const subtotal = (parseInt(cantidad, 10) || 0) * precioGsEquiv;
+  const ivaMonto = iva === "10%" ? subtotal * 0.10 : iva === "5%" ? subtotal * 0.05 : 0;
 
+  // Mobile: pt-3 (gana viewport vertical valioso, evita el modal "cortado")
+  // y pt-12 en sm+ donde si hay espacio para el aire decorativo.
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-900/60 backdrop-blur-sm pt-12 px-4" onClick={onClose}>
-      <div className="w-full max-w-6xl bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[88vh]" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center bg-slate-900/60 backdrop-blur-sm pt-3 sm:pt-12 px-2 sm:px-4" onClick={onClose}>
+      {/* dvh (dynamic viewport height) en lugar de vh: en iOS Safari el vh
+          incluye el espacio del URL bar/safe-area y el modal queda parcialmente
+          oculto debajo del browser chrome. dvh devuelve el viewport REAL visible. */}
+      <div className="w-full max-w-6xl bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[94dvh] sm:max-h-[88vh]" onClick={(e) => e.stopPropagation()}>
         {/* Header con buscador */}
         <div className="p-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
@@ -218,7 +217,7 @@ export default function ProductPickerModal({
               type="text"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por nombre, SKU, código, categoría o ubicación..."
+              placeholder="Buscar por nombre, SKU, código de barras, OEM, alternativo o marca..."
               className="flex-1 bg-transparent outline-none text-base text-slate-800 placeholder:text-slate-400"
               autoComplete="off"
             />
@@ -228,15 +227,42 @@ export default function ProductPickerModal({
               </svg>
             </button>
           </div>
+          {/* Filtro adicional por vehículo compatible (rubro autopartes). */}
+          <div className="mt-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-slate-400 shrink-0"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+            <input
+              type="text"
+              value={vehiculoFiltro}
+              onChange={(e) => setVehiculoFiltro(e.target.value)}
+              placeholder="Filtrar por vehículo compatible (marca o modelo)…"
+              className="flex-1 bg-transparent outline-none text-sm text-slate-700 placeholder:text-slate-400"
+              autoComplete="off"
+            />
+            {vehiculoFiltro && (
+              <button
+                type="button"
+                onClick={() => setVehiculoFiltro("")}
+                className="text-[11px] text-slate-400 hover:text-slate-700"
+                title="Quitar filtro"
+              >limpiar</button>
+            )}
+          </div>
           <p className="mt-2 text-xs text-slate-400">
-            Tokens en cualquier orden. Mínimo 2 letras por palabra. Esc para cerrar.
+            Buscá por código OEM/alternativo/marca o filtrá por vehículo. Mínimo 2 letras.
           </p>
         </div>
 
-        {/* Body: lista + panel detalle */}
+        {/* Body: lista + panel detalle.
+            MASTER/DETAIL responsive:
+              MOBILE (< lg): lista full-width cuando NO hay seleccion; cuando seleccionas
+                             un producto, se oculta y aparece el panel detalle full-width
+                             (con boton "Volver" para cerrar la seleccion).
+              DESKTOP (>= lg): ambos lado a lado (60% / 40%).
+            Antes el panel detalle era "hidden lg:flex" -> en mobile NO se veia el form
+            para agregar el producto a la venta, por eso el usuario no podia cargar. */}
         <div className="flex flex-1 overflow-hidden">
           {/* LISTA */}
-          <div className="w-full lg:w-3/5 border-r border-slate-200 overflow-y-auto">
+          <div className={`${sel ? "hidden lg:block" : "block"} w-full lg:w-3/5 lg:border-r border-slate-200 overflow-y-auto`}>
             {loading && <div className="p-6 text-center text-sm text-slate-400">Buscando...</div>}
             {!loading && error && <div className="m-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2">{error}</div>}
             {!loading && !error && items.length === 0 && (
@@ -244,20 +270,29 @@ export default function ProductPickerModal({
                 {q.trim().length >= 2 ? `Sin resultados para "${q}"` : "Escribí para buscar productos"}
               </div>
             )}
+            {!loading && !error && items.length >= 500 && q.trim().length < 2 && (
+              <div className="m-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Mostrando 500 productos — los <strong>más vendidos</strong> de los últimos 90 días primero (🔥), luego alfabético. <strong>Tipeá en el buscador</strong> para encontrar otros específicos.
+              </div>
+            )}
             {!loading && !error && items.length > 0 && (
               <ul className="divide-y divide-slate-100">
                 {items.map((p) => {
                   const enCarro = excludeIds.filter((id) => id === p.id).length;
                   const disp = p.stock_actual - enCarro;
-                  const sinStock = disp <= 0;
+                  // Menú preparado_al_vender: sin stock propio (badge Menú).
+                  // Menú produccion_previa: maneja stock real del terminado → se muestra como reventa.
+                  const manejaStk = manejaStock(p);
+                  const sinStock = manejaStk && disp <= 0;
+                  const isMenu = !manejaStk;
                   const isSel = sel?.id === p.id;
                   return (
                     <li
                       key={p.id}
-                      onClick={() => !sinStock && selectProducto(p)}
-                      className={`flex items-center gap-3 px-4 py-3 transition-colors ${
-                        sinStock ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                      } ${isSel ? "bg-sky-50" : "hover:bg-slate-50"}`}
+                      onClick={() => selectProducto(p)}
+                      className={`flex items-center gap-3 px-4 py-3 transition-colors cursor-pointer ${
+                        isSel ? "bg-sky-50" : "hover:bg-slate-50"
+                      }`}
                     >
                       <div className="w-14 h-14 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                         {p.imagen_url ? (
@@ -270,26 +305,40 @@ export default function ProductPickerModal({
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-slate-800 truncate">{p.nombre}</div>
+                        <div className="font-medium text-slate-800 truncate">
+                          {p.ventas_90d && p.ventas_90d > 0 && (
+                            <span
+                              title={`${p.ventas_90d} unidades vendidas en los últimos 90 días`}
+                              className="mr-2 inline-flex items-center rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-700"
+                            >
+                              🔥 Top · {p.ventas_90d}
+                            </span>
+                          )}
+                          {p.nombre}
+                          {p.marca_repuesto && (
+                            <span className="ml-2 inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">{p.marca_repuesto}</span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 flex-wrap">
                           <span className="font-mono">{p.sku}</span>
                           {p.codigo_barras && <span className="font-mono">· {p.codigo_barras}</span>}
+                          {p.codigo_oem && <span className="font-mono text-[#3F8E91]" title="Código OEM">· OEM {p.codigo_oem}</span>}
+                          {p.codigo_alternativo && <span className="font-mono text-slate-400" title="Código alternativo">· Alt {p.codigo_alternativo}</span>}
                           {p.categoria_nombre && <span>· {p.categoria_nombre}</span>}
                           {p.ubicacion_nombre && <span>· {p.ubicacion_nombre}</span>}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        {tieneOfertaVigente(p) ? (
-                          <div className="flex flex-col items-end leading-tight">
-                            <span className="text-[11px] text-slate-400 line-through tabular-nums">{formatGs(p.precio_venta)}</span>
-                            <span className="text-sm font-semibold text-emerald-600 tabular-nums">{formatGs(Number(p.precio_oferta ?? 0))}</span>
+                        <div className="text-sm font-semibold text-slate-800 tabular-nums">{formatGs(p.precio_venta)}</div>
+                        {isMenu ? (
+                          <div className="text-xs">
+                            <span className="inline-flex items-center rounded-full bg-amber-100 text-amber-800 font-medium px-2 py-0.5">Menú</span>
                           </div>
                         ) : (
-                          <div className="text-sm font-semibold text-slate-800 tabular-nums">{formatGs(p.precio_venta)}</div>
+                          <div className={`text-xs tabular-nums ${sinStock ? "text-red-500" : "text-slate-500"}`}>
+                            {sinStock ? "Sin stock" : `${disp} ${p.unidad_medida}`}
+                          </div>
                         )}
-                        <div className={`text-xs tabular-nums ${sinStock ? "text-red-500" : "text-slate-500"}`}>
-                          {sinStock ? "Sin stock" : `${disp} ${p.unidad_medida}`}
-                        </div>
                       </div>
                     </li>
                   );
@@ -298,15 +347,38 @@ export default function ProductPickerModal({
             )}
           </div>
 
-          {/* PANEL DETALLE */}
-          <div className="hidden lg:flex w-2/5 flex-col overflow-y-auto bg-slate-50">
+          {/* PANEL DETALLE
+              Layout flex column:
+                - Header sticky: boton Volver (mobile only).
+                - Middle scrollable: imagen + info + form inputs.
+                - Footer sticky: boton "+ Agregar a la venta" SIEMPRE visible.
+              Antes el boton estaba al final del scroll => en mobile chico el user
+              no llegaba a verlo, no podia confirmar el producto. */}
+          <div className={`${sel ? "flex" : "hidden lg:flex"} w-full lg:w-2/5 flex-col bg-slate-50 min-h-0`}>
             {!sel ? (
               <div className="flex-1 flex items-center justify-center text-sm text-slate-400 p-6 text-center">
                 Seleccioná un producto de la lista para ver detalle y agregar a la venta.
               </div>
             ) : (
-              <div className="p-5 space-y-4">
-                <div className="w-full h-44 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
+              <>
+                {/* Mobile back button — sticky en el tope del panel */}
+                <div className="lg:hidden shrink-0 border-b border-slate-200 bg-slate-50 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setSel(null)}
+                    className="inline-flex items-center gap-1.5 min-h-[40px] px-2 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-200/60 hover:text-slate-900 transition-colors"
+                    aria-label="Volver a la lista de productos"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                      <path fillRule="evenodd" d="M12.78 5.22a.75.75 0 0 1 0 1.06L9.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z" clipRule="evenodd" />
+                    </svg>
+                    Volver a la lista
+                  </button>
+                </div>
+                {/* Middle: scrollable. flex-1 + overflow-y-auto + min-h-0
+                    para que el footer no se aplaste. */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 sm:space-y-4 min-h-0">
+                <div className="w-full h-28 sm:h-44 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden">
                   {sel.imagen_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={sel.imagen_url} alt={sel.nombre} className="w-full h-full object-contain" />
@@ -326,20 +398,12 @@ export default function ProductPickerModal({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <DetailItem label="Categoría" value={sel.categoria_nombre} />
-                  <DetailItem label="Proveedor" value={sel.proveedor_nombre} />
-                  <DetailItem label="Ubicación" value={sel.ubicacion_nombre ? `${sel.ubicacion_nombre} (${sel.ubicacion_tipo})` : null} />
-                  <DetailItem label="Unidad" value={sel.unidad_medida} />
-                  <DetailItem
-                    label={tieneOfertaVigente(sel) ? "Oferta vigente" : "Precio venta"}
-                    value={
-                      tieneOfertaVigente(sel)
-                        ? `${formatGs(Number(sel.precio_oferta ?? 0))} (antes ${formatGs(sel.precio_venta)})`
-                        : formatGs(sel.precio_venta)
-                    }
-                    highlight
-                  />
-                  <DetailItem label="Stock disp." value={`${dispSel} ${sel.unidad_medida}`} highlight />
+                  <DetailItem label="Precio venta" value={formatGs(sel.precio_venta)} highlight />
+                  {manejaStock(sel) ? (
+                    <DetailItem label="Stock disp." value={`${dispSel} ${sel.unidad_medida}`} highlight />
+                  ) : (
+                    <DetailItem label="Tipo" value="Menú (preparado)" highlight />
+                  )}
                 </div>
 
                 {feedback && (
@@ -349,41 +413,29 @@ export default function ProductPickerModal({
                 )}
 
                 <div className="space-y-2 bg-white p-3 rounded-xl border border-slate-200">
-                  {sel.es_decant === true && (
-                    <div className="space-y-1">
-                      <label className="block text-[11px] uppercase text-slate-400">
-                        Modo (decant)
-                      </label>
-                      <div className="flex border border-emerald-200 rounded-lg overflow-hidden">
+                  {/* Tipo de precio: al tocar, carga el precio correspondiente y recalcula. */}
+                  <div>
+                    <label className="block text-[11px] uppercase text-slate-400 mb-1">Tipo de precio</label>
+                    <div className="flex border border-slate-200 rounded-lg overflow-hidden">
+                      {(["minorista", "mayorista", "distribuidor"] as const).map((t) => (
                         <button
+                          key={t}
                           type="button"
-                          onClick={() => setModo("cobrar")}
-                          className={`flex-1 py-1.5 text-xs font-medium ${
-                            modo === "cobrar" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 hover:bg-emerald-50"
+                          onClick={() => handleTipoPrecio(t)}
+                          className={`flex-1 py-1.5 px-1 text-center transition-colors ${
+                            tipoPrecio === t ? "bg-[#0EA5E9] text-white" : "bg-white text-slate-600 hover:bg-slate-50"
                           }`}
                         >
-                          Cobrar
+                          <span className="block text-xs font-medium">
+                            {t === "minorista" ? "Minorista" : t === "mayorista" ? "Mayorista" : "Distribuidor"}
+                          </span>
+                          <span className={`block text-[10px] tabular-nums ${tipoPrecio === t ? "text-white/90" : "text-slate-400"}`}>
+                            {formatGs(precioPorTipoPicker(sel, t))}
+                          </span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setModo("regalar")}
-                          className={`flex-1 py-1.5 text-xs font-medium ${
-                            modo === "regalar" ? "bg-emerald-600 text-white" : "bg-white text-emerald-700 hover:bg-emerald-50"
-                          }`}
-                        >
-                          Regalar
-                        </button>
-                      </div>
-                      {esRegalar && (
-                        <p className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded px-2 py-1.5 leading-snug">
-                          Obsequio: precio 0, no infla el total. Descuenta stock y
-                          registra costo promocional estimado{" "}
-                          <strong className="tabular-nums">{formatGs(costoPromocional)}</strong>.
-                        </p>
-                      )}
+                      ))}
                     </div>
-                  )}
-
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[11px] uppercase text-slate-400 mb-1">Cantidad</label>
@@ -400,12 +452,11 @@ export default function ProductPickerModal({
                       </label>
                       <input
                         type="number" min={0}
-                        value={esRegalar ? "0" : precio}
+                        value={precio}
                         onChange={(e) => setPrecio(e.target.value)}
-                        disabled={esRegalar}
-                        className={`w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm ${esRegalar ? "bg-slate-100 text-slate-400" : ""}`}
+                        className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-sm"
                       />
-                      {!esRegalar && moneda === "USD" && (parseFloat(precio) || 0) > 0 && (
+                      {moneda === "USD" && (parseFloat(precio) || 0) > 0 && (
                         <p className="mt-1 text-[11px] text-slate-400">≈ {formatGs(precioGsEquiv)}</p>
                       )}
                     </div>
@@ -413,37 +464,38 @@ export default function ProductPickerModal({
 
                   <div>
                     <label className="block text-[11px] uppercase text-slate-400 mb-1">IVA</label>
-                    <div className={`flex border border-slate-200 rounded-lg overflow-hidden ${esRegalar ? "opacity-50 pointer-events-none" : ""}`}>
-                      {(["EXENTA", "5%", "10%"] as const).map((opt) => {
-                        const active = esRegalar ? opt === "EXENTA" : iva === opt;
-                        return (
-                          <button
-                            key={opt} type="button"
-                            onClick={() => !esRegalar && setIva(opt)}
-                            className={`flex-1 py-1.5 text-xs font-medium ${active ? "bg-[#0EA5E9] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
-                          >
-                            {opt}
-                          </button>
-                        );
-                      })}
+                    <div className="flex border border-slate-200 rounded-lg overflow-hidden">
+                      {(["EXENTA", "5%", "10%"] as const).map((opt) => (
+                        <button
+                          key={opt} type="button"
+                          onClick={() => setIva(opt)}
+                          className={`flex-1 py-1.5 text-xs font-medium ${iva === opt ? "bg-[#0EA5E9] text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
                   <div className="text-xs text-slate-500 space-y-0.5 pt-1">
                     <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{formatGs(subtotal)}</span></div>
                     <div className="flex justify-between"><span>IVA</span><span className="tabular-nums">{ivaMonto > 0 ? formatGs(ivaMonto) : "—"}</span></div>
-                    <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200"><span>Total línea</span><span className="tabular-nums">{formatGs(totalLineaPicker)}</span></div>
+                    <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200"><span>Total línea</span><span className="tabular-nums">{formatGs(subtotal)}</span></div>
                   </div>
-
+                </div>
+                </div>
+                {/* Footer sticky con el boton de accion principal.
+                    Siempre visible al final del panel, no requiere scroll. */}
+                <div className="shrink-0 border-t border-slate-200 bg-white p-3 sm:p-4">
                   <button
                     type="button"
                     onClick={handleAgregar}
-                    className="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2.5 rounded-lg"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold py-3 min-h-[48px] rounded-lg shadow-sm transition-colors"
                   >
-                    {esRegalar ? "+ Agregar obsequio" : "+ Agregar a la venta"}
+                    + Agregar a la venta
                   </button>
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>

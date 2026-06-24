@@ -12,9 +12,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
 import { readSaasBriefData } from "@/lib/proyectos/brief-data";
 import ProyectoDetalleModal from "./components/ProyectoDetalleModal";
@@ -193,6 +192,64 @@ function saasModuleCountLabel(p: ProyectoCard): string | null {
   return count === 1 ? "1 módulo" : `${count} módulos`;
 }
 
+// ── Pedidos (gastronomía) — helpers para renderizar cards con brief_data del pedido ─────
+type PedidoBrief = {
+  modalidad: "local" | "delivery" | "carry_out";
+  mesa: string | null;
+  cliente_nombre: string | null;
+  cliente_telefono: string | null;
+  direccion_entrega: string | null;
+  observacion: string | null;
+  numero_control: string | null;
+  items: Array<{ producto_nombre: string; cantidad: number }>;
+};
+
+function readPedidoBrief(
+  brief: Record<string, unknown> | null | undefined
+): PedidoBrief | null {
+  if (!brief || typeof brief !== "object") return null;
+  const m = (brief as Record<string, unknown>).modalidad;
+  if (m !== "local" && m !== "delivery" && m !== "carry_out") return null;
+  const itemsRaw = Array.isArray(brief.items) ? (brief.items as Array<Record<string, unknown>>) : [];
+  return {
+    modalidad: m,
+    mesa: typeof brief.mesa === "string" ? brief.mesa : null,
+    cliente_nombre: typeof brief.cliente_nombre === "string" ? brief.cliente_nombre : null,
+    cliente_telefono: typeof brief.cliente_telefono === "string" ? brief.cliente_telefono : null,
+    direccion_entrega: typeof brief.direccion_entrega === "string" ? brief.direccion_entrega : null,
+    observacion: typeof brief.observacion === "string" ? brief.observacion : null,
+    numero_control: typeof brief.numero_control === "string" ? brief.numero_control : null,
+    items: itemsRaw.map((it) => ({
+      producto_nombre: typeof it.producto_nombre === "string" ? it.producto_nombre : "—",
+      cantidad: typeof it.cantidad === "number" ? it.cantidad : Number(it.cantidad) || 0,
+    })),
+  };
+}
+
+const PEDIDO_MODALIDAD_BADGE: Record<
+  PedidoBrief["modalidad"],
+  { label: string; cls: string }
+> = {
+  local:     { label: "En local",  cls: "border-amber-300 bg-amber-50 text-amber-800" },
+  delivery:  { label: "Delivery",  cls: "border-purple-300 bg-purple-50 text-purple-800" },
+  carry_out: { label: "Retiro",    cls: "border-sky-300 bg-sky-50 text-sky-800" },
+};
+
+function fmtPedidoTotal(n: number | string | null | undefined): string {
+  if (n == null) return "—";
+  const v = typeof n === "string" ? Number(n) : n;
+  return "Gs. " + Math.round(v || 0).toLocaleString("es-PY");
+}
+
+function fmtPedidoHora(s: string | null | undefined): string {
+  if (!s) return "—";
+  try {
+    return new Date(s).toLocaleTimeString("es-PY", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "—";
+  }
+}
+
 export default function ProyectosKanbanClient() {
   const [estados, setEstados] = useState<EstadoRow[]>([]);
   const [proyectos, setProyectos] = useState<ProyectoCard[]>([]);
@@ -216,6 +273,45 @@ export default function ProyectosKanbanClient() {
     useSensor(KeyboardSensor)
   );
 
+  // Las opciones no-críticas (tipos, usuarios, prioridades) son config estática:
+  // no dependen de los filtros y solo alimentan selects + estilos de badge.
+  // Se cargan UNA sola vez y nunca bloquean el render del tablero. Esto evita
+  // refetch en cada cambio de filtro y, sobre todo, que un endpoint lento/caído
+  // (ej. /prioridades vía pool PG directo) congele el kanban en "Cargando…".
+  const opcionesCargadasRef = useRef(false);
+
+  const cargarOpcionesNoCriticas = useCallback(async () => {
+    if (opcionesCargadasRef.current) return;
+    opcionesCargadasRef.current = true;
+    try {
+      const [rTipos, rUsers, rPrioridades] = await Promise.all([
+        fetchWithSupabaseSession("/api/proyectos/tipos", { cache: "no-store" }),
+        fetchWithSupabaseSession("/api/usuarios/empresa-activos", { cache: "no-store" }),
+        fetchWithSupabaseSession("/api/configuracion/proyectos/prioridades", { cache: "no-store" }),
+      ]);
+      const jTipos = (await rTipos.json().catch(() => ({}))) as {
+        success?: boolean;
+        data?: { id: string; nombre: string }[];
+      };
+      const jUsers = (await rUsers.json().catch(() => ({}))) as { usuarios?: { id: string; nombre?: string }[] };
+      const jPrioridades = (await rPrioridades.json().catch(() => ({}))) as {
+        success?: boolean;
+        data?: { prioridades?: PrioridadConfig[] };
+      };
+      if (jTipos.success && jTipos.data) setTipoOpts(jTipos.data);
+      if (jUsers.usuarios) setUserOpts(jUsers.usuarios);
+      if (rPrioridades.ok && jPrioridades.success && jPrioridades.data?.prioridades) {
+        setPrioridadesConfig(jPrioridades.data.prioridades);
+      } else {
+        // Sin config válida usamos los estilos de prioridad por defecto (fallback del componente).
+        setPrioridadesConfig([]);
+      }
+    } catch {
+      // No-crítico: el tablero ya está visible; los selects quedan con sus defaults.
+      opcionesCargadasRef.current = false; // permitir reintento en el próximo load
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setErr(null);
@@ -226,25 +322,14 @@ export default function ProyectosKanbanClient() {
     if (filtroRc) sp.set("responsable_comercial_id", filtroRc);
     if (filtroRt) sp.set("responsable_tecnico_id", filtroRt);
 
-    const [rEst, rPr, rTipos, rUsers, rPrioridades] = await Promise.all([
+    // Camino crítico: el tablero solo necesita estados + proyectos para pintar.
+    const [rEst, rPr] = await Promise.all([
       fetchWithSupabaseSession("/api/proyectos/estados", { cache: "no-store" }),
       fetchWithSupabaseSession(`/api/proyectos?${sp.toString()}`, { cache: "no-store" }),
-      fetchWithSupabaseSession("/api/proyectos/tipos", { cache: "no-store" }),
-      fetchWithSupabaseSession("/api/usuarios/empresa-activos", { cache: "no-store" }),
-      fetchWithSupabaseSession("/api/configuracion/proyectos/prioridades", { cache: "no-store" }),
     ]);
 
     const jEst = (await rEst.json().catch(() => ({}))) as { success?: boolean; data?: EstadoRow[]; error?: string };
     const jPr = (await rPr.json().catch(() => ({}))) as { success?: boolean; data?: ProyectoCard[]; error?: string };
-    const jTipos = (await rTipos.json().catch(() => ({}))) as {
-      success?: boolean;
-      data?: { id: string; nombre: string }[];
-    };
-    const jUsers = (await rUsers.json().catch(() => ({}))) as { usuarios?: { id: string; nombre?: string }[] };
-    const jPrioridades = (await rPrioridades.json().catch(() => ({}))) as {
-      success?: boolean;
-      data?: { prioridades?: PrioridadConfig[] };
-    };
 
     if (!rEst.ok || !jEst.success) {
       setErr(jEst.error ?? "No se pudieron cargar estados");
@@ -258,17 +343,11 @@ export default function ProyectosKanbanClient() {
     }
     setEstados(jEst.data ?? []);
     setProyectos(jPr.data ?? []);
-
-    if (jTipos.success && jTipos.data) setTipoOpts(jTipos.data);
-    if (jUsers.usuarios) setUserOpts(jUsers.usuarios);
-    if (rPrioridades.ok && jPrioridades.success && jPrioridades.data?.prioridades) {
-      setPrioridadesConfig(jPrioridades.data.prioridades);
-    } else {
-      setPrioridadesConfig([]);
-    }
-
     setLoading(false);
-  }, [q, filtroEstado, filtroTipo, filtroRc, filtroRt]);
+
+    // No-críticas en segundo plano: no bloquean el render del tablero.
+    void cargarOpcionesNoCriticas();
+  }, [q, filtroEstado, filtroTipo, filtroRc, filtroRt, cargarOpcionesNoCriticas]);
 
   useEffect(() => {
     void load();
@@ -405,24 +484,37 @@ export default function ProyectosKanbanClient() {
   }
 
   return (
-    <div className="mx-auto max-w-[1800px] space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Proyectos</h1>
-          <p className="text-sm text-slate-500">Kanban configurable por empresa — producción, clientes y SLA.</p>
+    <div className="mx-auto max-w-[1800px] space-y-4 p-0 lg:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="inline-block h-1.5 w-1.5 rounded-full bg-[#4FAEB2]"
+              style={{ boxShadow: "0 0 0 3px rgba(79, 174, 178, 0.18)" }}
+            />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4FAEB2]">
+              Zentra · Cocina
+            </p>
+          </div>
+          <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Pedidos</h1>
+          <p className="mt-0.5 text-xs text-slate-500">Tablero de cocina — pedidos por modalidad y estado.</p>
         </div>
-        <Link
-          href="/dashboard/proyectos/nuevo"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          Nuevo proyecto
-        </Link>
+        <div className="flex w-full items-center sm:w-auto">
+          <input
+            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm sm:w-72"
+            placeholder="Buscar título o cliente…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void load()}
+          />
+        </div>
       </div>
 
       {err ? <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{err}</div> : null}
 
       <div className="overflow-x-auto pb-1">
-        <div className="flex min-w-full gap-3">
+        <div className="flex min-w-full gap-2">
           {estados.map((estado) => (
             <EstadoMetric
               key={estado.id}
@@ -434,74 +526,15 @@ export default function ProyectosKanbanClient() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm xl:flex-row xl:flex-wrap xl:items-center">
-        <input
-          className="min-w-[200px] flex-1 rounded-md border border-slate-200 px-3 py-2 text-sm"
-          placeholder="Buscar título o cliente…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && void load()}
-        />
-        <button
-          type="button"
-          className="shrink-0 rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 hover:bg-slate-200"
-          onClick={() => void load()}
-        >
-          Buscar
-        </button>
-        <select
-          className="min-w-[160px] shrink-0 rounded-md border border-slate-200 px-2 py-2 text-sm"
-          value={filtroEstado}
-          onChange={(e) => setFiltroEstado(e.target.value)}
-        >
-          <option value="">Todos los estados</option>
-          {estados.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.nombre}
-            </option>
-          ))}
-        </select>
-        <select
-          className="min-w-[140px] shrink-0 rounded-md border border-slate-200 px-2 py-2 text-sm"
-          value={filtroTipo}
-          onChange={(e) => setFiltroTipo(e.target.value)}
-        >
-          <option value="">Todos los tipos</option>
-          {tipoOpts.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.nombre}
-            </option>
-          ))}
-        </select>
-        <select
-          className="min-w-[170px] shrink-0 rounded-md border border-slate-200 px-2 py-2 text-sm"
-          value={filtroRc}
-          onChange={(e) => setFiltroRc(e.target.value)}
-        >
-          <option value="">Resp. comercial</option>
-          {userOpts.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.nombre ?? u.id.slice(0, 8)}
-            </option>
-          ))}
-        </select>
-        <select
-          className="min-w-[170px] shrink-0 rounded-md border border-slate-200 px-2 py-2 text-sm"
-          value={filtroRt}
-          onChange={(e) => setFiltroRt(e.target.value)}
-        >
-          <option value="">Resp. técnico</option>
-          {userOpts.map((u) => (
-            <option key={`t-${u.id}`} value={u.id}>
-              {u.nombre ?? u.id.slice(0, 8)}
-            </option>
-          ))}
-        </select>
-      </div>
-
       <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="max-h-[calc(100vh-260px)] min-h-[520px] overflow-auto rounded-xl pb-4">
-          <div className="flex min-h-full gap-4">
+        {/* Antes: "overflow-x-hidden" bloqueaba el scroll horizontal del kanban,
+            las columnas se comprimian a flex-1 y en mobile quedaban ilegibles
+            (texto de tarjetas cortado, no se ven todas las columnas).
+            Ahora: "overflow-auto" cubre X+Y, cada KanbanColumnView tiene
+            min-w-[260px] fijo (no flex-1), el contenedor crece con el contenido
+            y el usuario puede deslizar de izquierda a derecha. */}
+        <div className="max-h-[calc(100svh-300px)] min-h-[420px] overflow-auto rounded-xl pb-4 overscroll-x-contain sm:min-h-[520px] lg:max-h-[calc(100vh-260px)]">
+          <div className="flex min-h-full gap-2">
             {kanbanColumns.map((col) => {
               const items = byColumn.get(col.id) ?? [];
               return (
@@ -579,7 +612,11 @@ function KanbanColumnView({ col, children }: KanbanColumnViewProps) {
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-[300px] shrink-0 flex-col rounded-xl border bg-slate-50/80 transition-colors ${
+      // Antes: "min-w-[120px] flex-1" => columnas compartian el ancho disponible,
+      // imposibles de leer en mobile. Ahora: ancho fijo de 260px (sin flex-1)
+      // para que el contenedor scrollee horizontalmente con todas las columnas
+      // legibles. shrink-0 evita que se compriman.
+      className={`flex w-[82vw] max-w-[320px] shrink-0 flex-col rounded-lg border bg-slate-50/80 transition-colors sm:w-[300px] lg:w-[260px] ${
         isOver && !col.inactiveFallback
           ? "border-indigo-300 bg-indigo-50/70 ring-2 ring-indigo-100"
           : "border-slate-200"
@@ -612,6 +649,7 @@ function ProjectCardView({
     "Sin cliente";
   const saasModulesLabel = saasModuleCountLabel(p);
   const priorityStyles = getPriorityCardStyles(p.prioridad);
+  const pedido = readPedidoBrief(p.brief_data);
 
   const style: CSSProperties | undefined = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
@@ -627,7 +665,7 @@ function ProjectCardView({
       style={style}
       {...attributes}
       {...listeners}
-      className={`touch-none rounded-2xl border border-l-4 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
+      className={`touch-none rounded-xl border border-l-4 bg-white p-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
         dragOverlay ? "rotate-1 cursor-grabbing shadow-2xl" : "cursor-grab active:cursor-grabbing"
       } ${priorityStyles.cardAccentClass} ${isDragging ? "opacity-40" : ""} ${moving ? "ring-2 ring-sky-100" : ""}`}
     >
@@ -641,29 +679,40 @@ function ProjectCardView({
         <div className="flex items-start gap-2">
           <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${priorityStyles.iconDotClass}`} />
           <div className="min-w-0 flex-1">
-            <div className="text-[15px] font-semibold leading-snug text-slate-950 hover:underline">
+            <div className="text-sm font-semibold leading-snug text-slate-950 hover:underline">
               {p.titulo}
             </div>
-            <div className="mt-1 text-xs font-medium text-slate-600">
+            <div className="mt-0.5 text-[11px] font-medium text-slate-600">
               {cli}
             </div>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          <span className={neutralBadgeClass}>
-            {p.proyecto_tipo?.nombre ?? "Tipo"}
-          </span>
-          {saasModulesLabel ? (
+        <div className="mt-2 flex flex-wrap gap-1">
+          {pedido ? (
+            <span className={`${baseBadgeClass} font-semibold ${PEDIDO_MODALIDAD_BADGE[pedido.modalidad].cls}`}>
+              {PEDIDO_MODALIDAD_BADGE[pedido.modalidad].label}
+              {pedido.modalidad === "local" && pedido.mesa ? ` · Mesa ${pedido.mesa}` : ""}
+            </span>
+          ) : (
+            <span className={neutralBadgeClass}>
+              {p.proyecto_tipo?.nombre ?? "Tipo"}
+            </span>
+          )}
+          {!pedido && saasModulesLabel ? (
             <span className={neutralBadgeClass}>
               {saasModulesLabel}
             </span>
           ) : null}
-          <span className={`${baseBadgeClass} font-semibold ${priorityStyles.badgeClass}`}>
-            {prioridadConfig?.nombre ?? prioridadFallbackLabel(p.prioridad)}
-          </span>
-          <span className={p.sla_estado_actual?.vencido ? `${baseBadgeClass} border-rose-200 bg-rose-50 text-rose-700` : neutralBadgeClass}>
-            {slaEstadoLabel(p)}
-          </span>
+          {!pedido && (
+            <span className={`${baseBadgeClass} font-semibold ${priorityStyles.badgeClass}`}>
+              {prioridadConfig?.nombre ?? prioridadFallbackLabel(p.prioridad)}
+            </span>
+          )}
+          {!pedido && (
+            <span className={p.sla_estado_actual?.vencido ? `${baseBadgeClass} border-rose-200 bg-rose-50 text-rose-700` : neutralBadgeClass}>
+              {slaEstadoLabel(p)}
+            </span>
+          )}
           {p.bloqueado ? (
             <span className={`${baseBadgeClass} border-rose-200 bg-rose-50 text-rose-800`}>
               Bloqueado
@@ -675,28 +724,28 @@ function ProjectCardView({
             </span>
           ) : null}
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-xl bg-slate-50/80 px-3 py-2 text-[11px] text-slate-700">
-          <MetaItem label="Com." value={p.responsable_comercial?.nombre ?? "—"} />
-          <MetaItem label="Téc." value={p.responsable_tecnico?.nombre ?? "—"} />
-          <MetaItem label="Ingreso" value={fmtDate(p.fecha_ingreso)} />
-          <MetaItem label="Prometido" value={fmtDate(p.fecha_prometida)} />
-          <div className="col-span-2">
-            <MetaItem label="Actividad" value={fmtDateTime(p.last_activity_at)} />
+
+        {pedido ? (
+          <PedidoCardBody
+            pedido={pedido}
+            total={Number(p.monto_vendido ?? 0)}
+            horaIso={p.fecha_ingreso ?? p.last_activity_at ?? null}
+          />
+        ) : (
+          <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-xl bg-slate-50/80 px-3 py-2 text-[11px] text-slate-700">
+            <MetaItem label="Com." value={p.responsable_comercial?.nombre ?? "—"} />
+            <MetaItem label="Téc." value={p.responsable_tecnico?.nombre ?? "—"} />
+            <MetaItem label="Ingreso" value={fmtDate(p.fecha_ingreso)} />
+            <MetaItem label="Prometido" value={fmtDate(p.fecha_prometida)} />
+            <div className="col-span-2">
+              <MetaItem label="Actividad" value={fmtDateTime(p.last_activity_at)} />
+            </div>
           </div>
-        </div>
+        )}
       </button>
       {!dragOverlay ? (
         <>
-          <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3" onClick={(e) => e.stopPropagation()}>
-            <Link
-              href={`/dashboard/proyectos/${p.id}`}
-              className="text-[11px] font-semibold text-sky-700 hover:text-sky-800 hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Abrir en página completa
-            </Link>
-          </div>
-          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
             <label className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Mover a</label>
             <select
               className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
@@ -730,6 +779,76 @@ function MetaItem({ label, value }: { label: string; value: string }) {
   );
 }
 
+function PedidoCardBody({
+  pedido,
+  total,
+  horaIso,
+}: {
+  pedido: PedidoBrief;
+  total: number;
+  horaIso: string | null;
+}) {
+  const maxItems = 4;
+  const visibleItems = pedido.items.slice(0, maxItems);
+  const extra = Math.max(0, pedido.items.length - maxItems);
+
+  return (
+    <div className="mt-3 space-y-2 rounded-xl bg-slate-50/80 px-3 py-2 text-[12px] text-slate-700">
+      {/* Detalle modalidad */}
+      {pedido.modalidad === "delivery" && (
+        <div className="flex flex-col gap-0.5">
+          {pedido.cliente_telefono ? (
+            <div className="font-semibold text-slate-800">📞 {pedido.cliente_telefono}</div>
+          ) : null}
+          {pedido.direccion_entrega ? (
+            <div className="text-slate-600">📍 {pedido.direccion_entrega}</div>
+          ) : null}
+        </div>
+      )}
+      {pedido.modalidad === "carry_out" && (pedido.cliente_nombre || pedido.cliente_telefono) ? (
+        <div className="flex flex-col gap-0.5">
+          {pedido.cliente_nombre ? (
+            <div className="font-semibold text-slate-800">👤 {pedido.cliente_nombre}</div>
+          ) : null}
+          {pedido.cliente_telefono ? (
+            <div className="text-slate-600">📞 {pedido.cliente_telefono}</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {/* Productos */}
+      {visibleItems.length > 0 ? (
+        <ul className="space-y-0.5 border-t border-slate-200 pt-1.5 text-[12px]">
+          {visibleItems.map((it, idx) => (
+            <li key={idx} className="flex items-baseline gap-1.5 text-slate-800">
+              <span className="font-semibold tabular-nums text-slate-900">{it.cantidad}×</span>
+              <span className="truncate">{it.producto_nombre}</span>
+            </li>
+          ))}
+          {extra > 0 ? (
+            <li className="text-[11px] italic text-slate-500">+{extra} más</li>
+          ) : null}
+        </ul>
+      ) : null}
+
+      {/* Observación */}
+      {pedido.observacion ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] italic text-amber-900">
+          {pedido.observacion}
+        </div>
+      ) : null}
+
+      {/* Footer total + hora */}
+      <div className="flex items-center justify-between border-t border-slate-200 pt-1.5">
+        <span className="text-[11px] text-slate-500">{fmtPedidoHora(horaIso)}</span>
+        <span className="text-[13px] font-semibold tabular-nums text-slate-900">
+          {fmtPedidoTotal(total)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function EstadoMetric({
   label,
   value,
@@ -740,12 +859,14 @@ function EstadoMetric({
   color: string;
 }) {
   return (
-    <div className="min-w-[190px] flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm">
-      <div className="mb-2 h-1 rounded-full" style={{ backgroundColor: color || "#94a3b8" }} />
-      <div className="truncate text-[11px] font-medium uppercase tracking-wide text-slate-500" title={label}>
-        {label}
+    <div className="min-w-[120px] flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-2 shadow-sm">
+      <div className="mb-1 h-0.5 rounded-full" style={{ backgroundColor: color || "#94a3b8" }} />
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="truncate text-[10px] font-medium uppercase tracking-wide text-slate-500" title={label}>
+          {label}
+        </span>
+        <span className="text-base font-semibold text-slate-900 tabular-nums">{value}</span>
       </div>
-      <div className="mt-1 text-2xl font-semibold text-slate-900">{value}</div>
     </div>
   );
 }

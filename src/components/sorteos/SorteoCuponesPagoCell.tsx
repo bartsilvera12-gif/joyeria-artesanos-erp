@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
+import { useAutoClearFlag } from "@/hooks/useAutoClearFlag";
 import type { SorteoEntradaEstadoPago } from "@/lib/sorteos/types";
 
 type Props = {
@@ -40,7 +41,9 @@ export default function SorteoCuponesPagoCell({ entradaId, estadoPago }: Props) 
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  // Toast auto-limpiable a los 4s. Reemplaza el patron inseguro
+  // setTimeout(() => setToast(null), 4000) que dejaba leak si el componente se desmontaba antes.
+  const [toast, setToast] = useAutoClearFlag<string>(4000);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const estado = String(estadoPago ?? "").trim();
 
@@ -73,7 +76,8 @@ export default function SorteoCuponesPagoCell({ entradaId, estadoPago }: Props) 
         setToast(
           next === "confirmado" ? "Pago aprobado correctamente" : "Pago rechazado correctamente"
         );
-        window.setTimeout(() => setToast(null), 4000);
+        // El setToast del hook useAutoClearFlag arma el timer de auto-clear (4s).
+        // No necesitamos setTimeout manual: si el componente se desmonta antes, se cancela solo.
         closeAll();
         router.refresh();
       } catch (e: unknown) {

@@ -16,8 +16,8 @@ export interface PreviewSummary {
   omitir: number;
   errores: number;
   warnings: number;
-  /** Lista de nombres de categorias/proveedores/ubicaciones/marcas faltantes. */
-  faltantes?: { categorias: string[]; proveedores: string[]; ubicaciones: string[]; marcas?: string[] };
+  /** Lista de nombres de categorias/proveedores/ubicaciones faltantes. */
+  faltantes?: { categorias: string[]; proveedores: string[]; ubicaciones: string[] };
   /** Solo productos: impacto en stock. */
   movimientos_a_generar?: number;
   unidades_entrada?: number;

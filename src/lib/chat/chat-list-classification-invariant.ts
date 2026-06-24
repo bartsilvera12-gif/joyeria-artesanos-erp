@@ -2,6 +2,7 @@ import {
   conversationBelongsToBotTab,
   type InboxBotClassificationInput,
 } from "@/lib/chat/inbox-bot-tab-classification";
+import { debugChatList } from "@/lib/chat/debug-log";
 
 type ListVista = "inbox" | "bot" | "historial";
 
@@ -108,7 +109,7 @@ export function logChatListClassificationInvariant(params: {
       : Math.max(0, totalAfterQuery - (notBotInBase + botTabCount));
 
   if (ok && duplicateIds === 0) {
-    console.info("[chat-list][classification-invariant]", logPayload);
+    debugChatList("[chat-list][classification-invariant]", logPayload);
     return;
   }
 

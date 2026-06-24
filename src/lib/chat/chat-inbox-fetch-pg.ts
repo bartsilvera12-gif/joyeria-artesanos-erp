@@ -14,6 +14,7 @@ import {
 } from "@/lib/chat/inbox-list-flow-sessions";
 import { parseComprobanteValidationConfig } from "@/lib/chat/comprobante-validation-types";
 import { logChatListClassificationInvariant } from "@/lib/chat/chat-list-classification-invariant";
+import { debugChatList } from "@/lib/chat/debug-log";
 import {
   getOmnicanalScope,
   isOmnicanalAdminScope,
@@ -154,7 +155,7 @@ async function logBotTabClassificationSampleTenantPg(
     const chId = String((row as { channel_id?: string | null }).channel_id ?? "").trim();
     const ch = chId ? chById[chId] : undefined;
 
-    console.info("[chat-list][classification-sample]", {
+    debugChatList("[chat-list][classification-sample]", {
       conversation_id: cid,
       status: String(row.status ?? ""),
       human_taken_over: Boolean(row.human_taken_over),
@@ -409,7 +410,7 @@ export async function fetchChatConversationsFromTenantPg(
   }
 
   const totalAfterQuery = list.length;
-  console.info("[chat-list][fetch-result]", {
+  debugChatList("[chat-list][fetch-result]", {
     source: "tenant_pg",
     schema: dataSchema,
     empresa_id,
@@ -504,7 +505,7 @@ export async function fetchChatConversationsFromTenantPg(
     botTabCount = list.length;
   }
 
-  console.info("[chat-list][classification]", {
+  debugChatList("[chat-list][classification]", {
     vista,
     empresa_id,
     schema: dataSchema,
@@ -518,7 +519,7 @@ export async function fetchChatConversationsFromTenantPg(
     active_sessions_by_conversation: activeSessionByConversationId.size,
   });
 
-  console.info("[chat-list][active-flows]", {
+  debugChatList("[chat-list][active-flows]", {
     schema: dataSchema,
     empresa_id,
     count: activeFlowCatalogRowCount,
@@ -543,7 +544,7 @@ export async function fetchChatConversationsFromTenantPg(
   );
 
   if (vista === "bot" && botTabCount === 0 && activeSessionByConversationId.size > 0) {
-    console.info("[chat-list][classification-reasons-summary]", {
+    debugChatList("[chat-list][classification-reasons-summary]", {
       schema: dataSchema,
       empresa_id,
       counts: aggregateBotClassificationReasons(listBeforeBotTabSplit, classifyCtx),
@@ -601,7 +602,7 @@ export async function fetchChatConversationsFromTenantPg(
         (ct?.name && String(ct.name).trim()) ||
         maskPhonePartialForLog(ct?.phone_number ?? undefined) ||
         "(sin contacto)";
-      console.info("[chat-list][classification-debug]", {
+      debugChatList("[chat-list][classification-debug]", {
         empresa_id,
         schema: dataSchema,
         vista,

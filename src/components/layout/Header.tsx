@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Bell, ChevronDown, LogOut, Menu } from "lucide-react";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
 import { signOut } from "@/lib/auth";
+import { useBoot } from "@/components/BootContext";
 
 type HeaderUsuario = {
   nombre: string | null;
@@ -38,15 +40,12 @@ function roleLabel(rol: string | null | undefined): string {
     .join(" ");
 }
 
-type HeaderProps = {
-  onOpenMobileSidebar?: () => void;
-};
-
-export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
+export default function Header() {
   const router = useRouter();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [usuario, setUsuario] = useState<HeaderUsuario | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { mobileSidebarOpen, setMobileSidebarOpen } = useBoot();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -80,7 +79,6 @@ export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
   const fallbackEmail = clean(usuario?.email);
   const displayName = nombreReal || fallbackEmail || "Usuario";
   const dropdownName = nombreReal || "Usuario";
-  const avatarInitial = (nombreReal || fallbackEmail || "Usuario").charAt(0).toUpperCase();
   const displayRole = roleLabel(usuario?.rol);
 
   return (
@@ -88,29 +86,28 @@ export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
       id="neura-header"
       className="z-40 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200/90 bg-white/95 px-3 sm:px-6 shadow-[inset_0_-1px_0_0_rgba(10,37,64,0.05)] backdrop-blur-sm"
     >
-      {/* Hamburguesa: solo mobile. Abre el sidebar como sheet desde la izquierda. */}
+      {/* Boton hamburger (solo mobile) */}
       <button
         type="button"
-        onClick={() => onOpenMobileSidebar?.()}
+        onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+        className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-[#3F8E91] lg:hidden"
         aria-label="Abrir menú"
-        className="-ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9] md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
-      {/* Spacer en desktop para mantener el justify-end original. */}
-      <span className="hidden md:block" />
+
+      {/* Spacer en desktop para empujar el resto a la derecha */}
+      <div className="hidden lg:block lg:flex-1" />
 
       <div className="flex items-center gap-2">
-        {/* Asistente de ayuda (Neurita) — desactivado temporalmente. */}
-
         {/* Notificaciones */}
         <button
           type="button"
-          className="relative rounded-lg p-2 text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9]"
+          className="relative rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-50 hover:text-[#3F8E91]"
           aria-label="Notificaciones"
         >
           <Bell className="h-5 w-5" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#0EA5E9] text-[10px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#4FAEB2] text-[10px] font-bold text-white">
             0
           </span>
         </button>
@@ -120,38 +117,65 @@ export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
           <button
             type="button"
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 transition-colors hover:bg-slate-100"
+            className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm transition-all hover:border-[#4FAEB2]/60"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--zentra-sidebar)] text-white ring-1 ring-sky-400/35">
-              <span className="text-sm font-bold">{avatarInitial}</span>
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white"
+              style={{ boxShadow: "0 0 0 3px rgba(79, 174, 178, 0.25)" }}
+            >
+              <Image
+                src="/icono.png"
+                alt="Autorepuestos Felix Bogado"
+                width={72}
+                height={72}
+                sizes="36px"
+                className="h-full w-full object-contain p-0.5"
+                priority
+              />
             </div>
             <div className="hidden text-left sm:block">
-              <p className="max-w-[180px] truncate text-sm font-medium text-[#0F172A]">{displayName}</p>
-              <p className="text-xs text-[#475569]">{displayRole}</p>
+              <p className="max-w-[180px] truncate text-sm font-semibold text-slate-900">{displayName}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#3F8E91]">{displayRole}</p>
             </div>
-            <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+            <ChevronDown
+              className={`h-4 w-4 text-slate-400 transition-transform ${userMenuOpen ? "rotate-180" : ""}`}
+            />
           </button>
 
-          <div
-            className={`absolute right-0 top-full mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg ${
-              userMenuOpen ? "block" : "hidden"
-            }`}
-          >
-            <div className="border-b border-slate-200 px-4 py-2">
-              <p className="truncate text-sm font-medium text-[#0F172A]">{dropdownName}</p>
+          {userMenuOpen ? (
+            <div className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl ring-1 ring-[#4FAEB2]/15">
+              {/* franja superior turquesa */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#4FAEB2] via-[#4FAEB2]/80 to-[#4FAEB2]/40"
+              />
+              <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                <span
+                  aria-hidden="true"
+                  className="inline-block h-1.5 w-1.5 rounded-full bg-[#4FAEB2]"
+                  style={{ boxShadow: "0 0 0 3px rgba(79, 174, 178, 0.18)" }}
+                />
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#4FAEB2]">Sesión</p>
+              </div>
+              <div className="border-b border-slate-100 px-4 pb-3">
+                <p className="truncate text-sm font-semibold text-slate-900">{dropdownName}</p>
+                {fallbackEmail ? (
+                  <p className="truncate text-xs text-slate-500">{fallbackEmail}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  await signOut();
+                  router.push("/login");
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-[#3F8E91]"
+              >
+                <LogOut className="h-4 w-4" />
+                Cerrar sesión
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                await signOut();
-                router.push("/login");
-              }}
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9]"
-            >
-              <LogOut className="h-4 w-4" />
-              Cerrar sesión
-            </button>
-          </div>
+          ) : null}
         </div>
       </div>
     </header>
