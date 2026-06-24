@@ -107,6 +107,9 @@ const HIDDEN_MENU_KEYS = new Set<string>([
   "marketing",
   "marketing_ops",
   "sorteos",
+  "cobranzas",
+  "proyectos",
+  "gestion-clientes",
 ]);
 
 const MENU_STRUCTURE_FULL: MenuItem[] = [
@@ -146,7 +149,6 @@ const MENU_STRUCTURE_FULL: MenuItem[] = [
     { label: "Productos", href: "/inventario" },
     { label: "Movimientos", href: "/inventario/movimientos" },
     { label: "Categorías", href: "/inventario/categorias" },
-    { label: "Depósitos / Ubicaciones", href: "/inventario/ubicaciones" },
   ]},
   { key: "clientes", slug: "clientes", label: "Clientes", href: "/clientes", icon: Users },
   {
@@ -180,7 +182,6 @@ const MENU_STRUCTURE_FULL: MenuItem[] = [
     icon: Settings,
     children: [
       { label: "Facturación", href: "/configuracion/facturacion" },
-      { label: "Equipos y supervisión", href: "/configuracion/omnicanal-equipos" },
     ],
   },
   { key: "planes", slug: "planes", label: "Planes", href: "/planes", icon: FileText },
