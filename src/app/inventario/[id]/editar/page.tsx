@@ -7,7 +7,6 @@ import MontoInput from "@/components/ui/MontoInput";
 import { getProducto, productoExiste, updateProducto } from "@/lib/inventario/storage";
 import type { MetodoValuacion } from "@/lib/inventario/types";
 import ProductImageUploader from "@/components/inventario/ProductImageUploader";
-import CompatibilidadVehicularEditor from "@/components/inventario/CompatibilidadVehicularEditor";
 import QuickNuevoProveedorModal from "@/components/proveedores/QuickNuevoProveedorModal";
 import SelectFromList from "@/components/inventario/SelectFromList";
 import ProveedoresCostos from "@/components/inventario/ProveedoresCostos";
