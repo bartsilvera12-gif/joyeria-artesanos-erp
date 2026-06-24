@@ -29,6 +29,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { headers: corsHeaders() });
 }
 
+type CategoriaJoin = { slug_web: string | null; nombre: string | null } | null;
 type ProductoRow = {
   id: string;
   slug_web: string | null;
@@ -43,6 +44,7 @@ type ProductoRow = {
   destacado_web: boolean;
   stock_actual: number;
   orden_web: number | null;
+  categoria: CategoriaJoin;
 };
 
 export async function GET() {
@@ -59,7 +61,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("productos")
     .select(
-      "id,slug_web,nombre,marca,precio_venta,precio_web,precio_oferta,oferta_hasta,imagen_url,descripcion_corta,destacado_web,stock_actual,orden_web",
+      "id,slug_web,nombre,marca,precio_venta,precio_web,precio_oferta,oferta_hasta,imagen_url,descripcion_corta,destacado_web,stock_actual,orden_web,categoria:categoria_principal_id(slug_web,nombre)",
     )
     .eq("activo", true)
     .eq("visible_web", true)
@@ -73,11 +75,13 @@ export async function GET() {
     );
   }
 
-  const productos = (data ?? []).map((p: ProductoRow) => ({
+  const productos = ((data ?? []) as unknown as ProductoRow[]).map((p) => ({
     id: p.id,
     slug: p.slug_web,
     nombre: p.nombre,
     marca: p.marca,
+    categoria: p.categoria?.slug_web ?? null,
+    categoria_nombre: p.categoria?.nombre ?? null,
     precio: Number(p.precio_web ?? p.precio_venta ?? 0),
     precio_oferta: p.precio_oferta != null ? Number(p.precio_oferta) : null,
     oferta_hasta: p.oferta_hasta,
