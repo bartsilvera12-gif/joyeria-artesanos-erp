@@ -6,6 +6,7 @@ import {
   FileText,
   GitBranch,
   Inbox,
+  Landmark,
   LayoutGrid,
   MessageCircle,
   Percent,
@@ -51,49 +52,31 @@ export default function ConfiguracionPage() {
     <div className="mx-auto w-full max-w-6xl space-y-10 px-4 pb-10 sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="inline-block h-2 w-2 shrink-0 rounded-full bg-[#4FAEB2] shadow-[0_0_0_3px_rgba(79,174,178,0.18)]"
-            />
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#4FAEB2]">
-              Ajustes
-            </p>
-          </div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-            Configuración Global
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Parámetros globales del ERP. Elegí un módulo y tocá{" "}
-            <span className="font-semibold text-slate-700">Editar</span> para abrir el detalle.
+          <h1 className="text-2xl font-bold text-slate-900">Configuración Global</h1>
+          <p className="mt-0.5 text-sm text-slate-600">
+            Parámetros globales del ERP. Elegí un módulo y tocá <span className="font-semibold">Editar</span> para
+            abrir el detalle.
           </p>
         </div>
         {meta?.updated_at && (
-          <div className="shrink-0 rounded-2xl border border-[#4FAEB2]/45 bg-white px-4 py-3 text-right shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-              Última actualización
-            </p>
-            <p className="mt-1 text-xs font-semibold text-slate-700">
+          <div className="shrink-0 text-right">
+            <p className="text-xs text-slate-400">Última actualización</p>
+            <p className="mt-0.5 text-xs font-medium text-slate-600">
               {new Date(meta.updated_at).toLocaleString("es-PY")}
             </p>
-            {meta.updated_by && (
-              <p className="mt-0.5 text-[11px] text-slate-500">por {meta.updated_by}</p>
-            )}
+            {meta.updated_by && <p className="mt-0.5 text-xs text-slate-400">por {meta.updated_by}</p>}
           </div>
         )}
       </div>
 
       <section aria-label="Accesos a módulos" className="space-y-4">
-        <div className="flex items-center gap-2">
-          <span aria-hidden="true" className="block h-5 w-1 rounded-full bg-[#4FAEB2]" />
-          <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-600">
-            <span aria-hidden="true" className="inline-block h-1.5 w-1.5 rounded-full bg-[#4FAEB2]" />
-            Centro de configuración
-          </h2>
+        <div>
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Centro de configuración</h2>
+          <p className="mt-1 max-w-2xl text-sm text-slate-600">
+            Cada tarjeta te lleva a su pantalla de edición. El omnicanal abre flows dedicados cuando el módulo está
+            activo.
+          </p>
         </div>
-        <p className="max-w-2xl pl-3 text-[11px] text-slate-500">
-          Cada tarjeta te lleva a su pantalla de edición. El omnicanal abre flows dedicados cuando el módulo está activo.
-        </p>
         <ul className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 xl:grid-cols-3">
           <li>
             <SettingsModuleCard
@@ -103,6 +86,16 @@ export default function ConfiguracionPage() {
               icon={Receipt}
               badge={editorBadge}
               href="/configuracion/facturacion"
+            />
+          </li>
+          <li>
+            <SettingsModuleCard
+              title="Entidades bancarias"
+              subtitle="GLOBAL · COBROS"
+              description="Cajas, bancos, tarjetas/POS y billeteras para el cobro de ventas y la conciliación. Código corto para búsqueda rápida del cajero."
+              icon={Landmark}
+              badge={editorBadge}
+              href="/configuracion/entidades-bancarias"
             />
           </li>
           <li>

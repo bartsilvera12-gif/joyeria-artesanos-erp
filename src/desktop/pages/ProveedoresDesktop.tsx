@@ -47,7 +47,7 @@ export default function ProveedoresPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Proveedores</h1>
+          <h1 className="text-3xl font-bold text-gray-800">Distribuidores</h1>
           <p className="text-gray-600">
             Maestro de abastecimiento: categorías, condiciones de pago y vínculo futuro con compras.
           </p>
@@ -55,7 +55,7 @@ export default function ProveedoresPage() {
         <div className="flex flex-wrap gap-2">
           <ExportExcelButton url="/api/proveedores/export" />
           <ImportExcelButton
-            entidad="Proveedores"
+            entidad="Distribuidores"
             previewUrl="/api/proveedores/import/preview"
             commitUrl="/api/proveedores/import/commit"
             templateUrl="/api/proveedores/import/template"
@@ -73,7 +73,7 @@ export default function ProveedoresPage() {
             href="/proveedores/nuevo"
             className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#0284C7]"
           >
-            + Nuevo proveedor
+            + Nuevo distribuidor
           </Link>
         </div>
       </div>
@@ -96,7 +96,7 @@ export default function ProveedoresPage() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-slate-600">
-                <th className="py-3 pr-4 font-semibold">Proveedor</th>
+                <th className="py-3 pr-4 font-semibold">Distribuidor</th>
                 <th className="py-3 pr-4 font-semibold">RUC</th>
                 <th className="py-3 pr-4 font-semibold">Contacto</th>
                 <th className="py-3 pr-4 font-semibold">Categorías</th>
@@ -107,19 +107,25 @@ export default function ProveedoresPage() {
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
-                    Cargando…
+                  <td colSpan={6} className="py-12 text-center text-sm text-slate-400">
+                    <div className="inline-flex items-center gap-2">
+                      <svg className="h-4 w-4 animate-spin text-[#4FAEB2]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                        <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      </svg>
+                      Cargando distribuidores…
+                    </div>
                   </td>
                 </tr>
               ) : filtradas.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400">
-                    {lista.length === 0 ? "No hay proveedores cargados." : "Sin resultados."}
+                    {lista.length === 0 ? "No hay distribuidores cargados." : "Sin resultados."}
                   </td>
                 </tr>
               ) : (
                 filtradas.map((p) => (
-                  <tr key={p.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80">
+                  <tr key={p.id} className="border-b border-slate-50 last:border-0 hover:bg-[#4FAEB2]/[0.04] transition-colors">
                     <td className="py-3 pr-4">
                       <div className="font-medium text-slate-800">{p.nombre}</div>
                       {p.nombre_comercial && (

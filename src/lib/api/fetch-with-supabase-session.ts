@@ -35,5 +35,11 @@ export async function fetchWithSupabaseSession(
   }
 }
 
+export function isAbortError(err: unknown): boolean {
+  if (err instanceof DOMException && err.name === "AbortError") return true;
+  if (err instanceof Error && err.name === "AbortError") return true;
+  return false;
+}
+
 /** Alias: todas las llamadas a `/api/*` autenticadas desde el browser deben usar esto (JWT localStorage). */
 export const apiFetch = fetchWithSupabaseSession;

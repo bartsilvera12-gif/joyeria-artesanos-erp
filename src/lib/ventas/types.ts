@@ -1,6 +1,8 @@
 export type TipoIvaVenta = "EXENTA" | "5%" | "10%";
 export type TipoVenta   = "CONTADO" | "CREDITO";
 export type MonedaVenta = "GS" | "USD";
+export type MetodoPago  = "efectivo" | "tarjeta" | "transferencia";
+export type TipoPrecioVenta = "minorista" | "mayorista" | "distribuidor" | "costo";
 
 /** Un ítem dentro de una venta (una línea de producto). */
 export interface LineaVenta {
@@ -42,4 +44,8 @@ export interface Venta {
   plazo_dias?: number;       // solo si tipo_venta === "CREDITO"
 
   fecha: string;             // ISO string, generado automáticamente
+
+  metodo_pago?: MetodoPago;
+  genera_nota_remision?: boolean;
+  nota_remision_numero?: string | null;
 }
