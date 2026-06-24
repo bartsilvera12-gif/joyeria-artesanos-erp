@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import MontoInput from "@/components/ui/MontoInput";
 import ProductPickerModal, { type ProductoPickerItem, type AgregarVentaPayload } from "@/components/inventario/ProductPickerModal";
 import { saveVenta } from "@/lib/ventas/storage";
@@ -97,6 +97,8 @@ const ivaLabel: Record<TipoIvaVenta, string> = {
 
 export default function NuevaVentaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pedidoWebId = searchParams.get("pedido_web_id");
 
   // ── Estado global ──────────────────────────────────────────────────────────
   const [productos, setProductos]   = useState<Producto[]>([]);
@@ -229,6 +231,50 @@ export default function NuevaVentaPage() {
     });
     return () => { cancelled = true; };
   }, []);
+
+  // Precarga: si vienen con ?pedido_web_id=..., traemos el pedido web pendiente
+  // y armamos las lineas de venta automaticamente. El cajero solo confirma.
+  useEffect(() => {
+    if (!pedidoWebId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/caja/pedidos-web-pendientes", {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const j = await res.json();
+        const lista: Array<{
+          id: string;
+          items: Array<{ producto_id: string; nombre: string; cantidad: number; precio_unitario: number }>;
+        }> = j?.data?.pedidos ?? [];
+        const pedido = lista.find((p) => p.id === pedidoWebId);
+        if (!pedido || cancelled) return;
+        // Mapear items a LineaVenta. IVA por defecto 10% (precio ya incluye IVA).
+        const lineas: LineaVenta[] = pedido.items.map((it) => {
+          const totalLinea = it.precio_unitario * it.cantidad;
+          const montoIva = totalLinea - totalLinea / 1.1;
+          const subtotal = totalLinea - montoIva;
+          return {
+            producto_id: it.producto_id,
+            producto_nombre: it.nombre,
+            sku: "",
+            cantidad: it.cantidad,
+            precio_venta_original: it.precio_unitario,
+            precio_venta: it.precio_unitario,
+            tipo_iva: "10%",
+            subtotal,
+            monto_iva: montoIva,
+            total_linea: totalLinea,
+          };
+        });
+        setItems(lineas);
+      } catch (err) {
+        console.warn("[ventas/nueva] no se pudo precargar pedido web:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pedidoWebId]);
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -405,6 +451,23 @@ export default function NuevaVentaPage() {
       if (!resultado.success) {
         setErrorVenta(resultado.error);
         return;
+      }
+      // Si la venta fue por un pedido web, cerramos el pedido web
+      // (estado=confirmado_manual + venta_id). Si falla no bloqueamos:
+      // la venta ya esta creada, solo queda el pedido en pendiente.
+      if (pedidoWebId) {
+        try {
+          await fetch(`/api/caja/pedidos-web/${pedidoWebId}/cerrar`, {
+            method: "PATCH",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              venta_id: resultado.venta?.id ?? null,
+            }),
+          });
+        } catch (err) {
+          console.warn("[ventas/nueva] no se pudo cerrar pedido web:", err);
+        }
       }
       router.push("/ventas");
     } finally {
