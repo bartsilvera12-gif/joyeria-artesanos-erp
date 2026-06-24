@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catálogo · Joyería Artesanos</title>
+<link rel="icon" type="image/png" sizes="any" href="./uploads/icono.png">
+<link rel="shortcut icon" type="image/png" href="./uploads/icono.png">
+<link rel="apple-touch-icon" href="./uploads/icono.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="./cart.js" defer></script>
+<style>
+@font-face{font-family:'CommercialScript';src:url('./uploads/CommercialScript-Regular.ttf.woff') format('woff'),url('./fonts/CommercialScript-Regular.woff') format('woff');font-weight:normal;font-style:normal;font-display:swap;}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;}
+body{margin:0;background:#0a0807;color:#efe9dd;font-family:'Jost',-apple-system,sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;}
+::selection{background:rgba(192,192,192,0.32);color:#fff;}
+a{color:inherit;text-decoration:none;}
+::-webkit-scrollbar{width:9px;height:9px;}::-webkit-scrollbar-track{background:#0a0807;}::-webkit-scrollbar-thumb{background:#3a3120;border-radius:9px;}::-webkit-scrollbar-thumb:hover{background:#574826;}
+h1,h2,h3{font-family:'CommercialScript',cursive;font-weight:400;line-height:1.3;overflow:visible;padding-bottom:.25em;}
+
+header.hdr{position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;justify-content:space-between;gap:32px;padding:6px clamp(24px,5vw,64px);background:rgba(11,9,7,0.6);backdrop-filter:blur(16px);border-bottom:1px solid rgba(192,192,192,0.12);}
+header.hdr a.lg{line-height:0;flex-shrink:0;}
+header.hdr a.lg img{height:clamp(54px,5.5vw,68px);width:auto;display:block;}
+header.hdr nav{display:flex;align-items:center;gap:clamp(18px,2.2vw,34px);}
+header.hdr nav a{position:relative;white-space:nowrap;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:#cfc8ba;padding:6px 0;transition:color .35s ease;}
+header.hdr nav a:hover,header.hdr nav a.active{color:#d7d7d7;}
+header.hdr nav a.active::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,#c0c0c0,transparent);}
+header.hdr .wa{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 55%,#a17e38);transition:transform .35s ease,box-shadow .35s ease;}
+header.hdr .wa:hover{transform:translateY(-1px);box-shadow:0 14px 32px -14px rgba(192,192,192,.9);}
+header.hdr .menu-btn{display:none;align-items:center;justify-content:center;flex-direction:column;gap:5px;width:44px;height:44px;background:rgba(192,192,192,0.06);border:1px solid rgba(192,192,192,0.4);border-radius:999px;cursor:pointer;}
+header.hdr .menu-btn span{display:block;width:18px;height:1.5px;background:#d7d7d7;}
+header.hdr .menu-btn span:last-child{width:12px;}
+
+.mnav{position:fixed;top:0;left:0;right:0;z-index:89;display:none;flex-direction:column;gap:4px;padding:80px clamp(20px,6vw,56px) 30px;background:rgba(9,8,6,0.97);backdrop-filter:blur(18px);border-bottom:1px solid rgba(192,192,192,0.22);transform:translateY(-105%);opacity:0;transition:transform .55s cubic-bezier(.22,.61,.36,1),opacity .4s ease;}
+.mnav.open{transform:translateY(0);opacity:1;}
+.mnav a{padding:14px 0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#d8d1c3;border-bottom:1px solid rgba(192,192,192,0.1);}
+.mnav .wa{margin-top:18px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:15px 22px;border-radius:999px;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 55%,#a17e38);}
+
+main{padding:90px clamp(20px,5vw,72px) 60px;max-width:1380px;margin:0 auto;}
+
+/* DECORATIVE HEAD */
+.page-head{position:relative;text-align:center;margin-bottom:18px;display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 20px 20px;overflow:hidden;border-radius:18px;isolation:isolate;}
+.page-head::before{content:"";position:absolute;inset:0;background:url('./uploads/fondocatalogo.png') center center/cover no-repeat;opacity:.55;z-index:-2;}
+.page-head::after{content:"";position:absolute;inset:0;background:radial-gradient(70% 80% at 50% 50%,transparent 0%,rgba(10,8,7,0.55) 55%,#0a0807 95%),linear-gradient(180deg,#0a0807 0%,transparent 18%,transparent 82%,#0a0807 100%);z-index:-1;pointer-events:none;}
+.page-head > *{position:relative;z-index:1;}
+.page-head .eyebrow{display:inline-flex;align-items:center;gap:14px;font-size:10.5px;letter-spacing:.42em;text-transform:uppercase;color:#c0c0c0;}
+.page-head .eyebrow .ln{display:block;width:38px;height:1px;background:linear-gradient(90deg,transparent,#c0c0c0);}
+.page-head .eyebrow .ln.r{background:linear-gradient(270deg,transparent,#c0c0c0);}
+.page-head h1{margin:0;font-size:clamp(46px,6vw,78px);background:linear-gradient(180deg,#fdf2d4,#e7c87a 55%,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block;background-size:100% 140%;line-height:1.15;padding-bottom:.18em;}
+.page-head .lead{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:17px;line-height:1.55;color:#b3ac9f;margin:0;max-width:540px;}
+.page-head .ornament{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.page-head .ornament .ln{width:50px;height:1px;background:linear-gradient(90deg,transparent,rgba(192,192,192,.7));}
+.page-head .ornament .ln.r{background:linear-gradient(270deg,transparent,rgba(192,192,192,.7));}
+.page-head .ornament .dia{width:6px;height:6px;background:linear-gradient(135deg,#fdf2d4,#c9a24b);transform:rotate(45deg);}
+
+/* ============ COLECCIONES ============ */
+.collections{margin:40px 0 56px;scroll-margin-top:100px;}
+.collections-head{text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:28px;}
+.collections-head .eyebrow{display:inline-flex;align-items:center;gap:14px;font-size:10.5px;letter-spacing:.42em;text-transform:uppercase;color:#c0c0c0;}
+.collections-head .eyebrow .ln{display:block;width:38px;height:1px;background:linear-gradient(90deg,transparent,#c0c0c0);}
+.collections-head .eyebrow .ln.r{background:linear-gradient(270deg,transparent,#c0c0c0);}
+.collections-head h2{margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(28px,3.6vw,44px);color:#f2ecdf;line-height:1.1;}
+.collections-head .lead{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;line-height:1.55;color:#b3ac9f;margin:0;max-width:520px;}
+
+.collections-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
+.coll-card{position:relative;display:flex;flex-direction:column;background:linear-gradient(180deg,#161208 0%,#0d0a07 100%);border:1px solid rgba(192,192,192,0.18);border-radius:18px;overflow:hidden;text-decoration:none;color:inherit;transition:transform .45s cubic-bezier(.22,.61,.36,1),border-color .4s ease,box-shadow .4s ease;isolation:isolate;}
+.coll-card:hover{transform:translateY(-4px);border-color:rgba(215,215,215,0.55);box-shadow:0 28px 60px -32px rgba(0,0,0,.95),0 0 50px -22px rgba(192,192,192,0.35);}
+.coll-card .coll-img{position:relative;aspect-ratio:4/3.2;overflow:hidden;background:#0f0d0a;}
+.coll-card .coll-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.1s cubic-bezier(.22,.61,.36,1);}
+.coll-card:hover .coll-img img{transform:scale(1.08);}
+.coll-card .coll-img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(8,7,5,.85));pointer-events:none;}
+.coll-card .coll-body{position:relative;padding:18px 20px 20px;display:flex;flex-direction:column;gap:8px;flex:1;}
+.coll-card .coll-tag{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:#c0c0c0;}
+.coll-card h3{margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:22px;color:#f4eee2;line-height:1.15;}
+.coll-card .coll-body p{margin:0;font-size:13px;line-height:1.55;color:#928c80;flex:1;}
+.coll-card .coll-cta{margin-top:8px;display:inline-flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#f3dca0;padding-top:10px;border-top:1px solid rgba(192,192,192,0.15);transition:color .35s ease;}
+.coll-card:hover .coll-cta{color:#fbeecb;}
+
+.coll-card-feat{grid-column:span 1;}
+.coll-card-feat .coll-tag{color:#f3dca0;}
+
+@media(max-width:1080px){.collections-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.collections-grid{grid-template-columns:1fr;}.collections{margin:28px 0 36px;}}
+
+/* LAYOUT: SIDEBAR + MAIN */
+.cat-layout{display:grid;grid-template-columns:260px 1fr;gap:clamp(28px,4vw,56px);align-items:flex-start;}
+
+/* SIDEBAR */
+.sidebar{position:sticky;top:104px;display:flex;flex-direction:column;gap:30px;align-self:flex-start;max-height:calc(100vh - 120px);overflow-y:auto;padding-right:8px;-webkit-overflow-scrolling:touch;}
+.sidebar::-webkit-scrollbar{width:5px;}
+.sidebar::-webkit-scrollbar-track{background:transparent;}
+.sidebar::-webkit-scrollbar-thumb{background:rgba(192,192,192,.25);border-radius:5px;}
+.sidebar::-webkit-scrollbar-thumb:hover{background:rgba(192,192,192,.5);}
+.sidebar-apply{display:none;}
+.fgroup{display:flex;flex-direction:column;gap:14px;}
+.fgroup .ftitle{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:.42em;text-transform:uppercase;color:#c0c0c0;}
+.fgroup .ftitle .ln{flex:1;height:1px;background:linear-gradient(90deg,rgba(192,192,192,.5),transparent);}
+.fgroup .flist{display:flex;flex-direction:column;gap:2px;}
+.fopt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-radius:999px;font-family:inherit;font-size:12.5px;letter-spacing:.06em;color:#cfc8ba;background:none;border:0;cursor:pointer;text-align:left;transition:background .3s ease,color .3s ease;}
+.fopt:hover{background:rgba(192,192,192,0.06);color:#d7d7d7;}
+.fopt.active{background:linear-gradient(120deg,rgba(220,220,220,.16),rgba(192,192,192,.05));color:#f3dca0;}
+.fopt .nm{display:inline-flex;align-items:center;gap:8px;}
+.fopt .dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:rgba(192,192,192,.3);transition:background .3s ease;}
+.fopt.active .dot{background:#f3dca0;box-shadow:0 0 6px rgba(220,220,220,.7);}
+.fopt .ct{font-size:10.5px;letter-spacing:.16em;color:#7d7768;}
+.fopt.active .ct{color:#c0c0c0;}
+
+/* SIDEBAR SEARCH */
+.search-wrap{position:relative;}
+.search-wrap svg.ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);}
+.search-wrap input{width:100%;padding:11px 14px 11px 40px;border:1px solid rgba(192,192,192,0.22);border-radius:999px;background:rgba(20,16,11,0.5);color:#efe9dd;font-family:inherit;font-size:13px;letter-spacing:.04em;transition:border-color .35s ease,background .35s ease;}
+.search-wrap input::placeholder{color:#7d7768;}
+.search-wrap input:focus{outline:none;border-color:rgba(192,192,192,0.65);background:rgba(192,192,192,0.08);}
+.search-wrap .clr{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:0;color:#7d7768;cursor:pointer;padding:6px;display:none;}
+.search-wrap.has-text .clr{display:block;}
+
+/* MAIN HEAD ROW */
+.main-head{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid rgba(192,192,192,0.1);}
+.main-head .count-txt{font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#928c80;}
+.main-head .count-txt b{font-family:'Cormorant Garamond',serif;color:#f3dca0;font-size:22px;font-weight:500;margin-right:6px;}
+.main-head .sort-inline{display:flex;align-items:center;gap:10px;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#928c80;}
+.main-head .sort-inline select{background:rgba(20,16,11,0.6);color:#d7d7d7;border:1px solid rgba(192,192,192,0.22);border-radius:999px;padding:8px 14px;font-family:inherit;font-size:11px;letter-spacing:.18em;text-transform:uppercase;cursor:pointer;}
+
+/* MOBILE FILTER TOGGLE */
+.filter-toggle{display:none;align-items:center;gap:9px;padding:10px 18px;border-radius:999px;border:1px solid rgba(192,192,192,0.3);background:rgba(20,16,11,0.6);color:#d7d7d7;font-family:inherit;font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;}
+
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+@media(max-width:1180px){.grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:900px){
+  .cat-layout{grid-template-columns:1fr;}
+  .sidebar{position:fixed;inset:0;display:none;flex-direction:column !important;background:#0c0a08;border:0;border-radius:0;padding:80px 22px 100px;gap:24px;z-index:170;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;}
+  .sidebar.open{display:flex;}
+  .sidebar-close{display:none !important;}
+  .sidebar-apply{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;padding:14px 22px 18px;background:linear-gradient(180deg,transparent,#0c0a08 35%);z-index:180;}
+  .sidebar-apply button{width:100%;max-width:420px;padding:14px 30px;border-radius:999px;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 55%,#a17e38);border:0;cursor:pointer;font-family:inherit;box-shadow:0 -10px 30px -10px rgba(0,0,0,.8);}
+  body.sb-open{overflow:hidden;}
+  .filter-toggle{display:inline-flex;}
+  .grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:500px){.grid{grid-template-columns:1fr;}}
+
+.card{display:flex;flex-direction:column;border:1px solid rgba(192,192,192,0.14);border-radius:22px;background:#100d09;overflow:hidden;transition:border-color .4s ease,box-shadow .4s ease,transform .4s ease;}
+.card:hover{border-color:rgba(192,192,192,0.45);box-shadow:0 24px 60px -34px rgba(0,0,0,.95),0 0 40px -22px rgba(192,192,192,0.35);transform:translateY(-2px);}
+.card .img{position:relative;aspect-ratio:1/1.05;overflow:hidden;background:#161208;}
+.card .img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1s ease;}
+.card:hover .img img{transform:scale(1.06);}
+.card .badge{position:absolute;top:10px;left:10px;padding:4px 10px;border-radius:999px;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b);}
+.card .new{position:absolute;top:10px;right:10px;padding:4px 10px;border-radius:999px;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#d7d7d7;background:rgba(11,9,7,0.7);backdrop-filter:blur(8px);border:1px solid rgba(192,192,192,0.3);}
+.card .body{padding:14px 16px 18px;display:flex;flex-direction:column;gap:6px;}
+.card .body .mat{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:#c0c0c0;}
+.card .body .nm{font-family:'Cormorant Garamond',serif;font-weight:500;font-size:18px;color:#f4eee2;line-height:1.2;}
+.card .price{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;color:#f3dca0;line-height:1;margin-top:2px;}
+.card .price small{font-size:11px;color:#928c80;font-weight:400;margin-left:4px;}
+.card .body .row{margin-top:auto;padding-top:12px;display:flex;align-items:center;gap:8px;border-top:1px solid rgba(192,192,192,0.08);}
+.card .add-btn{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 12px;border-radius:999px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 55%,#a17e38);border:0;cursor:pointer;font-family:inherit;transition:transform .3s ease,box-shadow .3s ease;}
+.card .add-btn:hover{transform:translateY(-1px);box-shadow:0 14px 30px -14px rgba(192,192,192,.7);}
+.card .cta{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:1px solid rgba(192,192,192,0.45);background:rgba(192,192,192,0.05);color:#d7d7d7;cursor:pointer;font-family:inherit;transition:background .3s ease,border-color .3s ease;padding:0;flex-shrink:0;}
+.card .cta:hover{background:rgba(192,192,192,0.15);border-color:rgba(192,192,192,0.8);}
+.card{cursor:pointer;}
+
+/* PRODUCT MODAL */
+.modal-back{position:fixed;inset:0;background:rgba(8,7,5,0.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:200;display:none;align-items:center;justify-content:center;padding:24px;opacity:0;transition:opacity .35s ease;overflow-y:auto;}
+.modal-back.open{display:flex;opacity:1;}
+.modal{position:relative;width:100%;max-width:980px;background:#100d09;border:1px solid rgba(192,192,192,0.22);border-radius:24px;overflow:hidden;display:grid;grid-template-columns:1.05fr .95fr;gap:0;box-shadow:0 60px 130px -50px rgba(0,0,0,0.95),0 0 80px -30px rgba(192,192,192,0.25);transform:translateY(20px);transition:transform .45s cubic-bezier(.22,.61,.36,1);}
+.modal-back.open .modal{transform:translateY(0);}
+.modal .mi{position:relative;background:#161208;aspect-ratio:1/1.05;}
+.modal .mi img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.modal .mi .badge{position:absolute;top:14px;left:14px;padding:5px 12px;border-radius:999px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b);}
+.modal .mi .new{position:absolute;top:14px;right:14px;padding:5px 12px;border-radius:999px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#d7d7d7;background:rgba(11,9,7,0.7);backdrop-filter:blur(8px);border:1px solid rgba(192,192,192,0.3);}
+.modal .mb{padding:28px 30px 30px;display:flex;flex-direction:column;gap:10px;}
+.modal .mb .cat-up{font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#7d7768;}
+.modal .mb .mat-up{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#c0c0c0;margin-top:2px;}
+.modal .mb h2{margin:6px 0 0;font-family:'Cormorant Garamond',serif !important;font-weight:500;font-size:30px;color:#f4eee2;line-height:1.15;padding-bottom:0;}
+.modal .mb .descr{margin:10px 0 0;font-size:14px;line-height:1.65;color:#b3ac9f;}
+.modal .mb .price-row{margin-top:14px;padding:14px 0;border-top:1px solid rgba(192,192,192,0.14);border-bottom:1px solid rgba(192,192,192,0.14);display:flex;align-items:baseline;gap:12px;}
+.modal .mb .price-row .pl{font-size:10.5px;letter-spacing:.24em;text-transform:uppercase;color:#928c80;}
+.modal .mb .price-row .pv{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:500;color:#f3dca0;line-height:1;}
+.modal .mb .price-row .pv small{font-size:12px;color:#928c80;margin-left:4px;font-weight:400;}
+.modal .mb .specs{margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;}
+.modal .mb .specs .sp{font-size:12px;color:#928c80;}
+.modal .mb .specs .sp b{display:block;color:#cfc8ba;font-weight:500;font-size:13px;margin-top:2px;}
+.modal .mb .actions{margin-top:18px;display:flex;gap:12px;flex-wrap:wrap;}
+.modal .mb .actions .pa{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:13px 20px;border-radius:999px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 55%,#a17e38);transition:transform .3s ease,box-shadow .3s ease;}
+.modal .mb .actions .pa:hover{transform:translateY(-1px);box-shadow:0 16px 40px -16px rgba(192,192,192,.7);}
+.modal .mb .actions .sa{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 18px;border-radius:999px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#cfc8ba;border:1px solid rgba(192,192,192,0.25);background:none;cursor:pointer;font-family:inherit;transition:border-color .3s ease,color .3s ease;}
+.modal .mb .actions .sa:hover{border-color:rgba(192,192,192,0.7);color:#d7d7d7;}
+.modal .close{position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;background:rgba(11,9,7,0.65);backdrop-filter:blur(8px);border:1px solid rgba(192,192,192,0.3);color:#d7d7d7;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2;transition:background .3s ease,border-color .3s ease;}
+.modal .close:hover{background:rgba(192,192,192,0.15);border-color:rgba(192,192,192,0.7);}
+@media(max-width:780px){.modal{grid-template-columns:1fr;max-width:520px;}.modal .mi{aspect-ratio:1/1;}.modal .mb{padding:22px 22px 24px;}.modal .mb h2{font-size:24px;}}
+
+.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:#7d7768;}
+.empty .ic{display:inline-flex;width:54px;height:54px;align-items:center;justify-content:center;border:1px solid rgba(192,192,192,0.25);border-radius:50%;margin-bottom:16px;color:#c0c0c0;}
+.empty h3{margin:0;font-size:32px;color:#cfc8ba;}
+.empty p{margin:8px 0 0;font-size:14px;}
+.empty .reset{margin-top:18px;display:inline-flex;align-items:center;gap:9px;padding:11px 22px;border-radius:999px;font-size:11.5px;letter-spacing:.18em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 55%,#a17e38);border:0;cursor:pointer;font-family:inherit;}
+
+footer{border-top:1px solid rgba(192,192,192,0.18);background:#080605;padding:28px clamp(20px,5vw,72px) 18px;margin-top:60px;}
+footer .ft{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:24px;align-items:start;}
+footer .col img{height:120px;width:auto;display:block;margin:-14px 0 -10px -16px;}
+footer .col p{margin:8px 0 0;font-size:12.5px;line-height:1.55;color:#8b8578;}
+footer h4{margin:0 0 10px;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:#c0c0c0;font-weight:500;}
+footer .col a{display:block;font-size:13px;color:#a39d90;padding:3px 0;transition:color .3s ease;}
+footer .col a:hover{color:#d7d7d7;}
+footer .bottom{max-width:1280px;margin:18px auto 0;padding-top:12px;border-top:1px solid rgba(192,192,192,0.1);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+footer .bottom span{font-size:11.5px;color:#6f6a5e;}
+footer .bottom a{color:#c0c0c0;}
+
+@media(max-width:900px){
+  header.hdr nav{display:none;}
+  header.hdr .wa{display:none;}
+  header.hdr .menu-btn{display:inline-flex;}
+}
+@media(max-width:560px){
+  main{padding:110px 18px 40px;}
+  header.hdr{padding:10px 14px;gap:10px;}
+  header.hdr a.lg img{height:48px;}
+  .page-head h1{font-size:42px;}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <a class="lg" href="./Joyeria Artesanos v2.dc.html"><img src="./uploads/logo2.PNG" alt="Joyería Artesanos"></a>
+  <nav>
+    <a href="./Joyeria Artesanos v2.dc.html#inicio">Inicio</a>
+    <a class="active" href="./catalogo.html">Catálogo</a>
+    <a href="./Joyeria Artesanos v2.dc.html#sobre">Sobre Nosotros</a>
+    <a href="./Joyeria Artesanos v2.dc.html#contacto">Contacto</a>
+  </nav>
+  <a class="wa" href="#" target="_blank" rel="noopener">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.2-5.2A8.5 8.5 0 1 1 21 11.5Z"/></svg>WhatsApp
+  </a>
+  <button class="menu-btn" id="menuBtn" aria-label="Menú"><span></span><span></span><span></span></button>
+</header>
+
+<div class="mnav" id="mnav">
+  <a href="./Joyeria Artesanos v2.dc.html#inicio">Inicio</a>
+  <a href="./catalogo.html">Catálogo</a>
+  <a href="./Joyeria Artesanos v2.dc.html#sobre">Sobre Nosotros</a>
+  <a href="./Joyeria Artesanos v2.dc.html#contacto">Contacto</a>
+  <a class="wa" href="#" target="_blank" rel="noopener">Consultar por WhatsApp</a>
+</div>
+
+<main>
+  <div class="page-head">
+    <div class="eyebrow"><span class="ln"></span>Colección completa<span class="ln r"></span></div>
+    <h1>Catálogo</h1>
+    <p class="lead">Explorá todas nuestras piezas. Filtrá por categoría, material o buscá por nombre.</p>
+    <div class="ornament"><span class="ln"></span><span class="dia"></span><span class="ln r"></span></div>
+  </div>
+
+
+  <div class="cat-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="fgroup">
+        <div class="ftitle">Buscar <span class="ln"></span></div>
+        <div class="search-wrap" id="searchWrap">
+          <svg class="ic" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c0c0c0" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="searchInput" type="text" placeholder="Nombre, material…" autocomplete="off">
+          <button class="clr" id="searchClear" aria-label="Limpiar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </div>
+
+      <div class="fgroup">
+        <div class="ftitle">Categoría <span class="ln"></span></div>
+        <div class="flist" id="catFilters">
+          <button class="fopt active" data-cat="all"><span class="nm"><span class="dot"></span>Todas</span><span class="ct count"></span></button>
+          <button class="fopt" data-cat="anillos"><span class="nm"><span class="dot"></span>Anillos</span><span class="ct count"></span></button>
+          <button class="fopt" data-cat="cadenas"><span class="nm"><span class="dot"></span>Cadenas</span><span class="ct count"></span></button>
+          <button class="fopt" data-cat="pulseras"><span class="nm"><span class="dot"></span>Pulseras</span><span class="ct count"></span></button>
+          <button class="fopt" data-cat="aros"><span class="nm"><span class="dot"></span>Aros</span><span class="ct count"></span></button>
+          <button class="fopt" data-cat="relojes"><span class="nm"><span class="dot"></span>Relojes</span><span class="ct count"></span></button>
+          <button class="fopt" data-cat="guampas"><span class="nm"><span class="dot"></span>Guampas</span><span class="ct count"></span></button>
+          <button class="fopt" data-cat="bombillas"><span class="nm"><span class="dot"></span>Bombillas</span><span class="ct count"></span></button>
+        </div>
+      </div>
+
+      <div class="fgroup">
+        <div class="ftitle">Material <span class="ln"></span></div>
+        <div class="flist" id="matFilters">
+          <button class="fopt active" data-mat="all"><span class="nm"><span class="dot"></span>Todos</span></button>
+          <button class="fopt" data-mat="oro18k"><span class="nm"><span class="dot"></span>Oro 18k</span></button>
+          <button class="fopt" data-mat="acero"><span class="nm"><span class="dot"></span>Acero quirúrgico</span></button>
+          <button class="fopt" data-mat="oro-blanco"><span class="nm"><span class="dot"></span>Oro blanco</span></button>
+          <button class="fopt" data-mat="oro-rosa"><span class="nm"><span class="dot"></span>Oro rosa</span></button>
+          <button class="fopt" data-mat="plata"><span class="nm"><span class="dot"></span>Plata 925</span></button>
+        </div>
+      </div>
+
+      <div class="sidebar-apply"><button type="button" id="sidebarApply">Ver resultados</button></div>
+    </aside>
+
+    <div class="main-col">
+      <div class="main-head">
+        <button class="filter-toggle" id="filterToggle">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+          Filtros
+        </button>
+        <div class="count-txt"><b id="resultCount">0</b> piezas</div>
+        <div class="sort-inline">
+          <span>Ordenar</span>
+          <select id="sortSel">
+            <option value="featured">Destacadas</option>
+            <option value="name">Nombre A–Z</option>
+            <option value="new">Más nuevas</option>
+            <option value="price-asc">Precio menor</option>
+            <option value="price-desc">Precio mayor</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-back" id="modalBack" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal" id="modal">
+    <button class="close" id="modalClose" aria-label="Cerrar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div class="mi">
+      <img data-m="img" src="" alt="">
+      <span class="badge" data-m="badge"></span>
+      <span class="new" data-m="new">Nuevo</span>
+    </div>
+    <div class="mb">
+      <span class="cat-up" data-m="cat"></span>
+      <span class="mat-up" data-m="mat"></span>
+      <h2 data-m="name"></h2>
+      <p class="descr" data-m="desc"></p>
+      <div class="price-row">
+        <span class="pl">Precio</span>
+        <span class="pv" data-m="price"></span>
+      </div>
+      <div class="actions">
+        <button class="pa" type="button" id="modalAdd">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+          Agregar al carrito
+        </button>
+        <a class="sa" data-m="wa" href="#" target="_blank" rel="noopener">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.2-5.2A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+          Consultar
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="ft">
+    <div class="col" style="max-width:280px;">
+      <img src="./uploads/logo2.PNG" alt="Joyería Artesanos">
+      <p>Piezas únicas con elegancia, detalle y tradición artesanal.</p>
+    </div>
+    <div class="col">
+      <h4>Navegación</h4>
+      <a href="./Joyeria Artesanos v2.dc.html#inicio">Inicio</a>
+      <a href="./catalogo.html">Catálogo</a>
+      <a href="./Joyeria Artesanos v2.dc.html#sobre">Sobre Nosotros</a>
+      <a href="./Joyeria Artesanos v2.dc.html#contacto">Contacto</a>
+    </div>
+    <div class="col">
+      <h4>Contacto</h4>
+      <a href="mailto:artesanosplantabaja@gmail.com">artesanosplantabaja@gmail.com</a>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+        <a href="https://wa.me/595974702574?text=Hola%20Joyer%C3%ADa%20Artesanos%2C%20quisiera%20consultar%20por%20una%20pieza." target="_blank" rel="noopener" style="display:flex !important;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid rgba(192,192,192,0.18);border-radius:10px;">
+          <span style="font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;color:#c0c0c0;">Local Multiplaza</span>
+          <span style="color:#e7c87a;font-size:13px;">📱 0974 702 574</span>
+        </a>
+        <a href="https://wa.me/595974702576?text=Hola%20Joyer%C3%ADa%20Artesanos%2C%20quisiera%20consultar%20por%20una%20pieza." target="_blank" rel="noopener" style="display:flex !important;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid rgba(192,192,192,0.18);border-radius:10px;">
+          <span style="font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;color:#c0c0c0;">Local San Lorenzo</span>
+          <span style="color:#e7c87a;font-size:13px;">📱 0974 702 576</span>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="bottom">
+    <span>© <span id="yr"></span> Joyería Artesanos · Todos los derechos reservados</span>
+    <span>Desarrollado por <a href="https://neura.com.py" target="_blank" rel="noopener">Neura</a></span>
+  </div>
+</footer>
+
+<script>
+const WA_MP = '595974702574'; // Multiplaza
+const WA_SL = '595974702576'; // San Lorenzo
+const WA = 'https://wa.me/' + WA_MP + '?text=' + encodeURIComponent('Hola Joyería Artesanos, quisiera consultar por una pieza.');
+document.querySelectorAll('a.wa,a[href="#"]').forEach(a => { if(a.textContent.match(/whats|consultar/i) || a.classList.contains('wa')) a.href = WA; });
+document.getElementById('yr').textContent = new Date().getFullYear();
+
+// Mobile menu
+const menuBtn = document.getElementById('menuBtn');
+const mnav = document.getElementById('mnav');
+menuBtn?.addEventListener('click', () => mnav.classList.toggle('open'));
+mnav.querySelectorAll('a').forEach(a => a.addEventListener('click', () => mnav.classList.remove('open')));
+
+// PRODUCTS — fallback hardcoded; on load se reemplaza con data del ERP
+// (joyeriaartesanos.neura.com.py) si el endpoint responde OK.
+const ERP_PRODUCTOS_URL = '/api/public/joyeria/productos';
+const ERP_PEDIDOS_URL = '/api/public/joyeria/pedidos';
+
+function inferCat(nombre){
+  const n = (nombre || '').toLowerCase();
+  if (n.includes('cadena') || n.includes('rosario')) return 'cadenas';
+  if (n.includes('anillo')) return 'anillos';
+  if (n.includes('pulsera')) return 'pulseras';
+  if (n.includes('aro') || n.includes('aros')) return 'aros';
+  if (n.includes('reloj')) return 'relojes';
+  if (n.includes('guampa')) return 'guampas';
+  if (n.includes('bombilla')) return 'bombillas';
+  return 'cadenas';
+}
+function inferMat(marca){
+  const m = (marca || '').toLowerCase();
+  if (m.includes('plata')) return 'plata';
+  if (m.includes('oro') || m.includes('enchap')) return 'oro18k';
+  return 'plata';
+}
+
+let products = [
+  // Anillos
+  { id:101, cat:'cadenas', name:'Cadena Crucifijo', material:'Plata 925', mat:'plata', img:'./uploads/joyeria artesanosss.jpeg', badge:'Top', price:1850000, desc:'Cadena fina en plata 925 con dije crucifijo. Presentación en estuche.' },
+  { id:102, cat:'cadenas', name:'Cadena Medalla', material:'Plata 925', mat:'plata', img:'./uploads/joyeriia artesanos.jpeg', badge:'Top', price:980000, desc:'Cadena en plata 925 con medalla ovalada. Acabado pulido espejo.' },
+  { id:103, cat:'cadenas', name:'Cadena Enchapada Oro', material:'Enchapado en oro', mat:'oro18k', img:'./uploads/precio 240.000gs.jpeg', badge:'Top', price:240000, desc:'Cadena enchapada en oro con dije de ángel. Brillo cálido y duradero.' },
+  { id:104, cat:'cadenas', name:'Rosarios', material:'Enchapado en oro', mat:'oro18k', img:'./uploads/joyeria artesanoss.jpeg', badge:'Top', price:1450000, desc:'Set de tres rosarios con cuentas trabajadas y crucifijo. Enchapado en oro de alta calidad.' },
+  { id:105, cat:'anillos', name:'Anillo Diamante', material:'Oro 18k · Brillante', mat:'oro18k', img:'./uploads/precio 1.900.000gs.jpeg', badge:'Top', price:1900000, desc:'Solitario con brillante central de talla redonda en oro 18k.' },
+  { id:106, cat:'anillos', name:'Anillos Color', material:'Oro 18k · Piedras', mat:'oro18k', img:'./uploads/precio 570.000gs cada uno.jpeg', badge:'Top', price:570000, desc:'Anillos con piedras de color (rojo, blanco, azul). Precio por unidad.' },
+  { id:107, cat:'cadenas', name:'Cadenas Familia', material:'Enchapado en oro', mat:'oro18k', img:'./uploads/joyeria artesanos.jpeg', badge:'Top', price:1250000, desc:'Set de tres cadenas con dijes familiares en enchapado de oro. Ideal para regalo personalizado.' },
+];
+
+function fmtPrice(n){ return new Intl.NumberFormat('es-PY').format(n); }
+
+const state = { cat:'all', mat:'all', q:'', sort:'featured' };
+
+function counts(){
+  const cats = {all:products.length, anillos:0, cadenas:0, pulseras:0, aros:0, relojes:0, guampas:0, bombillas:0};
+  products.forEach(p => cats[p.cat]++);
+  document.querySelectorAll('#catFilters .fopt').forEach(c => {
+    const k = c.dataset.cat;
+    c.querySelector('.count').textContent = cats[k] ? '·' + cats[k] : '';
+  });
+}
+
+function render(){
+  let list = products.filter(p => state.cat === 'all' || p.cat === state.cat)
+                    .filter(p => state.mat === 'all' || p.mat === state.mat);
+  if(state.q){
+    const q = state.q.toLowerCase();
+    list = list.filter(p => (p.name + ' ' + p.material + ' ' + p.cat).toLowerCase().includes(q));
+  }
+  if(state.sort === 'name') list.sort((a,b) => a.name.localeCompare(b.name));
+  if(state.sort === 'new') list.sort((a,b) => (b.isNew?1:0) - (a.isNew?1:0));
+  if(state.sort === 'featured') list.sort((a,b) => (b.badge?1:0) - (a.badge?1:0));
+  if(state.sort === 'price-asc') list.sort((a,b) => a.price - b.price);
+  if(state.sort === 'price-desc') list.sort((a,b) => b.price - a.price);
+
+  document.getElementById('resultCount').textContent = list.length;
+  const grid = document.getElementById('grid');
+
+  if(!list.length){
+    grid.innerHTML = `<div class="empty">
+      <div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+      <h3>Sin resultados</h3>
+      <p>Probá ajustando los filtros o la búsqueda.</p>
+      <button class="reset" onclick="resetAll()">Limpiar filtros</button>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(p => {
+    const data = JSON.stringify({ id:'cat-'+p.id, name:p.name, material:p.material, desc:p.desc, price:p.price, img:p.img, badge:p.badge }).replace(/"/g, '&quot;');
+    return `
+    <article class="card" data-id="${p.id}">
+      <div class="img">
+        <img src="${p.img}" alt="${p.name}" loading="lazy">
+        ${p.badge ? `<span class="badge">${p.badge}</span>` : ''}
+        ${p.isNew ? `<span class="new">Nuevo</span>` : ''}
+      </div>
+      <div class="body">
+        <span class="mat">${p.material}</span>
+        <h3 class="nm">${p.name}</h3>
+        <div class="price">₲ ${fmtPrice(p.price)}<small>PYG</small></div>
+        <div class="row">
+          <button type="button" class="add-btn" data-ja-add="1" data-ja-product="${data}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.7 13.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>
+            Agregar
+          </button>
+          <button class="cta" type="button" data-action="open" aria-label="Ver detalle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/></svg>
+          </button>
+        </div>
+      </div>
+    </article>
+  `;}).join('');
+
+  grid.querySelectorAll('.card').forEach(c => {
+    c.addEventListener('click', e => {
+      if(e.target.closest('[data-ja-add]')) return;
+      openModal(parseInt(c.dataset.id, 10));
+    });
+  });
+}
+
+let currentModalProduct = null;
+function openModal(id){
+  const p = products.find(x => x.id === id);
+  if(!p) return;
+  currentModalProduct = p;
+  window.__jaCurrentCatalogProduct = { id:'cat-'+p.id, name:p.name, material:p.material, desc:p.desc, price:p.price, img:p.img };
+  const m = document.getElementById('modal');
+  m.querySelector('[data-m=img]').src = p.img;
+  m.querySelector('[data-m=img]').alt = p.name;
+  m.querySelector('[data-m=badge]').style.display = p.badge ? 'inline-block' : 'none';
+  m.querySelector('[data-m=badge]').textContent = p.badge || '';
+  m.querySelector('[data-m=new]').style.display = p.isNew ? 'inline-block' : 'none';
+  m.querySelector('[data-m=cat]').textContent = p.cat;
+  m.querySelector('[data-m=mat]').textContent = p.material;
+  m.querySelector('[data-m=name]').textContent = p.name;
+  m.querySelector('[data-m=desc]').textContent = p.desc || '';
+  m.querySelector('[data-m=price]').innerHTML = '₲ ' + fmtPrice(p.price) + '<small>PYG</small>';
+  m.querySelector('[data-m=wa]').href = 'https://wa.me/' + WA_MP + '?text=' + encodeURIComponent('Hola Joyería Artesanos, quisiera consultar por la pieza "' + p.name + '" (' + p.material + ' · ₲ ' + fmtPrice(p.price) + ').');
+  document.getElementById('modalBack').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(){
+  document.getElementById('modalBack').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalBack').addEventListener('click', e => { if(e.target.id === 'modalBack') closeModal(); });
+document.getElementById('modalAdd').addEventListener('click', () => {
+  if(!currentModalProduct || !window.JACart) return;
+  const p = currentModalProduct;
+  window.JACart.add({ id:'cat-'+p.id, name:p.name, material:p.material, desc:p.desc, price:p.price, img:p.img, badge:p.badge });
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+function resetAll(){
+  state.cat = 'all'; state.mat = 'all'; state.q = ''; state.sort = 'featured';
+  document.querySelectorAll('#catFilters .fopt').forEach(c => c.classList.toggle('active', c.dataset.cat === 'all'));
+  document.querySelectorAll('#matFilters .fopt').forEach(c => c.classList.toggle('active', c.dataset.mat === 'all'));
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchWrap').classList.remove('has-text');
+  document.getElementById('sortSel').value = 'featured';
+  render();
+}
+
+document.querySelectorAll('#catFilters .fopt').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('#catFilters .fopt').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.cat = c.dataset.cat;
+  render();
+}));
+document.querySelectorAll('#matFilters .fopt').forEach(c => c.addEventListener('click', () => {
+  document.querySelectorAll('#matFilters .fopt').forEach(x => x.classList.remove('active'));
+  c.classList.add('active');
+  state.mat = c.dataset.mat;
+  render();
+}));
+
+function openSidebar(){
+  document.getElementById('sidebar').classList.add('open');
+  document.body.classList.add('sb-open');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.body.classList.remove('sb-open');
+}
+const ftBtn = document.getElementById('filterToggle');
+if(ftBtn){ ftBtn.addEventListener('click', openSidebar); }
+const sbClose = document.getElementById('sidebarClose');
+if(sbClose){ sbClose.addEventListener('click', closeSidebar); }
+const sbApply = document.getElementById('sidebarApply');
+if(sbApply){ sbApply.addEventListener('click', closeSidebar); }
+
+const si = document.getElementById('searchInput');
+const sw = document.getElementById('searchWrap');
+si.addEventListener('input', () => {
+  state.q = si.value.trim();
+  sw.classList.toggle('has-text', state.q.length > 0);
+  render();
+});
+document.getElementById('searchClear').addEventListener('click', () => {
+  si.value = ''; state.q = ''; sw.classList.remove('has-text'); render(); si.focus();
+});
+document.getElementById('sortSel').addEventListener('change', e => { state.sort = e.target.value; render(); });
+
+// Honor cat in URL: try ?cat=, #cat=, or plain #anillos
+function parseUrlCat(){
+  const valid = ['anillos','cadenas','pulseras','aros','relojes','guampas','bombillas'];
+  const q = new URLSearchParams(location.search).get('cat');
+  if(q && valid.includes(q)) return q;
+  const h = (location.hash || '').replace(/^#/, '');
+  if(!h) return null;
+  const hq = new URLSearchParams(h).get('cat');
+  if(hq && valid.includes(hq)) return hq;
+  if(valid.includes(h)) return h;
+  return null;
+}
+function parseUrlMat(){
+  const valid = ['oro18k','acero','oro-blanco','oro-rosa','plata'];
+  const q = new URLSearchParams(location.search).get('mat');
+  if(q && valid.includes(q)) return q;
+  const h = (location.hash || '').replace(/^#/, '');
+  if(!h) return null;
+  const hq = new URLSearchParams(h).get('mat');
+  if(hq && valid.includes(hq)) return hq;
+  return null;
+}
+const urlCat = parseUrlCat();
+if(urlCat){
+  state.cat = urlCat;
+  document.querySelectorAll('#catFilters .fopt').forEach(c => c.classList.toggle('active', c.dataset.cat === urlCat));
+}
+const urlMat = parseUrlMat();
+if(urlMat){
+  state.mat = urlMat;
+  document.querySelectorAll('#matFilters .fopt').forEach(c => c.classList.toggle('active', c.dataset.mat === urlMat));
+}
+window.addEventListener('hashchange', () => {
+  const c = parseUrlCat();
+  if(c){
+    state.cat = c;
+    document.querySelectorAll('#catFilters .fopt').forEach(x => x.classList.toggle('active', x.dataset.cat === c));
+  }
+  const m = parseUrlMat();
+  if(m){
+    state.mat = m;
+    document.querySelectorAll('#matFilters .fopt').forEach(x => x.classList.toggle('active', x.dataset.mat === m));
+  }
+  if(c || m) render();
+});
+
+counts();
+render();
+
+// Hidratar desde el ERP. Si falla, queda el fallback hardcodeado.
+(async () => {
+  try {
+    const res = await fetch(ERP_PRODUCTOS_URL, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) return;
+    const json = await res.json();
+    const list = Array.isArray(json.productos) ? json.productos : [];
+    if (!list.length) return;
+    products = list.map(p => ({
+      id:       p.id,
+      slug:     p.slug || null,
+      cat:      p.categoria || inferCat(p.nombre),
+      name:     p.nombre,
+      material: p.marca || '',
+      mat:      inferMat(p.marca),
+      img:      p.imagen_url || './uploads/joyeria artesanos.jpeg',
+      badge:    p.destacado ? 'Top' : '',
+      price:    Number(p.precio_oferta || p.precio || 0),
+      desc:     p.descripcion || '',
+    }));
+    counts();
+    render();
+  } catch (err) {
+    console.warn('[catalogo] fallback a productos hardcodeados:', err);
+  }
+})();
+</script>
+</body>
+</html>
