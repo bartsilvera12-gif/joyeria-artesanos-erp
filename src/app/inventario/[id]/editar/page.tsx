@@ -357,7 +357,7 @@ export default function EditarProductoPage() {
 
       const cambioCodigo = codigoIngresado !== (codigoOriginal ?? "");
       const updatePayload: Parameters<typeof updateProducto>[1] = {
-        nombre: form.nombre.trim().toUpperCase(),
+        nombre: form.nombre.trim(),
         sku: form.sku.trim().toUpperCase(),
         costo_promedio: parseFloat(form.costo_promedio) || 0,
         precio_venta: parseFloat(form.precio_venta) || 0,
@@ -530,7 +530,7 @@ export default function EditarProductoPage() {
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
-              className={`${inputClass} uppercase`}
+              className={inputClass}
               required
             />
           </div>

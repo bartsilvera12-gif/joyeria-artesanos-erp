@@ -12,7 +12,7 @@ import {
   updateProductoPostgrest,
   setCategoriaPrincipalPostgrest,
 } from "@/lib/inventario/server/productos-postgrest";
-import { postgrestGet, getAccessTokenForRequest } from "@/lib/supabase/postgrest-runtime";
+import { postgrestGet, postgrestDelete, getAccessTokenForRequest } from "@/lib/supabase/postgrest-runtime";
 import { syncCatalogoExtras } from "@/lib/inventario/server/catalogo-web-extras";
 
 const PRODUCTO_COLS_PRIV =
@@ -366,10 +366,10 @@ export async function PATCH(
 /**
  * DELETE /api/productos/[id]
  *
- * Soft-delete: pone activo=false en vez de un hard DELETE. Más seguro en
- * producción donde el producto puede tener FKs a ventas_items, pedidos_web_items,
- * etc. El producto deja de aparecer en el catálogo web/ventas pero los
- * históricos quedan intactos.
+ * Hard delete: borra la fila de `productos`. Si hay FKs (ventas_items,
+ * pedidos_web_items, etc.) PostgREST devuelve 409 y reportamos un mensaje
+ * legible — el usuario tiene que dar de baja con el toggle "Activo" en su
+ * lugar.
  */
 export async function DELETE(
   request: NextRequest,
@@ -385,11 +385,32 @@ export async function DELETE(
     const jwt = await getAccessTokenForRequest(request);
 
     try {
-      const row = await updateProductoPostgrest(jwt, empresaId, id, { activo: false });
-      if (!row) {
+      const qs = new URLSearchParams({
+        empresa_id: `eq.${empresaId}`,
+        id: `eq.${id}`,
+      });
+      const r = await postgrestDelete<ProductoRow>("productos", qs.toString(), {
+        role: "jwt",
+        jwt,
+      });
+      if (!r.ok) {
+        const msg = String(r.error?.message ?? "");
+        // FK violation → no se puede borrar duro, sugerir desactivar
+        if (msg.includes("foreign key") || msg.includes("violates")) {
+          return NextResponse.json(
+            errorResponse(
+              "No se puede borrar: el producto tiene ventas/pedidos asociados. Usá el toggle 'Activo' para ocultarlo en su lugar.",
+            ),
+            { status: 409 },
+          );
+        }
+        throw new Error(msg || "DELETE PostgREST failed");
+      }
+      const rows = (r.rows ?? []) as ProductoRow[];
+      if (!rows.length) {
         return NextResponse.json(errorResponse(API_ERRORS.NOT_FOUND), { status: 404 });
       }
-      return NextResponse.json(successResponse({ producto: rowToProductoApi(row) }));
+      return NextResponse.json(successResponse({ producto: rowToProductoApi(rows[0] as unknown as Parameters<typeof rowToProductoApi>[0]) }));
     } catch (err) {
       console.error("[/api/productos/[id] DELETE]", {
         empresaId,

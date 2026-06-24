@@ -167,17 +167,6 @@ export default function NuevoProductoPage() {
     setImagenError(null);
   }
 
-  // Patrones de SKU según el tipo elegido (para "Generar SKU" y el dropdown).
-  useEffect(() => {
-    if (!tipoGastro) return;
-    let cancel = false;
-    fetch(`/api/productos/sku-sugerencias?tipo=${tipoGastro}`, { credentials: "include", cache: "no-store" })
-      .then((r) => r.json())
-      .then((j) => { if (!cancel && j?.success) setSkuPatrones(j.data?.patrones ?? []); })
-      .catch(() => {});
-    return () => { cancel = true; };
-  }, [tipoGastro]);
-
   async function handleGenerarSku() {
     if (generandoSku) return;
     setGenerandoSku(true);
@@ -334,7 +323,7 @@ export default function NuevoProductoPage() {
       let guardado;
       try {
         guardado = await saveProducto({
-          nombre: form.nombre.trim().toUpperCase(),
+          nombre: form.nombre.trim(),
           descripcion: form.descripcion.trim() || null,
           sku: form.sku.trim().toUpperCase(),
           costo_promedio: parseFloat(form.costo_promedio) || 0,
@@ -554,8 +543,8 @@ export default function NuevoProductoPage() {
               name="nombre"
               value={form.nombre}
               onChange={handleChange}
-              placeholder="Ej: HAMBURGUESA CASERA"
-              className={`${inputClass} uppercase`}
+              placeholder="Ej: Anillo solitario plata 925"
+              className={inputClass}
               required
             />
           </div>

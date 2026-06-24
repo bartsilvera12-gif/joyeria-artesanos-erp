@@ -64,6 +64,8 @@ export default function InventarioPage() {
   const [cargandoLista,    setCargandoLista]     = useState(true);
   const [soloStockBajo,    setSoloStockBajo]    = useState(false);
   const [mutandoIds,       setMutandoIds]       = useState<Set<string>>(new Set());
+  const [productoABorrar,  setProductoABorrar]  = useState<Producto | null>(null);
+  const [errorBorrar,      setErrorBorrar]      = useState<string | null>(null);
   // Filtros nuevos auto-parts (visibles arriba del listado).
   type FiltroStock = "todos" | "sin_stock" | "bajo" | "con_stock";
   const [filtroStock,       setFiltroStock]       = useState<FiltroStock>("todos");
@@ -122,17 +124,28 @@ export default function InventarioPage() {
     }
   }
 
-  async function borrarProducto(p: Producto) {
-    if (!confirm(`¿Borrar "${p.nombre}"? Esta acción lo dará de baja (soft delete).`)) return;
+  function pedirBorrar(p: Producto) {
     if (mutandoIds.has(p.id)) return;
+    setErrorBorrar(null);
+    setProductoABorrar(p);
+  }
+
+  async function confirmarBorrar() {
+    const p = productoABorrar;
+    if (!p || mutandoIds.has(p.id)) return;
     setMutandoIds((s) => { const n = new Set(s); n.add(p.id); return n; });
     try {
       const res = await fetch(`/api/productos/${p.id}`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg = (json && (json.error as string)) || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
       setTodos((arr) => arr.filter((x) => x.id !== p.id));
+      setProductoABorrar(null);
     } catch (err) {
       console.error("[inventario] borrar", err);
-      alert("No se pudo borrar el producto.");
+      setErrorBorrar(err instanceof Error ? err.message : "No se pudo borrar el producto.");
     } finally {
       setMutandoIds((s) => { const n = new Set(s); n.delete(p.id); return n; });
     }
@@ -736,7 +749,7 @@ export default function InventarioPage() {
                         <button
                           type="button"
                           disabled={mutandoIds.has(p.id)}
-                          onClick={() => borrarProducto(p)}
+                          onClick={() => pedirBorrar(p)}
                           title="Borrar producto"
                           className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                           aria-label="Borrar producto"
@@ -817,6 +830,57 @@ export default function InventarioPage() {
 
       </div>
 
+      {/* Modal de confirmación de borrado */}
+      {productoABorrar && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !mutandoIds.has(productoABorrar.id)) {
+              setProductoABorrar(null);
+              setErrorBorrar(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
+            <div className="flex items-start gap-4 p-6">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50">
+                <Trash2 className="h-5 w-5 text-red-600" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-slate-900">¿Borrar producto?</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  Se va a eliminar definitivamente <span className="font-medium text-slate-800">&quot;{productoABorrar.nombre}&quot;</span> del inventario y del catálogo web. Esta acción no se puede deshacer.
+                </p>
+                {errorBorrar && (
+                  <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {errorBorrar}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 rounded-b-2xl bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => { setProductoABorrar(null); setErrorBorrar(null); }}
+                disabled={mutandoIds.has(productoABorrar.id)}
+                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarBorrar}
+                disabled={mutandoIds.has(productoABorrar.id)}
+                className="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {mutandoIds.has(productoABorrar.id) ? "Borrando…" : "Sí, borrar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
