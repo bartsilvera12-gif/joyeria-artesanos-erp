@@ -51,3 +51,4 @@ e2e-super-admin*.png
 
 # generated at build time
 build-info.json
+supabase/migrations/_elevate.dump.sql

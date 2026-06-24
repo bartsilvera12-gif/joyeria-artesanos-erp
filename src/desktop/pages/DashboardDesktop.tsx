@@ -2520,7 +2520,7 @@ const PERIODO_OPTS: { id: Periodo; label: string }[] = [
   { id: "anio", label: "Año"       },
 ];
 
-const TAB_VALID: TabDash[] = ["comercial", "financiero", "inventario", "ventas"];
+const TAB_VALID: TabDash[] = ["financiero", "inventario", "ventas"];
 
 type DashScope =
   | { kind: "pending" }
@@ -2529,10 +2529,10 @@ type DashScope =
   | { kind: "scoped"; tabs: TabDash[]; defaultTab: TabDash };
 
 function getInitialTab(): TabDash {
-  if (typeof window === "undefined") return "comercial";
+  if (typeof window === "undefined") return "financiero";
   const params = new URLSearchParams(window.location.search);
   const t = params.get("tab");
-  return t && isDashboardTabSlug(t) ? t : "comercial";
+  return t && isDashboardTabSlug(t) && t !== "comercial" ? t : "financiero";
 }
 
 export default function DashboardPage() {
@@ -2580,7 +2580,7 @@ export default function DashboardPage() {
         };
         const slugs = (j.views ?? [])
           .map((v) => v.slug)
-          .filter((s): s is TabDash => isDashboardTabSlug(s));
+          .filter((s): s is TabDash => isDashboardTabSlug(s) && s !== "comercial");
         if (slugs.length === 0) {
           if (!cancelled) setDashScope({ kind: "empty" });
           return;
@@ -2836,21 +2836,6 @@ export default function DashboardPage() {
       ) : null}
 
       {/* Contenido */}
-      {tab === "comercial" && (
-        <DashComercial
-          prospectos={prospectos}
-          clientes={clientes}
-          mapNombreTipoServicio={mapNombreTipoServicio}
-          tipificaciones={tipificaciones}
-          usuario={usuarioActivo}
-          periodo={periodo}
-          config={config}
-          facturas={facturas}
-          notasCredito={notasCredito}
-          suscripciones={suscripciones}
-        />
-      )}
-
       {tab === "financiero" && (
         <DashFinanciero
           facturas={facturas}
