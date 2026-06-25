@@ -1,12 +1,13 @@
 /**
- * GET /api/ventas/[id]/ticket?w=58|80&auto=1
+ * GET /api/ventas/[id]/ticket?w=58|80
  *
  * Ticket NO FISCAL imprimible para joyería. Una sola copia tipo cliente
- * con: nombre del negocio, fecha, número de venta, ítems (nombre/cantidad/
- * precio/subtotal), totales y leyenda no fiscal.
+ * con membrete del negocio, fecha, número de venta, ítems, totales y
+ * leyenda no fiscal.
  *
- * `auto=1` ejecuta window.print() al cargar (auto-impresión).
- * `w` controla el ancho térmico: 58 mm o 80 mm (default 80).
+ * El ticket se centra en pantalla sobre fondo gris (vista previa) y al
+ * imprimir ocupa el ancho exacto de la impresora térmica. Auto-dispara
+ * `window.print()` al cargar; también hay un botón "Imprimir" visible.
  *
  * Sin SIFEN, sin XML, sin timbrado.
  */
@@ -64,7 +65,7 @@ function fmtFecha(iso: string): string {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function metodoLabel(m: string | null): string {
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
   const url = new URL(request.url);
   const wParam = url.searchParams.get("w") ?? "80";
   const widthMm = wParam === "58" ? 58 : 80;
-  const auto = url.searchParams.get("auto") === "1";
+  const fontPx = widthMm === 58 ? 11 : 12;
 
   // 1) Venta
   const vRes = await postgrestGet<VentaRow>("ventas", new URLSearchParams({
@@ -108,7 +109,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
   }).toString(), { role: "jwt", jwt, noStore: true });
   const items = iRes.ok ? iRes.rows : [];
 
-  // 3) Empresa (datos del membrete) — best-effort.
+  // 3) Empresa (membrete) — best-effort.
   let negocio = process.env.NEURA_CLIENT_NAME?.trim() || NEGOCIO_FALLBACK;
   let ruc: string | null = null;
   let telefono: string | null = null;
@@ -128,84 +129,154 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
     }
   } catch { /* opcional */ }
 
-  // 4) HTML
+  // 4) Render items
   const itemsHtml = items.map((it) => {
     const cant = num(it.cantidad);
-    const total = num(it.total_linea);
+    const punit = num(it.precio_venta);
+    const sub = num(it.total_linea);
     return `
       <tr>
-        <td class="it-nom">${escapeHtml(it.producto_nombre ?? "")}</td>
-        <td class="it-cant">${cant.toLocaleString("es-PY", { maximumFractionDigits: 3 })}</td>
-        <td class="it-tot">${fmtGs(total)}</td>
-      </tr>`;
+        <td class="qty"><strong>${cant}×</strong></td>
+        <td class="name">${escapeHtml(it.producto_nombre ?? "")}</td>
+        <td class="amt">${fmtGs(sub)}</td>
+      </tr>
+      <tr class="sub"><td></td><td colspan="2">${cant} × ${fmtGs(punit)}</td></tr>`;
   }).join("");
+
+  const subtotal = num(v.subtotal);
+  const ivaTotal = num(v.monto_iva);
+  const total = num(v.total);
+  const altWidth = widthMm === 80 ? 58 : 80;
 
   const html = `<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Ticket ${escapeHtml(v.numero_control)}</title>
+  <title>Ticket ${escapeHtml(v.numero_control)} — ${escapeHtml(negocio)}</title>
   <style>
-    @page { size: ${widthMm}mm auto; margin: 2mm; }
+    :root { color-scheme: light; }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; color: #000; background: #fff;
-                 font-family: "Courier New", ui-monospace, monospace;
-                 font-size: ${widthMm === 58 ? "11px" : "12px"};
-                 line-height: 1.35;
-                 width: ${widthMm - 4}mm; }
-    .center { text-align: center; }
-    .right { text-align: right; }
-    .b { font-weight: 700; }
-    .sep { border-top: 1px dashed #000; margin: 4px 0; }
-    h1.brand { font-size: ${widthMm === 58 ? "13px" : "15px"}; margin: 2px 0; font-weight: 800; letter-spacing: 0.5px; }
-    .meta p { margin: 1px 0; }
+    body {
+      font-family: ui-monospace, "Courier New", monospace;
+      font-size: ${fontPx}px;
+      color: #000;
+      background: #f1f1f1;
+      margin: 0;
+      padding: 20px;
+    }
+    .paper {
+      background: #fff;
+      width: ${widthMm}mm;
+      margin: 0 auto;
+      padding: 6mm 4mm;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+    }
+    h1 {
+      font-size: ${fontPx + 4}px;
+      text-align: center;
+      margin: 0 0 2mm;
+      letter-spacing: 1px;
+    }
+    .header-meta {
+      font-size: ${fontPx - 1}px;
+      text-align: center;
+      line-height: 1.35;
+    }
+    .header-meta p { margin: 0.4mm 0; }
+    .meta {
+      font-size: ${fontPx - 1}px;
+      text-align: center;
+      margin: 1mm 0 2mm;
+    }
+    hr { border: none; border-top: 1px dashed #000; margin: 2mm 0; }
     table { width: 100%; border-collapse: collapse; }
-    td { padding: 1px 0; vertical-align: top; }
-    .it-nom { width: auto; }
-    .it-cant { width: 26%; text-align: right; }
-    .it-tot { width: 32%; text-align: right; }
-    .tot-row td { padding: 2px 0; }
-    .tot-row .lbl { text-align: right; }
-    .tot-row .val { text-align: right; }
-    .grand td { font-size: ${widthMm === 58 ? "13px" : "15px"}; font-weight: 800; padding: 4px 0 6px; }
-    .leyenda { margin-top: 6px; font-size: ${widthMm === 58 ? "9.5px" : "10.5px"}; text-align: center; }
-    @media print { body { color: #000 !important; } }
+    td { vertical-align: top; padding: 0.5mm 0; }
+    td.qty { width: 9mm; }
+    td.amt { width: 22mm; text-align: right; white-space: nowrap; }
+    tr.sub td { color: #555; font-size: ${fontPx - 2}px; padding-bottom: 1mm; }
+    .totales td { padding: 0.7mm 0; }
+    .totales .lbl { text-align: left; }
+    .totales .val { text-align: right; white-space: nowrap; }
+    .total-row { font-weight: bold; font-size: ${fontPx + 2}px; border-top: 1px solid #000; }
+    .footer {
+      font-size: ${fontPx - 2}px;
+      text-align: center;
+      margin-top: 3mm;
+      font-style: italic;
+    }
+    .actions {
+      max-width: ${widthMm}mm;
+      margin: 8mm auto 0;
+      text-align: center;
+    }
+    .actions button {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      border: 1px solid #4FAEB2;
+      background: #4FAEB2;
+      color: #fff;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .actions button:hover { background: #3F8E91; }
+    .actions a {
+      margin-left: 12px;
+      font-size: 13px;
+      color: #555;
+      text-decoration: underline;
+    }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .paper { width: ${widthMm}mm; box-shadow: none; padding: 2mm; margin: 0; }
+      .actions { display: none; }
+      @page { margin: 0; size: ${widthMm}mm auto; }
+    }
   </style>
 </head>
 <body>
-  <div class="center">
-    <h1 class="brand">${escapeHtml(negocio)}</h1>
-    ${ruc ? `<p class="meta">RUC: ${escapeHtml(ruc)}</p>` : ""}
-    ${direccion ? `<p class="meta">${escapeHtml(direccion)}</p>` : ""}
-    ${telefono ? `<p class="meta">Tel: ${escapeHtml(telefono)}</p>` : ""}
+  <section class="paper">
+    <h1>${escapeHtml(negocio)}</h1>
+    <div class="header-meta">
+      ${ruc ? `<p>RUC: ${escapeHtml(ruc)}</p>` : ""}
+      ${direccion ? `<p>${escapeHtml(direccion)}</p>` : ""}
+      ${telefono ? `<p>Tel: ${escapeHtml(telefono)}</p>` : ""}
+    </div>
+    <div class="meta">
+      <strong>${escapeHtml(v.numero_control)}</strong><br>
+      ${escapeHtml(fmtFecha(v.fecha))}
+    </div>
+    <hr>
+    <table>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+    <hr>
+    <table class="totales">
+      <tbody>
+        <tr><td class="lbl">Subtotal</td><td class="val">${fmtGs(subtotal)}</td></tr>
+        ${ivaTotal > 0 ? `<tr><td class="lbl">IVA</td><td class="val">${fmtGs(ivaTotal)}</td></tr>` : ""}
+        <tr class="total-row"><td class="lbl">TOTAL</td><td class="val">${fmtGs(total)}</td></tr>
+        <tr><td class="lbl">Pago</td><td class="val">${escapeHtml(metodoLabel(v.metodo_pago))}${v.tipo_venta === "CREDITO" ? " (Crédito)" : ""}</td></tr>
+      </tbody>
+    </table>
+    <hr>
+    <div class="footer">
+      ¡Gracias por su compra!<br>
+      Documento NO FISCAL.
+    </div>
+  </section>
+  <div class="actions">
+    <button type="button" onclick="window.print()">Imprimir</button>
+    <a href="?w=${altWidth}">Cambiar a ${altWidth}mm</a>
   </div>
-  <div class="sep"></div>
-  <div class="meta">
-    <p><span class="b">N°:</span> ${escapeHtml(v.numero_control)}</p>
-    <p><span class="b">Fecha:</span> ${escapeHtml(fmtFecha(v.fecha))}</p>
-    <p><span class="b">Pago:</span> ${escapeHtml(metodoLabel(v.metodo_pago))}${v.tipo_venta === "CREDITO" ? " (Crédito)" : ""}</p>
-  </div>
-  <div class="sep"></div>
-  <table>
-    <thead>
-      <tr class="b"><td>Producto</td><td class="it-cant">Cant.</td><td class="it-tot">Total</td></tr>
-    </thead>
-    <tbody>${itemsHtml}</tbody>
-  </table>
-  <div class="sep"></div>
-  <table>
-    <tr class="tot-row"><td class="lbl">Subtotal:</td><td class="val">${fmtGs(num(v.subtotal))}</td></tr>
-    <tr class="tot-row"><td class="lbl">IVA:</td><td class="val">${fmtGs(num(v.monto_iva))}</td></tr>
-    <tr class="grand"><td class="lbl">TOTAL:</td><td class="val">${fmtGs(num(v.total))}</td></tr>
-  </table>
-  <div class="sep"></div>
-  <p class="leyenda">¡Gracias por su compra!</p>
-  <p class="leyenda">Documento NO FISCAL.</p>
-  ${auto ? `<script>
+  <script>
+    // Auto-print: SIEMPRE al cargar la página (esta URL es solo para imprimir).
     window.addEventListener("load", function () {
-      setTimeout(function () { window.print(); }, 150);
+      setTimeout(function () {
+        try { window.print(); } catch (e) {}
+      }, 300);
     });
-  </script>` : ""}
+  </script>
 </body>
 </html>`;
 
