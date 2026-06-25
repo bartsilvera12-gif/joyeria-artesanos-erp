@@ -239,7 +239,7 @@ const MENU_STRUCTURE: MenuItem[] = MENU_STRUCTURE_FULL.filter(
  * acá cae automáticamente en la familia "Otros" (red de seguridad: nada se oculta).
  */
 const MENU_FAMILIES: { id: string; title: string; itemKeys: string[] }[] = [
-  { id: "inicio", title: "Inicio", itemKeys: ["dashboard", "gerencia", "consulta"] },
+  { id: "inicio", title: "Inicio", itemKeys: ["dashboard", "gerencia"] },
   {
     id: "comercial",
     title: "Comercial",
