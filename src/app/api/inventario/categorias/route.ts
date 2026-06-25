@@ -3,8 +3,18 @@ import { getTenantSupabaseFromAuth } from "@/lib/supabase/tenant-api";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { API_ERRORS } from "@/lib/api/errors";
 import { insertCategoriaProductoPostgrest } from "@/lib/inventario/server/catalogos-postgrest";
-import { normalizeUpperText, normalizeUpperNullable } from "@/lib/text/normalize";
 import { postgrestGet, getAccessTokenForRequest } from "@/lib/supabase/postgrest-runtime";
+
+// Categorías: preservar mayúsculas/minúsculas como las escribió el usuario.
+function trimText(v: unknown): string {
+  if (v == null) return "";
+  return String(v).trim();
+}
+function trimNullable(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s ? s : null;
+}
 
 const CATEGORIAS_COLS =
   "id,empresa_id,nombre,codigo,descripcion,parent_id,activo,created_at,updated_at," +
@@ -47,7 +57,7 @@ export async function POST(request: NextRequest) {
     if (!ctx) return NextResponse.json(errorResponse(API_ERRORS.UNAUTHORIZED), { status: 401 });
     const jwt = await getAccessTokenForRequest(request);
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const nombre = normalizeUpperText(body.nombre);
+    const nombre = trimText(body.nombre);
     if (!nombre) return NextResponse.json(errorResponse("El nombre es obligatorio."), { status: 400 });
     try {
       const slugWebRaw = typeof body.slug_web === "string" ? body.slug_web.trim() : null;
@@ -57,8 +67,8 @@ export async function POST(request: NextRequest) {
         : null;
       const row = await insertCategoriaProductoPostgrest(jwt, ctx.auth.empresa_id, {
         nombre,
-        codigo: normalizeUpperNullable(body.codigo),
-        descripcion: normalizeUpperNullable(body.descripcion),
+        codigo: trimNullable(body.codigo),
+        descripcion: trimNullable(body.descripcion),
         parent_id: body.parent_id == null ? null : String(body.parent_id),
         activo: body.activo === false ? false : true,
         slug_web: slugWebRaw || null,

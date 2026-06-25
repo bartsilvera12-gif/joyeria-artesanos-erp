@@ -85,6 +85,22 @@ export default function CategoriasProductosPage() {
     else setError(j?.error ?? "No se pudo actualizar.");
   }
 
+  async function borrar(cat: Categoria) {
+    const ok = window.confirm(
+      `¿Borrar la categoría "${cat.nombre}"?\n\n` +
+      `Esta acción no se puede deshacer. Si hay productos usándola, no se va a poder borrar — desactivala en su lugar.`
+    );
+    if (!ok) return;
+    setError(null);
+    const r = await fetch(`/api/inventario/categorias/${cat.id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const j = await r.json();
+    if (r.ok && j?.success) load();
+    else setError(j?.error ?? "No se pudo borrar.");
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -125,7 +141,7 @@ export default function CategoriasProductosPage() {
             <input
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: BEBIDAS"
+              placeholder="Ej: Anillos"
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
               required
             />
@@ -135,7 +151,7 @@ export default function CategoriasProductosPage() {
             <input
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
-              placeholder="Ej: BEB"
+              placeholder="Ej: ANI"
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
             />
           </div>
@@ -200,12 +216,20 @@ export default function CategoriasProductosPage() {
                       )}
                     </td>
                     <td className="px-4 py-2 text-right">
-                      <button
-                        onClick={() => toggleActivo(c)}
-                        className="text-xs text-sky-700 hover:text-sky-900 underline"
-                      >
-                        {c.activo ? "Desactivar" : "Activar"}
-                      </button>
+                      <div className="inline-flex items-center gap-3">
+                        <button
+                          onClick={() => toggleActivo(c)}
+                          className="text-xs text-sky-700 hover:text-sky-900 underline"
+                        >
+                          {c.activo ? "Desactivar" : "Activar"}
+                        </button>
+                        <button
+                          onClick={() => borrar(c)}
+                          className="text-xs text-red-600 hover:text-red-800 underline"
+                        >
+                          Borrar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
