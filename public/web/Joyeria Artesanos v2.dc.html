@@ -618,10 +618,25 @@ class Component extends DCLogic {
       const list = Array.isArray(json.productos) ? json.productos : [];
       if (!list.length) return;
 
+      // Conteo real por categoría → reemplaza los números hardcodeados
+      // ("24 piezas", "18 piezas", etc.) por la cantidad real del inventario.
+      // Usa el slug devuelto por la API; productos sin categoría se omiten.
+      const conteoPorCat = {};
+      list.forEach(p => {
+        const slug = String(p && p.categoria || '').trim().toLowerCase();
+        if (!slug) return;
+        conteoPorCat[slug] = (conteoPorCat[slug] || 0) + 1;
+      });
+      this._erpCategoriasCount = conteoPorCat;
+
       // SOLO destacados para "Más vendidas". Si no hay destacados, no
       // pisamos el array hardcoded (deja la sección visible con seed).
       const destacados = list.filter(p => p && p.destacado === true);
-      if (!destacados.length) return;
+      if (!destacados.length) {
+        // Aunque no haya destacados, sí queremos refrescar los conteos.
+        this.forceUpdate();
+        return;
+      }
 
       const bestsellers = destacados.slice(0, 24).map((p, i) => {
         const fallbackImg = IMG_POR_NOMBRE[norm(p.nombre)] || FALLBACK_IMG;
@@ -739,15 +754,23 @@ class Component extends DCLogic {
       { n:'+800', l:'Piezas creadas' },
     ];
 
+    const erpCats = this._erpCategoriasCount || null;
+    const piezasLabel = (n) => n === 1 ? '1 pieza' : (n + ' piezas');
     const collections = [
-      { id:'anillos', name:'Anillos', count:'24 piezas', img:'./uploads/anillos.png' },
-      { id:'cadenas', name:'Cadenas', count:'18 piezas', img:'./uploads/cadenas.png' },
-      { id:'pulseras', name:'Pulseras', count:'21 piezas', img:'./uploads/pulseras.png' },
-      { id:'aros', name:'Aros', count:'32 piezas', img:'./uploads/aros.png' },
-      { id:'relojes', name:'Relojes', count:'12 piezas', img:'./uploads/reloj.png' },
-      { id:'guampas', name:'Guampas', count:'9 piezas', img:'./uploads/guampa.png' },
-      { id:'bombillas', name:'Bombillas', count:'14 piezas', img:'./uploads/bombilla.png' },
-    ].map((c,i)=>({ ...c, idx:i, slot:'ja2-col-'+c.id, href:'./catalogo.html#'+c.id }));
+      { id:'anillos', name:'Anillos', fallback:24, img:'./uploads/anillos.png' },
+      { id:'cadenas', name:'Cadenas', fallback:18, img:'./uploads/cadenas.png' },
+      { id:'pulseras', name:'Pulseras', fallback:21, img:'./uploads/pulseras.png' },
+      { id:'aros', name:'Aros', fallback:32, img:'./uploads/aros.png' },
+      { id:'relojes', name:'Relojes', fallback:12, img:'./uploads/reloj.png' },
+      { id:'guampas', name:'Guampas', fallback:9, img:'./uploads/guampa.png' },
+      { id:'bombillas', name:'Bombillas', fallback:14, img:'./uploads/bombilla.png' },
+    ].map((c,i) => {
+      // Si tenemos datos del ERP, mostrar el conteo real (incluido 0).
+      // Si no, dejar el placeholder hardcoded para que la sección no se vea vacía
+      // en la primera carga antes de que llegue la API.
+      const real = erpCats ? (erpCats[c.id] || 0) : c.fallback;
+      return { ...c, count: piezasLabel(real), idx:i, slot:'ja2-col-'+c.id, href:'./catalogo.html#'+c.id };
+    });
 
     const bestsellersFallback = [
       { id:'bs1', name:'Cadena Crucifijo', material:'Plata 925', desc:'Cadena fina en plata 925 con dije crucifijo. Presentación en estuche.', badge:'Top', price:1850000, img:'./uploads/joyeria artesanosss.jpeg' },
