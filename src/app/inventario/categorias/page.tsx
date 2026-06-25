@@ -3,9 +3,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { Upload, ImageOff, Power, PowerOff, Trash2, AlertTriangle } from "lucide-react";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
 import ImportExcelButton from "@/components/ui/ImportExcelButton";
 import { useIsAdmin } from "@/lib/auth/use-is-admin";
+
+type Confirmacion =
+  | null
+  | {
+      tipo: "quitar-imagen" | "borrar";
+      cat: { id: string; nombre: string };
+    };
 
 interface Categoria {
   id: string;
@@ -31,6 +39,10 @@ export default function CategoriasProductosPage() {
   const [creating, setCreating] = useState(false);
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
+  // Modal de confirmación integrado (reemplaza window.confirm).
+  const [confirmacion, setConfirmacion] = useState<Confirmacion>(null);
+  const [confirmando, setConfirmando] = useState(false);
+  const [errorConfirm, setErrorConfirm] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -149,33 +161,36 @@ export default function CategoriasProductosPage() {
     else setError(j?.error ?? "No se pudo subir la imagen.");
   }
 
-  async function quitarImagen(cat: Categoria) {
-    const ok = window.confirm(`¿Quitar la imagen de "${cat.nombre}"?`);
-    if (!ok) return;
-    setError(null);
-    const r = await fetch(`/api/inventario/categorias/${cat.id}/imagen`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    const j = await r.json();
-    if (r.ok && j?.success) load();
-    else setError(j?.error ?? "No se pudo quitar la imagen.");
+  function pedirQuitarImagen(cat: Categoria) {
+    setErrorConfirm(null);
+    setConfirmacion({ tipo: "quitar-imagen", cat: { id: cat.id, nombre: cat.nombre } });
+  }
+  function pedirBorrar(cat: Categoria) {
+    setErrorConfirm(null);
+    setConfirmacion({ tipo: "borrar", cat: { id: cat.id, nombre: cat.nombre } });
   }
 
-  async function borrar(cat: Categoria) {
-    const ok = window.confirm(
-      `¿Borrar la categoría "${cat.nombre}"?\n\n` +
-      `Esta acción no se puede deshacer. Si hay productos usándola, no se va a poder borrar — desactivala en su lugar.`
-    );
-    if (!ok) return;
-    setError(null);
-    const r = await fetch(`/api/inventario/categorias/${cat.id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    const j = await r.json();
-    if (r.ok && j?.success) load();
-    else setError(j?.error ?? "No se pudo borrar.");
+  async function ejecutarConfirmacion() {
+    if (!confirmacion || confirmando) return;
+    setConfirmando(true);
+    setErrorConfirm(null);
+    try {
+      const url =
+        confirmacion.tipo === "quitar-imagen"
+          ? `/api/inventario/categorias/${confirmacion.cat.id}/imagen`
+          : `/api/inventario/categorias/${confirmacion.cat.id}`;
+      const r = await fetch(url, { method: "DELETE", credentials: "include" });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j?.success) {
+        throw new Error(j?.error ?? `HTTP ${r.status}`);
+      }
+      setConfirmacion(null);
+      await load();
+    } catch (e) {
+      setErrorConfirm(e instanceof Error ? e.message : "No se pudo completar la operación.");
+    } finally {
+      setConfirmando(false);
+    }
   }
 
   return (
@@ -307,8 +322,8 @@ export default function CategoriasProductosPage() {
                     onToggleActivo={() => toggleActivo(c)}
                     onToggleVisibleWeb={() => toggleVisibleWeb(c)}
                     onSubirImagen={(f) => subirImagen(c, f)}
-                    onQuitarImagen={() => quitarImagen(c)}
-                    onBorrar={() => borrar(c)}
+                    onQuitarImagen={() => pedirQuitarImagen(c)}
+                    onBorrar={() => pedirBorrar(c)}
                   />
                 );
               })}
@@ -316,6 +331,82 @@ export default function CategoriasProductosPage() {
           </table>
         )}
       </div>
+
+      {/* Modal de confirmación integrado (borrar / quitar imagen). */}
+      {confirmacion && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/55 backdrop-blur-sm p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !confirmando) {
+              setConfirmacion(null);
+              setErrorConfirm(null);
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-slate-200">
+            <div className="flex items-start gap-4 p-6">
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+                confirmacion.tipo === "borrar" ? "bg-red-50" : "bg-amber-50"
+              }`}>
+                {confirmacion.tipo === "borrar" ? (
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                ) : (
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-slate-900">
+                  {confirmacion.tipo === "borrar" ? "¿Borrar categoría?" : "¿Quitar imagen?"}
+                </h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {confirmacion.tipo === "borrar" ? (
+                    <>
+                      Se va a eliminar definitivamente <span className="font-medium text-slate-800">&quot;{confirmacion.cat.nombre}&quot;</span>. Si hay productos asociados, la operación va a fallar — desactivala en su lugar.
+                    </>
+                  ) : (
+                    <>
+                      Se va a quitar la imagen de <span className="font-medium text-slate-800">&quot;{confirmacion.cat.nombre}&quot;</span>. Podés volver a subir otra en cualquier momento.
+                    </>
+                  )}
+                </p>
+                {errorConfirm && (
+                  <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {errorConfirm}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 rounded-b-2xl bg-slate-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => { setConfirmacion(null); setErrorConfirm(null); }}
+                disabled={confirmando}
+                className="inline-flex items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={ejecutarConfirmacion}
+                disabled={confirmando}
+                className={`inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  confirmacion.tipo === "borrar"
+                    ? "bg-red-600 hover:bg-red-700"
+                    : "bg-amber-600 hover:bg-amber-700"
+                }`}
+              >
+                {confirmando
+                  ? "Procesando…"
+                  : confirmacion.tipo === "borrar"
+                    ? "Sí, borrar"
+                    : "Sí, quitar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -375,7 +466,7 @@ function CategoriaRow({
         </label>
       </td>
       <td className="px-4 py-2 text-right">
-        <div className="inline-flex items-center gap-3 flex-wrap justify-end">
+        <div className="inline-flex items-center gap-1.5 justify-end">
           <input
             ref={fileRef}
             type="file"
@@ -388,30 +479,44 @@ function CategoriaRow({
             }}
           />
           <button
+            type="button"
             onClick={() => fileRef.current?.click()}
-            className="text-xs text-slate-600 hover:text-slate-900 underline"
+            title={cat.imagen_url ? "Cambiar imagen" : "Subir imagen"}
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 transition-colors"
           >
-            {cat.imagen_url ? "Cambiar imagen" : "Subir imagen"}
+            <Upload className="h-3.5 w-3.5" />
           </button>
           {cat.imagen_url && (
             <button
+              type="button"
               onClick={onQuitarImagen}
-              className="text-xs text-slate-500 hover:text-slate-700 underline"
+              title="Quitar imagen"
+              className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700 transition-colors"
             >
-              Quitar
+              <ImageOff className="h-3.5 w-3.5" />
             </button>
           )}
           <button
+            type="button"
             onClick={onToggleActivo}
-            className="text-xs text-sky-700 hover:text-sky-900 underline"
+            title={cat.activo ? "Desactivar" : "Activar"}
+            className={`inline-flex items-center justify-center h-8 w-8 rounded-md border transition-colors ${
+              cat.activo
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                : "border-slate-200 bg-slate-50 text-slate-400 hover:bg-slate-100"
+            }`}
+            aria-pressed={cat.activo}
           >
-            {cat.activo ? "Desactivar" : "Activar"}
+            {cat.activo ? <Power className="h-3.5 w-3.5" /> : <PowerOff className="h-3.5 w-3.5" />}
           </button>
           <button
+            type="button"
             onClick={onBorrar}
-            className="text-xs text-red-600 hover:text-red-800 underline"
+            title="Borrar categoría"
+            className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            aria-label="Borrar"
           >
-            Borrar
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </td>
