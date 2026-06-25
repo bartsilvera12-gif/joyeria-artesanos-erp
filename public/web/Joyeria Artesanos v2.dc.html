@@ -217,11 +217,11 @@ image-slot::part(ring){border:0 !important;display:none !important;}
   </div>
 
   <!-- ===================== HERO (boutique editorial) ===================== -->
-  <section id="inicio" style="position:relative;min-height:clamp(620px,calc(100svh - 76px),820px);display:flex;align-items:center;padding:0;overflow:hidden;background:#08070a;">
+  <section id="inicio" style="position:relative;min-height:clamp(560px,72vh,680px);display:flex;align-items:center;padding:0;overflow:hidden;background:#08070a;">
     <!-- Imagen principal: contenida + mask-image MUY ancha en el borde izquierdo
          para fundir con el fondo negro sin línea visible. Saqué el drop-shadow
          porque agregaba un contorno rectangular que rompía la integración. -->
-    <div data-hero-bg style="position:absolute;top:88px;right:clamp(24px,4vw,72px);bottom:72px;width:46%;background:url('./uploads/fondo2.png') center center/contain no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,0.12) 10%,rgba(0,0,0,0.55) 24%,rgba(0,0,0,0.9) 38%,#000 50%,#000 90%,rgba(0,0,0,0.7) 100%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,0.12) 10%,rgba(0,0,0,0.55) 24%,rgba(0,0,0,0.9) 38%,#000 50%,#000 90%,rgba(0,0,0,0.7) 100%);"></div>
+    <div data-hero-bg style="position:absolute;top:80px;right:clamp(24px,4vw,72px);bottom:48px;width:46%;background:url('./uploads/fondo2.png') center center/contain no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,0.12) 10%,rgba(0,0,0,0.55) 24%,rgba(0,0,0,0.9) 38%,#000 50%,#000 90%,rgba(0,0,0,0.7) 100%);mask-image:linear-gradient(90deg,transparent 0%,rgba(0,0,0,0.12) 10%,rgba(0,0,0,0.55) 24%,rgba(0,0,0,0.9) 38%,#000 50%,#000 90%,rgba(0,0,0,0.7) 100%);"></div>
     <!-- Overlay oscuro encima de la imagen: izq oscuro, der claro. Cubre el
          borde donde la mask todavía deja ver pixel para terminar de integrar. -->
     <div data-hero-bg-fade style="position:absolute;inset:0;background:linear-gradient(90deg,#050505 0%,#070608 38%,rgba(8,7,10,0.85) 50%,rgba(8,7,10,0.5) 62%,rgba(8,7,10,0.15) 78%,transparent 100%);pointer-events:none;"></div>
@@ -230,7 +230,7 @@ image-slot::part(ring){border:0 !important;display:none !important;}
     <div data-hero-sparkle aria-hidden="true"><span class="gem-core"></span><span class="gem-h"></span><span class="gem-v"></span></div>
 
 
-    <div data-hero-edit style="position:relative;width:100%;max-width:1320px;margin:0 auto;padding:88px clamp(28px,6vw,80px) 48px;display:flex;flex-direction:column;align-items:flex-start;">
+    <div data-hero-edit style="position:relative;width:100%;max-width:1320px;margin:0 auto;padding:80px clamp(28px,6vw,80px) 36px;display:flex;flex-direction:column;align-items:flex-start;">
 
       <!-- LEFT: CONTENT -->
       <div data-reveal data-delay="0" style="opacity:0;transform:translateY(26px);transition:opacity 1.1s cubic-bezier(.22,.61,.36,1),transform 1.1s cubic-bezier(.22,.61,.36,1);position:relative;">
@@ -257,7 +257,7 @@ image-slot::part(ring){border:0 !important;display:none !important;}
   </section>
 
   <!-- ===================== DIVISOR (gris + dorado, simple) ===================== -->
-  <div class="crown-divider" aria-hidden="true" style="width:100%;max-width:680px;margin:48px auto 18px;display:flex;align-items:center;justify-content:center;gap:14px;position:relative;z-index:2;padding:0 clamp(20px,4vw,32px);">
+  <div class="crown-divider" aria-hidden="true" style="width:100%;max-width:680px;margin:20px auto 10px;display:flex;align-items:center;justify-content:center;gap:14px;position:relative;z-index:2;padding:0 clamp(20px,4vw,32px);">
     <span class="ja-line" style="flex:1;height:1px;background:linear-gradient(90deg,transparent 0%,rgba(184,184,184,0.55) 25%,rgba(255,247,220,1) 50%,rgba(231,200,122,0.9) 75%,rgba(231,200,122,0.85) 100%);"></span>
     <span style="display:inline-flex;align-items:center;gap:8px;">
       <span style="display:block;width:5px;height:5px;background:linear-gradient(135deg,#b8b8b8,#7d7d7d);transform:rotate(45deg);"></span>
