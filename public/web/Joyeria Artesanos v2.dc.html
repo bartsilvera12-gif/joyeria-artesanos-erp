@@ -661,14 +661,11 @@ class Component extends DCLogic {
       });
       this._erpCategoriasCount = conteoPorCat;
 
-      // SOLO destacados para "Más vendidas". Si no hay destacados, no
-      // pisamos el array hardcoded (deja la sección visible con seed).
+      // La API contestó OK → comprometemos al ERP como fuente de verdad.
+      // Aunque no haya destacados, hay que pisar el array hardcoded para
+      // que no aparezcan productos viejos como "Más vendidas".
+      this._erpFetchOk = true;
       const destacados = list.filter(p => p && p.destacado === true);
-      if (!destacados.length) {
-        // Aunque no haya destacados, sí queremos refrescar los conteos.
-        this.forceUpdate();
-        return;
-      }
 
       const bestsellers = destacados.slice(0, 24).map((p, i) => {
         const fallbackImg = IMG_POR_NOMBRE[norm(p.nombre)] || FALLBACK_IMG;
@@ -819,7 +816,10 @@ class Component extends DCLogic {
       priceFmt: new Intl.NumberFormat('es-PY').format(b.price),
       dataAttr: JSON.stringify({ id:b.id, name:b.name, material:b.material, desc:b.desc, price:b.price, img:b.img })
     }));
-    const bestsellers = (this._erpBestsellers && this._erpBestsellers.length) ? this._erpBestsellers : bestsellersFallback;
+    // Si la API respondio OK, comprometemos al ERP — incluso array vacio
+    // (cuando no hay productos con destacado_web=true). Solo usamos el
+    // fallback hardcoded si el fetch nunca llego a completarse.
+    const bestsellers = this._erpFetchOk ? (this._erpBestsellers || []) : bestsellersFallback;
 
     const featured = [
       { name:'Oro 18k', material:'Material noble', tag:'Clásico', desc:'Calidez inconfundible, brillo eterno. La elección por excelencia para piezas que duran toda la vida.', img:'./uploads/oro.png', link:'./catalogo.html?mat=oro18k' },
