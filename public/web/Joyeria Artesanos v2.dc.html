@@ -44,12 +44,21 @@ image-slot::part(ring){border:0 !important;display:none !important;}
 @keyframes ja-dashFlowR{0%{stroke-dashoffset:0;}100%{stroke-dashoffset:480;}}
 @keyframes ja-divLineL{0%,100%{background-position:0% 50%;}50%{background-position:100% 50%;}}
 @keyframes ja-divLineR{0%,100%{background-position:100% 50%;}50%{background-position:0% 50%;}}
-@keyframes ja-best-sheen{0%{transform:translateX(0);}55%,100%{transform:translateX(380%);}}
+@keyframes ja-best-titleglow{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(1);}50%{opacity:.8;transform:translate(-50%,-50%) scale(1.04);}}
 @keyframes ja-gem-glow{0%{opacity:0;transform:translate(-50%,-50%) scale(.35);}35%{opacity:1;transform:translate(-50%,-50%) scale(1.05);}70%{opacity:.85;transform:translate(-50%,-50%) scale(1.15);}100%{opacity:0;transform:translate(-50%,-50%) scale(1.3);}}
 @keyframes ja-gem-spike{0%{opacity:0;transform:translate(-50%,-50%) scaleX(.1) scaleY(1);}35%{opacity:1;transform:translate(-50%,-50%) scale(1);}70%{opacity:.6;transform:translate(-50%,-50%) scale(1.05);}100%{opacity:0;transform:translate(-50%,-50%) scale(1.15);}}
-@keyframes ja-glow-pulse{0%,100%{opacity:.85;}50%{opacity:1;}}
-.ja-best-section .ja-glow-bg{animation:ja-glow-pulse 5s ease-in-out infinite;}
-.ja-best-section article{position:relative;overflow:hidden;z-index:2;background:#100d09;}
+.ja-best-section{position:relative;}
+/* Textura sutil grano fino sobre fondo negro, sin destellos. SVG noise inline. */
+.ja-best-section::before{content:"";position:absolute;inset:0;background:#06050a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95  0 0 0 0 0.88  0 0 0 0 0.72  0 0 0 0.08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>") repeat;opacity:.55;pointer-events:none;z-index:0;}
+/* Vignette muy suave que oscurece bordes — terciopelo. */
+.ja-best-section::after{content:"";position:absolute;inset:0;background:radial-gradient(80% 100% at 50% 50%,transparent 40%,rgba(0,0,0,0.55) 100%);pointer-events:none;z-index:0;}
+/* Línea fina dorada arriba y abajo de la sección. */
+.ja-best-divider{height:1px;width:100%;max-width:520px;margin:0 auto;background:linear-gradient(90deg,transparent 0%,rgba(201,162,75,0.55) 50%,transparent 100%);position:relative;z-index:2;}
+/* Brillo dorado SUTIL detrás del título "Más vendidas" únicamente. */
+.ja-best-title-wrap{position:relative;display:inline-block;}
+.ja-best-title-wrap::before{content:"";position:absolute;left:50%;top:62%;width:130%;height:160%;background:radial-gradient(50% 50% at 50% 50%,rgba(243,220,160,0.18) 0%,rgba(201,162,75,0.08) 35%,transparent 70%);filter:blur(8px);transform:translate(-50%,-50%);z-index:-1;pointer-events:none;animation:ja-best-titleglow 6s ease-in-out infinite;}
+.ja-best-section article{position:relative;overflow:hidden;z-index:2;background:linear-gradient(180deg,#13110d 0%,#0c0a07 100%);border:1px solid rgba(201,162,75,0.18) !important;box-shadow:0 8px 30px -16px rgba(0,0,0,.6);transition:border-color .45s ease,box-shadow .45s ease,transform .45s ease !important;}
+.ja-best-section article:hover{border-color:rgba(243,220,160,0.55) !important;box-shadow:0 22px 60px -24px rgba(0,0,0,.95),0 0 38px -18px rgba(243,220,160,.35) !important;transform:translateY(-3px);}
 .ja-best-section [data-carousel-wrap]{position:relative;z-index:2;}
 .crown-divider .ja-line{background-size:300% 100% !important;animation:ja-divLineL 4.5s ease-in-out infinite;}
 .crown-divider .ja-line.r{animation:ja-divLineR 4.5s ease-in-out infinite;}
@@ -304,14 +313,14 @@ image-slot::part(ring){border:0 !important;display:none !important;}
   </section>
 
   <!-- ===================== MÁS VENDIDOS (carousel) ===================== -->
-  <section class="ja-best-section" style="position:relative;padding:clamp(50px,6vw,90px) clamp(20px,5vw,72px) clamp(20px,3vw,40px);max-width:1280px;margin:0 auto;overflow:hidden;">
-    <div aria-hidden="true" class="ja-glow-bg" style="position:absolute;inset:0;background:radial-gradient(40% 50% at 22% 30%,rgba(243,220,160,0.14),transparent 70%),radial-gradient(40% 50% at 80% 70%,rgba(192,192,192,0.12),transparent 70%);pointer-events:none;z-index:0;"></div>
-    <div aria-hidden="true" class="ja-shimmer" style="position:absolute;top:0;left:-30%;width:35%;height:100%;background:linear-gradient(110deg,transparent 0%,transparent 35%,rgba(255,236,180,0.06) 48%,rgba(255,255,255,0.10) 50%,rgba(255,236,180,0.06) 52%,transparent 65%,transparent 100%);pointer-events:none;z-index:0;animation:ja-best-sheen 7s ease-in-out infinite 1.5s;"></div>
+  <section class="ja-best-section" style="position:relative;padding:clamp(56px,6vw,96px) clamp(20px,5vw,72px) clamp(40px,4vw,64px);max-width:1280px;margin:0 auto;overflow:hidden;border-radius:6px;">
+    <!-- Línea fina dorada superior (separador premium) -->
+    <div class="ja-best-divider" style="margin-bottom:36px;"></div>
     <div style="position:relative;z-index:1;">
-    <div data-reveal data-delay="0" style="opacity:0;transform:translateY(20px);transition:opacity .9s cubic-bezier(.22,.61,.36,1),transform .9s cubic-bezier(.22,.61,.36,1);display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:28px;">
+    <div data-reveal data-delay="0" style="opacity:0;transform:translateY(20px);transition:opacity .9s cubic-bezier(.22,.61,.36,1),transform .9s cubic-bezier(.22,.61,.36,1);display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:32px;">
       <div>
-        <span style="font-size:11px;letter-spacing:.36em;text-transform:uppercase;color:#c0c0c0;">Favoritas</span>
-        <h2 style="margin:8px 0 0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(28px,3.6vw,42px);color:#f2ecdf;">Más vendidas</h2>
+        <span style="font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:#c9a24b;">— Favoritas</span>
+        <h2 class="ja-best-title-wrap" style="margin:14px 0 0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(30px,3.8vw,46px);color:#f2ecdf;letter-spacing:.005em;">Más vendidas</h2>
       </div>
       <div style="display:flex;gap:10px;">
         <button type="button" data-carousel-arrow="-" aria-label="Anterior" style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;border:1px solid rgba(192,192,192,0.32);background:rgba(192,192,192,0.05);color:#d8d8d8;cursor:pointer;transition:background .3s ease,border-color .3s ease;" style-hover="background:rgba(192,192,192,0.15);border-color:rgba(244,244,244,0.7);"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M15 18l-6-6 6-6"/></svg></button>
@@ -341,6 +350,8 @@ image-slot::part(ring){border:0 !important;display:none !important;}
       </div>
     </div>
     </div>
+    <!-- Línea fina dorada inferior (cierre simétrico) -->
+    <div class="ja-best-divider" style="margin-top:40px;"></div>
   </section>
 
   <!-- ===================== PROMOCIONES / DESTACADOS ===================== -->
