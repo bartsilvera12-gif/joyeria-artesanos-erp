@@ -5,6 +5,8 @@ import { createVentaTransaccionalPg } from "@/lib/ventas/server/create-venta-pg"
 import type { CreateVentaItemInput } from "@/lib/ventas/server/create-venta-pg";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { API_ERRORS } from "@/lib/api/errors";
+import { createServiceRoleClientWithDbSchema } from "@/lib/supabase/empresa-data-schema";
+import { marcarPedidoFacturado } from "@/lib/pedidos-caja/server";
 import type { Venta, LineaVenta } from "@/lib/ventas/types";
 
 function asItems(body: unknown): CreateVentaItemInput[] | null {
@@ -203,6 +205,20 @@ export async function POST(request: NextRequest) {
       monto_iva: iv,
       total: tot,
     });
+
+    // Si la venta facturó un pedido del salón (módulo Consulta), marcarlo como
+    // facturado. Best-effort: si falla, la venta ya está creada — solo logueamos.
+    const pedidoCajaIdRaw = o.pedido_caja_id;
+    const pedidoCajaId =
+      pedidoCajaIdRaw == null || pedidoCajaIdRaw === "" ? null : String(pedidoCajaIdRaw);
+    if (pedidoCajaId) {
+      try {
+        const sb = createServiceRoleClientWithDbSchema(schema);
+        await marcarPedidoFacturado(sb, auth.empresa_id, pedidoCajaId, ventaId, numeroControl);
+      } catch (e) {
+        console.error("[diag-venta] marcarPedidoFacturado falló", e);
+      }
+    }
 
     console.log(`[diag-venta] success numero=${numeroControl} total=${tot} ms=${Date.now() - t0}`);
     return NextResponse.json(successResponse({ venta }));

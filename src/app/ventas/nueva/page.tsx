@@ -129,6 +129,9 @@ export default function NuevaVentaPage() {
   // Facturación de un pedido enviado a Caja (?pedido_id=...). Precarga items + cliente.
   const [pedidoId, setPedidoId] = useState<string | null>(null);
   const [pedidoNumero, setPedidoNumero] = useState<string | null>(null);
+  // Facturación de un pedido del salón (módulo Consulta) — ?pedido_caja_id=...
+  const [pedidoCajaId, setPedidoCajaId] = useState<string | null>(null);
+  const [pedidoCajaTitulo, setPedidoCajaTitulo] = useState<string | null>(null);
 
   // ── Condiciones de la venta ───────────────────────────────────────────────
   // Instancia dedicada: siempre Guaraníes.
@@ -314,6 +317,59 @@ export default function NuevaVentaPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Precarga al facturar un pedido del salón (módulo Consulta): ?pedido_caja_id=
+  // Lee el pedido, precarga items + cliente. Marca como facturado se hace
+  // server-side en /api/ventas/create al confirmar.
+  useEffect(() => {
+    let cancelled = false;
+    let pcid: string | null = null;
+    try {
+      pcid = new URLSearchParams(window.location.search).get("pedido_caja_id");
+    } catch { pcid = null; }
+    if (!pcid) return;
+    setPedidoCajaId(pcid);
+    (async () => {
+      try {
+        const res = await fetch(`/api/pedidos-caja/${pcid}`, { credentials: "include", cache: "no-store" });
+        const j = await res.json();
+        if (cancelled || !j?.success || !j.data?.pedido) return;
+        const p = j.data.pedido as {
+          titulo?: string;
+          cliente_id?: string | null;
+          items?: Array<Record<string, unknown>>;
+        };
+        if (p.titulo) setPedidoCajaTitulo(p.titulo);
+        const itemsRaw = Array.isArray(p.items) ? p.items : [];
+        const lineas: LineaVenta[] = itemsRaw
+          .filter((it) => it.producto_id && (Number(it.cantidad) || 0) > 0)
+          .map((it) => {
+            const cantidad = Number(it.cantidad) || 0;
+            const precio = Number(it.precio_venta) || 0;
+            const iva: TipoIvaVenta = "EXENTA";
+            const subtotal = cantidad * precio;
+            const montoIva = calcIva(iva, subtotal);
+            const totalLinea = subtotal;
+            return {
+              producto_id: String(it.producto_id),
+              producto_nombre: typeof it.producto_nombre === "string" ? it.producto_nombre : "",
+              sku: typeof it.sku === "string" ? it.sku : "",
+              cantidad,
+              precio_venta_original: precio,
+              precio_venta: precio,
+              tipo_iva: iva,
+              tipo_precio: "minorista" as TipoPrecioVenta,
+              subtotal,
+              monto_iva: montoIva,
+              total_linea: totalLinea,
+            };
+          });
+        if (!cancelled && lineas.length) setItems(lineas);
+        if (!cancelled && p.cliente_id) setClienteId(String(p.cliente_id));
+      } catch { /* el cajero puede cargar manualmente si esto falla */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // Cargar entidades bancarias (caja/banco/tarjeta/billetera) para el detalle de cobro.
   useEffect(() => {
     let cancelled = false;
@@ -352,7 +408,8 @@ export default function NuevaVentaPage() {
   useEffect(() => {
     let tienePedido = false;
     try {
-      tienePedido = !!new URLSearchParams(window.location.search).get("pedido_id");
+      const sp = new URLSearchParams(window.location.search);
+      tienePedido = !!sp.get("pedido_id") || !!sp.get("pedido_caja_id");
     } catch { tienePedido = false; }
     if (!tienePedido) setPickerOpen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -592,7 +649,7 @@ export default function NuevaVentaPage() {
           titular: metodoPago === "transferencia" ? pagoTitular.trim() || null : null,
           observacion: pagoObservacion.trim() || null,
         },
-        { permitirSinStock, pedidoId }
+        { permitirSinStock, pedidoId, pedidoCajaId }
       );
 
       if (!resultado.success) {
@@ -664,6 +721,13 @@ export default function NuevaVentaPage() {
         <div className="rounded-lg border border-[#4FAEB2]/40 bg-[#4FAEB2]/[0.08] px-4 py-3 text-sm text-slate-700">
           <span className="font-semibold text-[#3F8E91]">Estás facturando un pedido{pedidoNumero ? ` (${pedidoNumero})` : ""}.</span>{" "}
           La venta se generará al confirmar y el pedido quedará marcado como facturado. Podés ajustar items, precios y método de pago.
+        </div>
+      )}
+
+      {pedidoCajaId && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-slate-700">
+          <span className="font-semibold text-amber-800">Estás cobrando un pedido del salón{pedidoCajaTitulo ? ` — ${pedidoCajaTitulo}` : ""}.</span>{" "}
+          Al confirmar se genera la venta y el pedido queda marcado como facturado. Podés ajustar items, precios y método de pago.
         </div>
       )}
 
