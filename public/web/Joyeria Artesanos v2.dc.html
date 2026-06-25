@@ -624,12 +624,26 @@ class Component extends DCLogic {
       const list = Array.isArray(json.productos) ? json.productos : [];
       if (!list.length) return;
 
-      // Conteo real por categoría → reemplaza los números hardcodeados
-      // ("24 piezas", "18 piezas", etc.) por la cantidad real del inventario.
-      // Usa el slug devuelto por la API; productos sin categoría se omiten.
+      // Conteo real por categoría → reemplaza los números hardcodeados.
+      // Si el producto no tiene `categoria` asignada en la DB (caso común
+      // mientras no se setea desde el ERP), infiere por el nombre — misma
+      // lógica que catalogo.html para que los conteos coincidan.
+      const inferCat = (nombre) => {
+        const n = String(nombre || '').toLowerCase();
+        if (n.includes('cadena') || n.includes('rosario')) return 'cadenas';
+        if (n.includes('anillo')) return 'anillos';
+        if (n.includes('pulsera')) return 'pulseras';
+        if (n.includes('aro')) return 'aros';
+        if (n.includes('reloj')) return 'relojes';
+        if (n.includes('guampa')) return 'guampas';
+        if (n.includes('bombilla')) return 'bombillas';
+        return '';
+      };
       const conteoPorCat = {};
       list.forEach(p => {
-        const slug = String(p && p.categoria || '').trim().toLowerCase();
+        if (!p) return;
+        const slugRaw = String(p.categoria || '').trim().toLowerCase();
+        const slug = slugRaw || inferCat(p.nombre);
         if (!slug) return;
         conteoPorCat[slug] = (conteoPorCat[slug] || 0) + 1;
       });
