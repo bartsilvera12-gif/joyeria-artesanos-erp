@@ -633,7 +633,7 @@ export default function InventarioPage() {
 
             <thead>
               <tr className="bg-slate-50 text-slate-600 text-sm font-semibold">
-                <th className="py-3 pr-4 font-medium w-20"></th>
+                <th className="py-3 pr-4 font-medium w-32"></th>
                 <th className="py-3 pr-4 font-medium">Nombre</th>
                 <th className="hidden py-3 pr-4 font-medium lg:table-cell">Categoría</th>
                 <th className="py-3 pr-4 font-medium">Costo Prom.</th>
@@ -688,12 +688,12 @@ export default function InventarioPage() {
                         const url = p.imagen_url ?? publicProductoImagenUrl(p.imagen_path);
                         if (url) {
                           return (
-                            <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
+                            <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
                               <Image
                                 src={url}
                                 alt={p.nombre}
                                 fill
-                                sizes="64px"
+                                sizes="96px"
                                 className="object-cover"
                                 unoptimized
                               />
@@ -701,8 +701,8 @@ export default function InventarioPage() {
                           );
                         }
                         return (
-                          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-300">
-                            <ImageOff className="h-5 w-5" />
+                          <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-300">
+                            <ImageOff className="h-7 w-7" />
                           </div>
                         );
                       })()}
