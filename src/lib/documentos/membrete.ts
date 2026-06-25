@@ -56,7 +56,7 @@ export function membreteTicket(origin = ""): string {
   const logo = origin ? `${origin}${e.logoUrl}` : e.logoUrl;
   return `
   <div style="text-align:center;padding-bottom:6px;margin-bottom:6px;border-bottom:1px dashed #000;">
-    <img src="${esc(logo)}" alt="${esc(e.nombre)}" style="max-width:150px;max-height:72px;width:auto;height:auto;object-fit:contain;display:inline-block;margin:0 auto 4px;" />
+    <img src="${esc(logo)}" alt="${esc(e.nombre)}" style="max-width:260px;max-height:140px;width:auto;height:auto;object-fit:contain;display:inline-block;margin:0 auto 6px;" />
     <div style="font-weight:700;font-size:12px;">${esc(e.nombre)}</div>
     ${e.telefono ? `<div style="font-size:10px;">Tel: ${esc(e.telefono)}</div>` : ""}
     ${e.direccion[0] ? `<div style="font-size:10px;">${esc(e.direccion[0])}</div>` : ""}
