@@ -109,6 +109,8 @@ const HIDDEN_MENU_KEYS = new Set<string>([
   "cobranzas",
   "proyectos",
   "gestion-clientes",
+  "clientes",
+  "pagos",
 ]);
 
 const MENU_STRUCTURE_FULL: MenuItem[] = [
@@ -237,7 +239,7 @@ const MENU_STRUCTURE: MenuItem[] = MENU_STRUCTURE_FULL.filter(
  * acá cae automáticamente en la familia "Otros" (red de seguridad: nada se oculta).
  */
 const MENU_FAMILIES: { id: string; title: string; itemKeys: string[] }[] = [
-  { id: "inicio", title: "Inicio", itemKeys: ["dashboard", "gerencia"] },
+  { id: "inicio", title: "Inicio", itemKeys: ["dashboard", "gerencia", "consulta"] },
   {
     id: "comercial",
     title: "Comercial",
