@@ -667,15 +667,9 @@ export default function NuevaVentaPage() {
       // SOLO si la venta la genera (cliente con usa_nota_remision o toggle activo).
       const v = resultado.venta;
       const generaNota = v.genera_nota_remision === true || !!v.nota_remision_numero;
-      const ticketUrl = `/api/ventas/${v.id}/ticket?mode=comandas&auto=1`;
-      const remisionUrl = `/api/ventas/${v.id}/ticket?tipo=remision&auto=1`;
-      // Intento de apertura automática (el ticket sale por el gesto de click; la
-      // segunda pestaña puede ser bloqueada por el navegador → fallback con botones).
-      try { window.open(ticketUrl, "_blank", "noopener"); } catch {}
-      if (generaNota) { try { window.open(remisionUrl, "_blank", "noopener"); } catch {} }
-      // Panel post-venta: botones siempre disponibles aunque el popup se bloquee.
-      // NOTA: abrir el ticket / la nota / el panel NO vuelve a llamar saveVenta.
-      setPostVenta({ id: v.id, numero: v.numero_control, generaNota, credito: tipoVenta === "CREDITO" });
+      // Volver directo a la caja: sin modal post-venta intermedio.
+      router.push("/ventas");
+      return;
     } finally {
       // Liberar el guard SIEMPRE: éxito, error o flujo de "confirmar sin stock".
       isSubmittingRef.current = false;
