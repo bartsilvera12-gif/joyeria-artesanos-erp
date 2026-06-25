@@ -28,7 +28,6 @@ export default function CategoriasProductosPage() {
   // Form alta
   const [nombre, setNombre] = useState("");
   const [codigo, setCodigo] = useState("");
-  const [parentId, setParentId] = useState("");
   const [creating, setCreating] = useState(false);
   const [imagenFile, setImagenFile] = useState<File | null>(null);
   const [imagenPreview, setImagenPreview] = useState<string | null>(null);
@@ -62,7 +61,6 @@ export default function CategoriasProductosPage() {
         body: JSON.stringify({
           nombre: nombre.trim(),
           codigo: codigo.trim() || null,
-          parent_id: parentId || null,
         }),
       });
       const j = await r.json();
@@ -85,7 +83,7 @@ export default function CategoriasProductosPage() {
           setError(`Categoría creada, pero falló la imagen: ${ju?.error ?? ru.statusText}`);
         }
       }
-      setNombre(""); setCodigo(""); setParentId("");
+      setNombre(""); setCodigo("");
       setImagenFile(null); setImagenPreview(null);
       await load();
     } catch (e) {
@@ -214,7 +212,7 @@ export default function CategoriasProductosPage() {
         <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide font-semibold">
           Nueva categoría
         </p>
-        <form onSubmit={handleCrear} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+        <form onSubmit={handleCrear} className="grid grid-cols-1 md:grid-cols-2 gap-3 items-end">
           <div>
             <label className="block text-xs text-gray-600 mb-1">Nombre</label>
             <input
@@ -234,20 +232,7 @@ export default function CategoriasProductosPage() {
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
             />
           </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Categoría padre (opcional)</label>
-            <select
-              value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
-            >
-              <option value="">— ninguna —</option>
-              {items.filter((i) => i.activo).map((i) => (
-                <option key={i.id} value={i.id}>{i.nombre}</option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-3">
+          <div className="md:col-span-2">
             <label className="block text-xs text-gray-600 mb-1">Imagen (opcional)</label>
             <div className="flex items-start gap-3 flex-wrap">
               {imagenPreview ? (
@@ -280,7 +265,7 @@ export default function CategoriasProductosPage() {
               </div>
             </div>
           </div>
-          <div className="md:col-span-3">
+          <div className="md:col-span-2">
             <button
               type="submit"
               disabled={creating || !nombre.trim()}
@@ -308,7 +293,6 @@ export default function CategoriasProductosPage() {
                 <th className="text-left px-4 py-2 w-20">Imagen</th>
                 <th className="text-left px-4 py-2">Nombre</th>
                 <th className="text-left px-4 py-2">Código</th>
-                <th className="text-left px-4 py-2">Padre</th>
                 <th className="text-left px-4 py-2">Estado</th>
                 <th className="text-left px-4 py-2">Web</th>
                 <th className="px-4 py-2"></th>
@@ -316,12 +300,10 @@ export default function CategoriasProductosPage() {
             </thead>
             <tbody>
               {items.map((c) => {
-                const parent = items.find((i) => i.id === c.parent_id);
                 return (
                   <CategoriaRow
                     key={c.id}
                     cat={c}
-                    parentNombre={parent?.nombre ?? null}
                     onToggleActivo={() => toggleActivo(c)}
                     onToggleVisibleWeb={() => toggleVisibleWeb(c)}
                     onSubirImagen={(f) => subirImagen(c, f)}
@@ -340,7 +322,6 @@ export default function CategoriasProductosPage() {
 
 function CategoriaRow({
   cat,
-  parentNombre,
   onToggleActivo,
   onToggleVisibleWeb,
   onSubirImagen,
@@ -348,7 +329,6 @@ function CategoriaRow({
   onBorrar,
 }: {
   cat: Categoria;
-  parentNombre: string | null;
   onToggleActivo: () => void;
   onToggleVisibleWeb: () => void;
   onSubirImagen: (file: File) => void | Promise<void>;
@@ -376,7 +356,6 @@ function CategoriaRow({
       </td>
       <td className="px-4 py-2 font-medium">{cat.nombre}</td>
       <td className="px-4 py-2 text-gray-500">{cat.codigo ?? "—"}</td>
-      <td className="px-4 py-2 text-gray-500">{parentNombre ?? "—"}</td>
       <td className="px-4 py-2">
         {cat.activo ? (
           <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Activo</span>
