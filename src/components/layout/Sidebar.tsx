@@ -242,7 +242,7 @@ const MENU_FAMILIES: { id: string; title: string; itemKeys: string[] }[] = [
   {
     id: "comercial",
     title: "Comercial",
-    itemKeys: ["ventas", "clientes", "crm", "gestion-clientes", "comisiones", "planes", "agenda"],
+    itemKeys: ["ventas", "clientes"],
   },
   { id: "finanzas", title: "Finanzas", itemKeys: ["pagos", "gastos", "reportes"] },
   { id: "operaciones", title: "Operaciones", itemKeys: ["cobranzas", "inventario", "compras", "proyectos"] },
