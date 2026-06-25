@@ -30,6 +30,8 @@ export default function CategoriasProductosPage() {
   const [codigo, setCodigo] = useState("");
   const [parentId, setParentId] = useState("");
   const [creating, setCreating] = useState(false);
+  const [imagenFile, setImagenFile] = useState<File | null>(null);
+  const [imagenPreview, setImagenPreview] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -66,15 +68,49 @@ export default function CategoriasProductosPage() {
       const j = await r.json();
       if (!r.ok || !j?.success) {
         setError(j?.error ?? "No se pudo crear.");
-      } else {
-        setNombre(""); setCodigo(""); setParentId("");
-        await load();
+        return;
       }
+      // Si el usuario eligió imagen, súbela contra la categoría recién creada.
+      const nuevaId: string | undefined = j.data?.categoria?.id ?? j.data?.id;
+      if (imagenFile && nuevaId) {
+        const fd = new FormData();
+        fd.append("file", imagenFile);
+        const ru = await fetch(`/api/inventario/categorias/${nuevaId}/imagen`, {
+          method: "POST",
+          credentials: "include",
+          body: fd,
+        });
+        const ju = await ru.json().catch(() => null);
+        if (!ru.ok || !ju?.success) {
+          setError(`Categoría creada, pero falló la imagen: ${ju?.error ?? ru.statusText}`);
+        }
+      }
+      setNombre(""); setCodigo(""); setParentId("");
+      setImagenFile(null); setImagenPreview(null);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error de red");
     } finally {
       setCreating(false);
     }
+  }
+
+  function handleImagenChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null;
+    setError(null);
+    if (!f) { setImagenFile(null); setImagenPreview(null); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+      setError("Formato no permitido. Usá JPG, PNG o WebP.");
+      e.target.value = "";
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      setError("Imagen demasiado grande (máx. 5 MB).");
+      e.target.value = "";
+      return;
+    }
+    setImagenFile(f);
+    setImagenPreview(URL.createObjectURL(f));
   }
 
   async function toggleActivo(cat: Categoria) {
@@ -210,6 +246,39 @@ export default function CategoriasProductosPage() {
                 <option key={i.id} value={i.id}>{i.nombre}</option>
               ))}
             </select>
+          </div>
+          <div className="md:col-span-3">
+            <label className="block text-xs text-gray-600 mb-1">Imagen (opcional)</label>
+            <div className="flex items-start gap-3 flex-wrap">
+              {imagenPreview ? (
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={imagenPreview} alt="preview" className="h-full w-full object-cover" />
+                </div>
+              ) : (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-[10px] text-slate-400">
+                  Sin imagen
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleImagenChange}
+                  className="block text-xs file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-slate-700 file:hover:bg-slate-200"
+                />
+                {imagenFile && (
+                  <button
+                    type="button"
+                    onClick={() => { setImagenFile(null); setImagenPreview(null); }}
+                    className="self-start text-xs text-slate-500 hover:text-slate-700 underline"
+                  >
+                    Quitar imagen
+                  </button>
+                )}
+                <p className="text-[11px] text-gray-400">JPG, PNG o WebP — máximo 5 MB.</p>
+              </div>
+            </div>
           </div>
           <div className="md:col-span-3">
             <button
