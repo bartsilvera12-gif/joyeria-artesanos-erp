@@ -245,7 +245,7 @@ const MENU_FAMILIES: { id: string; title: string; itemKeys: string[] }[] = [
     itemKeys: ["ventas", "clientes"],
   },
   { id: "finanzas", title: "Finanzas", itemKeys: ["pagos", "gastos", "reportes"] },
-  { id: "operaciones", title: "Operaciones", itemKeys: ["cobranzas", "inventario", "compras", "proyectos"] },
+  { id: "operaciones", title: "Operaciones", itemKeys: ["inventario", "compras"] },
   {
     id: "omnicanal",
     title: "Omnicanal",
