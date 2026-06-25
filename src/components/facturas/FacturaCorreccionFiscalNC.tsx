@@ -359,7 +359,7 @@ export function FacturaCorreccionFiscalNC({
           {debugUi ? (
             <Link
               href="/notas-credito"
-              className="text-[11px] font-semibold text-[#0EA5E9] hover:underline shrink-0"
+              className="text-[11px] font-semibold text-[#4FAEB2] hover:underline shrink-0"
             >
               Módulo NC
             </Link>
@@ -630,7 +630,7 @@ export function FacturaCorreccionFiscalNC({
               <div className="col-span-2">
                 <dt className="text-slate-400">Cliente</dt>
                 <dd className="font-medium">
-                  <Link href={`/clientes/${clienteId}`} className="text-[#0EA5E9] hover:underline">
+                  <Link href={`/clientes/${clienteId}`} className="text-[#4FAEB2] hover:underline">
                     {clienteDisplay || "Cliente"}
                   </Link>
                 </dd>
@@ -668,7 +668,7 @@ export function FacturaCorreccionFiscalNC({
                 value={motivo}
                 onChange={(e) => setMotivo(e.target.value)}
                 rows={3}
-                className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]"
                 placeholder="Ej.: corrección acordada con el cliente por error de facturación"
               />
             </label>
@@ -678,7 +678,7 @@ export function FacturaCorreccionFiscalNC({
                 value={obs}
                 onChange={(e) => setObs(e.target.value)}
                 rows={2}
-                className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                className="mt-1 w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]"
               />
             </label>
             <div className="flex flex-wrap justify-end gap-2 pt-1">

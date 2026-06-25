@@ -34,7 +34,7 @@ const SIMPLE_CLIENTE = NEURA_CLIENT_SCHEMA === "reservacaacupe";
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
 const inputClass =
-  "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none bg-white text-sm";
+  "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none bg-white text-sm";
 const labelClass = "block text-sm font-medium text-slate-700 mb-1.5";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -431,7 +431,7 @@ function NuevoClienteForm() {
                     onClick={() => setForm((prev) => ({ ...prev, tipo_cliente: t }))}
                     className={`px-5 py-2.5 text-sm font-medium transition-colors ${
                       form.tipo_cliente === t
-                        ? "bg-[#0EA5E9] text-white"
+                        ? "bg-[#4FAEB2] text-white"
                         : "bg-white text-slate-600 hover:bg-slate-50"
                     }`}
                   >
@@ -590,7 +590,7 @@ function NuevoClienteForm() {
                 type="checkbox"
                 checked={form.usa_nota_remision}
                 onChange={(e) => setForm((p) => ({ ...p, usa_nota_remision: e.target.checked }))}
-                className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
               />
               Usa nota de remisión
               <span className="text-xs text-slate-400">(se generará junto al ticket al venderle)</span>
@@ -959,7 +959,7 @@ function NuevoClienteForm() {
             <button
               type="submit"
               disabled={guardando}
-              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              className="bg-[#4FAEB2] hover:bg-[#3F8E91] text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
             >
               {guardando ? "Guardando…" : "Guardar cliente"}
             </button>

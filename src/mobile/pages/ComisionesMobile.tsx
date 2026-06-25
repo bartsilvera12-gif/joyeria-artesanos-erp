@@ -44,7 +44,7 @@ export default function ComisionesMobile() {
             onClick={() => setMes(o.value === opciones[0].value ? undefined : o.value)}
             className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
               periodoMes === o.value
-                ? "border-[#0EA5E9] bg-[#0EA5E9]/5 text-[#0EA5E9]"
+                ? "border-[#4FAEB2] bg-[#4FAEB2]/5 text-[#4FAEB2]"
                 : "border-slate-200 bg-white text-slate-600"
             }`}
           >

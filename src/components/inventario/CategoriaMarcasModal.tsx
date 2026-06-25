@@ -244,7 +244,7 @@ export function CategoriaMarcasModal({ categoriaId, categoriaNombre, onClose }: 
                 type="button"
                 onClick={handleAsociarExistente}
                 disabled={!marcaIdSel || busy}
-                className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#4FAEB2] hover:bg-[#3F8E91] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Asociar
               </button>

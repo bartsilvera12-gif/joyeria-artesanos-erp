@@ -321,7 +321,7 @@ export default function MarketingOpsPage() {
           <button
             type="button"
             onClick={() => void handlePreviewSync()}
-            className="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-[#0EA5E9] hover:bg-[#0284C7] text-white shadow-sm"
+            className="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-[#4FAEB2] hover:bg-[#3F8E91] text-white shadow-sm"
           >
             <Sparkles className="h-4 w-4" />
             Sincronizar y regenerar mes
@@ -423,7 +423,7 @@ export default function MarketingOpsPage() {
                 type="button"
                 onClick={() => void handleExecuteSync()}
                 disabled={syncEjecutando}
-                className="inline-flex items-center justify-center gap-2 bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 min-w-[120px]"
+                className="inline-flex items-center justify-center gap-2 bg-[#4FAEB2] hover:bg-[#3F8E91] text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 min-w-[120px]"
               >
                 {syncEjecutando ? (
                   <>
@@ -467,7 +467,7 @@ export default function MarketingOpsPage() {
                 type="button"
                 onClick={() => void handleRegenerarTareas(regenerarCliente)}
                 disabled={regenerando}
-                className="flex-1 bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
+                className="flex-1 bg-[#4FAEB2] hover:bg-[#3F8E91] text-white px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50"
               >
                 {regenerando ? "Regenerando…" : "Confirmar"}
               </button>

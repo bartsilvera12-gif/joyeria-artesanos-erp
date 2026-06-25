@@ -149,7 +149,7 @@ export default function HistorialPage() {
         </div>
         <Link
           href="/dashboard/conversaciones"
-          className="text-sm font-medium text-[#0EA5E9] hover:underline px-3 py-2 rounded-lg border border-sky-200 bg-sky-50"
+          className="text-sm font-medium text-[#4FAEB2] hover:underline px-3 py-2 rounded-lg border border-sky-200 bg-sky-50"
         >
           Ir a inbox
         </Link>
@@ -190,7 +190,7 @@ export default function HistorialPage() {
           type="button"
           onClick={() => void runSearch()}
           disabled={searching}
-          className="md:col-span-5 justify-self-start bg-[#0EA5E9] hover:bg-[#0284C7] disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          className="md:col-span-5 justify-self-start bg-[#4FAEB2] hover:bg-[#3F8E91] disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium"
         >
           {searching ? "Buscando..." : "Buscar historial"}
         </button>
@@ -245,7 +245,7 @@ export default function HistorialPage() {
                   <h2 className="text-lg font-semibold text-slate-800">{detail.contact.name || detail.contact.phone_number}</h2>
                   <span className="text-xs font-mono text-slate-500">{detail.contact.phone_number}</span>
                   {detail.contact.cliente_id && (
-                    <Link href={`/clientes/${detail.contact.cliente_id}`} className="text-xs text-[#0EA5E9] hover:underline">
+                    <Link href={`/clientes/${detail.contact.cliente_id}`} className="text-xs text-[#4FAEB2] hover:underline">
                       Ver cliente
                     </Link>
                   )}
@@ -273,7 +273,7 @@ export default function HistorialPage() {
                       </div>
                       <Link
                         href={`/dashboard/conversaciones?conversationId=${conv.id}`}
-                        className="text-xs text-[#0EA5E9] hover:underline"
+                        className="text-xs text-[#4FAEB2] hover:underline"
                       >
                         Abrir conversación actual
                       </Link>

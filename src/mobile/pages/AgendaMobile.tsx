@@ -36,7 +36,7 @@ export default function AgendaMobile() {
           </div>
           <Link
             href="/dashboard/agenda"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#0EA5E9] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#0284C7]"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#4FAEB2] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#3F8E91]"
           >
             <Plus className="h-4 w-4" />
             Nueva
@@ -58,7 +58,7 @@ export default function AgendaMobile() {
           type="button"
           onClick={() => setFecha(new Date())}
           className={`flex-1 rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
-            esHoy(fecha) ? "border-[#0EA5E9] bg-[#0EA5E9]/5 text-[#0EA5E9]" : "border-slate-200 bg-white text-slate-700"
+            esHoy(fecha) ? "border-[#4FAEB2] bg-[#4FAEB2]/5 text-[#4FAEB2]" : "border-slate-200 bg-white text-slate-700"
           }`}
         >
           {esHoy(fecha) ? "Hoy" : "Volver a hoy"}
@@ -103,7 +103,7 @@ function CitaCard({ cita }: { cita: AgendaCitaEnriquecida }) {
   return (
     <li>
       <div className="flex items-stretch gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-        <div className="flex shrink-0 flex-col items-center justify-center rounded-lg bg-[#0EA5E9]/10 px-2.5 py-2 text-[#0EA5E9]">
+        <div className="flex shrink-0 flex-col items-center justify-center rounded-lg bg-[#4FAEB2]/10 px-2.5 py-2 text-[#4FAEB2]">
           <Clock className="h-4 w-4" />
           <p className="mt-1 text-[10px] font-semibold tabular-nums">{formatHora(inicio)}</p>
         </div>

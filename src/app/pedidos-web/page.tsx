@@ -115,7 +115,7 @@ export default function PedidosWebPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="N° pedido, cliente, teléfono…"
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none"
           />
         </div>
         <div>
@@ -178,7 +178,7 @@ export default function PedidosWebPage() {
                     <td className="px-4 py-3 text-right">
                       <Link
                         href={`/pedidos-web/${p.id}`}
-                        className="text-[#0EA5E9] hover:underline text-sm"
+                        className="text-[#4FAEB2] hover:underline text-sm"
                       >
                         Ver →
                       </Link>

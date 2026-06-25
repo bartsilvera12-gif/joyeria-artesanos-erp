@@ -432,7 +432,7 @@ export default function ClientesPage() {
           placeholder="Buscar por nombre, código, email, RUC..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="flex-1 min-w-48 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none transition-all"
+          className="flex-1 min-w-48 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none transition-all"
         />
         <FancySelect
           value={filtroEstado}
@@ -542,7 +542,7 @@ export default function ClientesPage() {
                           checked={checked}
                           disabled={col.required}
                           onChange={() => toggleColumn(col.key)}
-                          className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                          className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                         />
                       </label>
                     );

@@ -38,7 +38,7 @@ export default function CampanasMobile() {
           </div>
           <Link
             href="/dashboard/campanas/nuevo"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#0EA5E9] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#0284C7]"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#4FAEB2] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#3F8E91]"
           >
             <Plus className="h-4 w-4" />
             Nueva
@@ -53,7 +53,7 @@ export default function CampanasMobile() {
           placeholder="Nombre, template o estado"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0EA5E9]/40 focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]/30"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#4FAEB2]/40 focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]/30"
         />
       </div>
 
@@ -114,7 +114,7 @@ function CampanaCard({ campana }: { campana: CampaignRow }) {
         {campana.total_count > 0 ? (
           <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-100">
             <div
-              className="h-full rounded-full bg-[#0EA5E9] transition-[width] duration-300"
+              className="h-full rounded-full bg-[#4FAEB2] transition-[width] duration-300"
               style={{ width: `${Math.min(100, totalPct)}%` }}
             />
           </div>

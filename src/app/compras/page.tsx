@@ -10,7 +10,7 @@ import MobileFab from "@/components/ui/MobileFab";
 import type { Compra, TipoPago } from "@/lib/compras/types";
 
 const inputFilterClass =
-  "border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none bg-white";
+  "border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none bg-white";
 
 function formatGs(valor: number) {
   return `Gs. ${Math.round(valor).toLocaleString("es-PY")}`;

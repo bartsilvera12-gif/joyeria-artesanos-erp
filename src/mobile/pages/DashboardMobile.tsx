@@ -113,7 +113,7 @@ export default function DashboardMobile({
           </h2>
           <Link
             href="/pagos"
-            className="flex items-center gap-1 text-xs font-medium text-[#0EA5E9] hover:text-[#0284C7]"
+            className="flex items-center gap-1 text-xs font-medium text-[#4FAEB2] hover:text-[#0284C7]"
           >
             Ver todas <ArrowRight className="h-3 w-3" />
           </Link>
@@ -129,7 +129,7 @@ export default function DashboardMobile({
             {data.facturasRecientes.map((f) => (
               <li key={String(f.id)}>
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(15,23,42,0.03)]">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0EA5E9]/10 text-[#0EA5E9]">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#4FAEB2]/10 text-[#4FAEB2]">
                     <ReceiptText className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -161,7 +161,7 @@ export default function DashboardMobile({
 type Tone = "primary" | "warn" | "info" | "danger" | "muted";
 
 const TONE_CLASSES: Record<Tone, { bg: string; fg: string; iconBg: string }> = {
-  primary: { bg: "bg-white border-slate-200", fg: "text-slate-900", iconBg: "bg-[#0EA5E9]/10 text-[#0EA5E9]" },
+  primary: { bg: "bg-white border-slate-200", fg: "text-slate-900", iconBg: "bg-[#4FAEB2]/10 text-[#4FAEB2]" },
   warn:    { bg: "bg-white border-amber-200", fg: "text-slate-900", iconBg: "bg-amber-100 text-amber-700" },
   info:    { bg: "bg-white border-slate-200", fg: "text-slate-900", iconBg: "bg-violet-100 text-violet-700" },
   danger:  { bg: "bg-red-50 border-red-200", fg: "text-red-900", iconBg: "bg-red-100 text-red-700" },
@@ -203,7 +203,7 @@ function KpiCard({
   );
   if (href) {
     return (
-      <Link href={href} className="block min-h-[110px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0EA5E9]/40 rounded-2xl">
+      <Link href={href} className="block min-h-[110px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4FAEB2]/40 rounded-2xl">
         {inner}
       </Link>
     );
@@ -225,7 +225,7 @@ function QuickAction({
       href={href}
       className="flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 shadow-sm transition-colors active:bg-slate-50"
     >
-      <IconComp className="h-4 w-4 text-[#0EA5E9]" />
+      <IconComp className="h-4 w-4 text-[#4FAEB2]" />
       {label}
     </Link>
   );

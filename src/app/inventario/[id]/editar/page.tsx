@@ -581,7 +581,7 @@ export default function EditarProductoPage() {
                 <select
                   onChange={handleSelectPatron}
                   defaultValue=""
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-[#0EA5E9]"
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-600 outline-none focus:ring-2 focus:ring-[#4FAEB2]"
                 >
                   <option value="">Usar patrón existente…</option>
                   {skuPatrones.map((p) => (
@@ -985,7 +985,7 @@ export default function EditarProductoPage() {
                   type="checkbox"
                   checked={activo}
                   onChange={(e) => setActivo(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                 />
                 Activo <span className="text-xs text-slate-400">(disponible para vender)</span>
               </label>
@@ -994,7 +994,7 @@ export default function EditarProductoPage() {
                   type="checkbox"
                   checked={visibleWeb}
                   onChange={(e) => setVisibleWeb(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                 />
                 Visible en web <span className="text-xs text-slate-400">(catálogo público)</span>
               </label>
@@ -1003,7 +1003,7 @@ export default function EditarProductoPage() {
                   type="checkbox"
                   checked={destacadoWeb}
                   onChange={(e) => setDestacadoWeb(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                 />
                 Destacado <span className="text-xs text-slate-400">(home "Más vendidas")</span>
               </label>

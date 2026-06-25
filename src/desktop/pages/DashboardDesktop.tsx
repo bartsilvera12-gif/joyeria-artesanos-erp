@@ -2694,7 +2694,7 @@ export default function DashboardPage() {
           Cambiar a:
           {usuarios.filter(u => u.nivel !== "usuario").map(u => (
             <button key={u.id} onClick={() => handleUsuarioChange(u.id)}
-              className="px-3 py-1.5 rounded-lg bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-xs font-medium transition-colors">
+              className="px-3 py-1.5 rounded-lg bg-[#4FAEB2] hover:bg-[#3F8E91] text-white text-xs font-medium transition-colors">
               {u.nombre}
             </button>
           ))}

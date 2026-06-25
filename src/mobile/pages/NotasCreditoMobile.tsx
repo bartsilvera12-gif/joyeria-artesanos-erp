@@ -64,7 +64,7 @@ export default function NotasCreditoMobile() {
           placeholder="Cliente, factura o motivo"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0EA5E9]/40 focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]/30"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#4FAEB2]/40 focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]/30"
         />
       </div>
 
@@ -170,7 +170,7 @@ function FilterChip({ active, onClick, label }: { active: boolean; onClick: () =
       type="button"
       onClick={onClick}
       className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-        active ? "bg-[#0EA5E9] text-white" : "border border-slate-200 bg-white text-slate-600"
+        active ? "bg-[#4FAEB2] text-white" : "border border-slate-200 bg-white text-slate-600"
       }`}
     >
       {label}

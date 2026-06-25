@@ -151,7 +151,7 @@ export default function PedidoWebDetallePage() {
     return (
       <div className="p-6">
         <p className="text-sm text-red-600">{error || "Pedido no encontrado."}</p>
-        <Link href="/pedidos-web" className="text-sm text-[#0EA5E9] hover:underline mt-3 inline-block">
+        <Link href="/pedidos-web" className="text-sm text-[#4FAEB2] hover:underline mt-3 inline-block">
           ← Volver al listado
         </Link>
       </div>

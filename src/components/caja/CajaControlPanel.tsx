@@ -27,7 +27,7 @@ function formatFechaHora(iso: string) {
 }
 
 const inputClass =
-  "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white text-sm";
+  "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#4FAEB2] bg-white text-sm";
 
 type ModalKind = null | "abrir" | "cerrar" | "mov";
 
@@ -420,7 +420,7 @@ function MovimientoModal({ onClose, onDone }: { onClose: () => void; onDone: () 
         {TIPOS.map((t) => (
           <button key={t.v} type="button" onClick={() => setTipo(t.v)}
             className={`rounded-md border py-1.5 text-xs font-medium transition-colors ${
-              tipo === t.v ? "border-[#0EA5E9] bg-[#0EA5E9]/10 text-[#0EA5E9]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              tipo === t.v ? "border-[#4FAEB2] bg-[#4FAEB2]/10 text-[#4FAEB2]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}>{t.label}</button>
         ))}
       </div>
@@ -436,7 +436,7 @@ function MovimientoModal({ onClose, onDone }: { onClose: () => void; onDone: () 
         {MEDIOS.map((m) => (
           <button key={m.v} type="button" onClick={() => setMedio(m.v)}
             className={`rounded-md border py-1.5 text-xs font-medium transition-colors ${
-              medio === m.v ? "border-[#0EA5E9] bg-[#0EA5E9]/10 text-[#0EA5E9]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              medio === m.v ? "border-[#4FAEB2] bg-[#4FAEB2]/10 text-[#4FAEB2]" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}>{m.label}</button>
         ))}
       </div>
@@ -447,7 +447,7 @@ function MovimientoModal({ onClose, onDone }: { onClose: () => void; onDone: () 
       <ErrorBanner msg={error} />
       <div className="mt-4 flex justify-end gap-2">
         <button type="button" onClick={onClose} className="rounded-lg border border-slate-200 px-4 py-2 text-sm hover:bg-slate-50">Cancelar</button>
-        <button type="button" onClick={submit} disabled={saving} className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm font-medium text-white hover:bg-[#0284C7] disabled:opacity-50">
+        <button type="button" onClick={submit} disabled={saving} className="rounded-lg bg-[#4FAEB2] px-4 py-2 text-sm font-medium text-white hover:bg-[#3F8E91] disabled:opacity-50">
           {saving ? "Guardando…" : "Registrar"}
         </button>
       </div>

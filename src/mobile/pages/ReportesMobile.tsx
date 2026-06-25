@@ -19,7 +19,7 @@ export default function ReportesMobile() {
         <ReporteItem
           href="/"
           icon={TrendingUp}
-          tone="bg-[#0EA5E9]/10 text-[#0EA5E9]"
+          tone="bg-[#4FAEB2]/10 text-[#4FAEB2]"
           title="Resumen del negocio"
           subtitle="Vista del dashboard"
         />

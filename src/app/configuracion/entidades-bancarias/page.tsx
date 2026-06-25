@@ -11,7 +11,7 @@ import {
 } from "@/lib/entidades/storage";
 
 const inputClass =
-  "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0EA5E9] outline-none";
+  "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#4FAEB2] outline-none";
 
 const TIPOS: { value: TipoEntidad; label: string }[] = [
   { value: "caja", label: "Caja" },
@@ -110,7 +110,7 @@ export default function EntidadesBancariasPage() {
           </select>
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button type="submit" className="rounded-lg bg-[#0EA5E9] px-4 py-2 text-sm font-medium text-white hover:bg-[#0284C7]">
+        <button type="submit" className="rounded-lg bg-[#4FAEB2] px-4 py-2 text-sm font-medium text-white hover:bg-[#3F8E91]">
           Crear entidad
         </button>
       </form>

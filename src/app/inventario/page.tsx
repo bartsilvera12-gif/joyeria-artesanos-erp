@@ -12,7 +12,7 @@ import StatCard from "@/components/ui/StatCard";
 import { useIsAdmin } from "@/lib/auth/use-is-admin";
 
 const inputFilterClass =
-  "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none";
+  "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none";
 
 const metodoBadge: Record<MetodoValuacion, string> = {
   CPP: "bg-blue-100 text-blue-700",
@@ -384,7 +384,7 @@ export default function InventarioPage() {
               placeholder="Buscar por nombre..."
               value={filtroPorNombre}
               onChange={(e) => setFiltroPorNombre(e.target.value)}
-              className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none sm:w-64 sm:flex-none"
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none sm:w-64 sm:flex-none"
             />
             {/* Filtros auto-parts: estado de stock + distribuidor */}
             <select

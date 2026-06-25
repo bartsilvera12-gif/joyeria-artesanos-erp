@@ -9,7 +9,7 @@ import { formatGs, formatFechaHora } from "@/lib/reportes/format";
 
 type FiltroEstado = "todas" | "abierta" | "cerrada";
 
-const inputClass = "border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0EA5E9] bg-white";
+const inputClass = "border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#4FAEB2] bg-white";
 
 export default function CierresCajaPage() {
   const [cajas, setCajas] = useState<CajaResumen[]>([]);
@@ -44,7 +44,7 @@ export default function CierresCajaPage() {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/reportes" className="text-xs text-[#0EA5E9] hover:underline">← Reportes</Link>
+        <Link href="/reportes" className="text-xs text-[#4FAEB2] hover:underline">← Reportes</Link>
         <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Cierres de caja</h1>
         <p className="mt-0.5 text-xs text-slate-500">Aperturas, cierres, movimientos y diferencias por turno.</p>
       </div>
@@ -131,7 +131,7 @@ export default function CierresCajaPage() {
                         {dif == null ? "—" : formatGs(dif)}
                       </td>
                       <td className="px-3 py-2.5 text-center">
-                        <Link href={`/reportes/cierres-caja/${c.caja.id}`} className="text-xs font-medium text-[#0EA5E9] hover:underline">
+                        <Link href={`/reportes/cierres-caja/${c.caja.id}`} className="text-xs font-medium text-[#4FAEB2] hover:underline">
                           Ver detalle
                         </Link>
                       </td>

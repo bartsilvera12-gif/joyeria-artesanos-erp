@@ -55,7 +55,7 @@ const tipoPrecioLabel: Record<TipoPrecioVenta, string> = {
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
 const inputClass =
-  "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none bg-white text-sm";
+  "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none bg-white text-sm";
 const labelClass = "block text-sm font-medium text-slate-700 mb-1.5";
 
 // ── Sub-componentes ───────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ function SegmentedControl<T extends string>({
           onClick={() => onChange(opt.value)}
           className={`flex-1 py-2 text-sm font-medium transition-colors ${
             value === opt.value
-              ? "bg-[#0EA5E9] text-white"
+              ? "bg-[#4FAEB2] text-white"
               : "bg-white text-slate-600 hover:bg-slate-50"
           }`}
         >
@@ -654,7 +654,7 @@ export default function NuevaVentaPage() {
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
-          className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[#0EA5E9] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#0284C7] active:scale-95"
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[#4FAEB2] px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#3F8E91] active:scale-95"
         >
           + Agregar producto
         </button>
@@ -735,7 +735,7 @@ export default function NuevaVentaPage() {
                       type="checkbox"
                       checked={generaNotaRemision}
                       onChange={(e) => setGeneraNotaRemision(e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                      className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                     />
                     Generar nota de remisión
                   </label>
@@ -897,7 +897,7 @@ export default function NuevaVentaPage() {
                             onClick={() => handleSelectMetodo(m.v)}
                             className={`text-xs py-2 rounded-md border transition-colors ${
                               metodoPago === m.v
-                                ? "border-[#0EA5E9] bg-[#0EA5E9]/10 text-[#0EA5E9] font-medium"
+                                ? "border-[#4FAEB2] bg-[#4FAEB2]/10 text-[#4FAEB2] font-medium"
                                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                             }`}
                           >
@@ -976,7 +976,7 @@ export default function NuevaVentaPage() {
               type="submit"
               disabled={!ventaValida || guardando}
               aria-busy={guardando}
-              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 min-h-[48px] w-full sm:w-auto"
+              className="bg-[#4FAEB2] hover:bg-[#3F8E91] text-white px-6 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 min-h-[48px] w-full sm:w-auto"
             >
               {guardando ? "Guardando…" : "Confirmar venta"}
             </button>
@@ -1051,7 +1051,7 @@ export default function NuevaVentaPage() {
               <input type="text" value={pagoReferencia} onChange={(e) => setPagoReferencia(e.target.value)} placeholder="Comprobante / transacción" className={inputClass} />
             </div>
 
-            <button type="button" onClick={() => setCobroModalOpen(false)} className="w-full rounded-lg bg-[#0EA5E9] py-2 text-sm font-medium text-white hover:bg-[#0284C7]">
+            <button type="button" onClick={() => setCobroModalOpen(false)} className="w-full rounded-lg bg-[#4FAEB2] py-2 text-sm font-medium text-white hover:bg-[#3F8E91]">
               Listo
             </button>
           </div>
@@ -1133,7 +1133,7 @@ export default function NuevaVentaPage() {
                 href={`/api/ventas/${postVenta.id}/ticket?mode=comandas&auto=1`}
                 target="_blank"
                 rel="noopener"
-                className="rounded-lg bg-[#0EA5E9] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#0284C7]"
+                className="rounded-lg bg-[#4FAEB2] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#3F8E91]"
               >
                 Abrir ticket
               </a>

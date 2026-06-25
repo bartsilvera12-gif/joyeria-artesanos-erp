@@ -1713,7 +1713,7 @@ export function ConversacionesClient({
             {mode === "historial" ? (
               <>
                 {" · "}
-                <Link href="/dashboard/conversaciones" className="text-[#0EA5E9] hover:underline font-medium">
+                <Link href="/dashboard/conversaciones" className="text-[#4FAEB2] hover:underline font-medium">
                   Inbox
                 </Link>
               </>
@@ -1728,7 +1728,7 @@ export function ConversacionesClient({
               </span>
               <span className="text-[10px] text-slate-600 leading-snug">
                 Sin puesto en colas ·{" "}
-                <Link href="/configuracion/colas" className="font-semibold text-[#0EA5E9] hover:underline">
+                <Link href="/configuracion/colas" className="font-semibold text-[#4FAEB2] hover:underline">
                   Colas
                 </Link>
               </span>
@@ -1740,7 +1740,7 @@ export function ConversacionesClient({
               </span>
               <span className="text-[10px] text-slate-600 leading-snug">
                 Sin fila de agente en colas ·{" "}
-                <Link href="/configuracion/colas" className="font-semibold text-[#0EA5E9] hover:underline">
+                <Link href="/configuracion/colas" className="font-semibold text-[#4FAEB2] hover:underline">
                   Colas
                 </Link>
               </span>
@@ -2039,7 +2039,7 @@ export function ConversacionesClient({
                           </span>
                         ) : null}
                         {c.unread_count > 0 && (
-                          <span className="bg-[#0EA5E9] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                          <span className="bg-[#4FAEB2] text-white text-xs font-bold px-2 py-0.5 rounded-full">
                             {c.unread_count}
                           </span>
                         )}
@@ -2101,7 +2101,7 @@ export function ConversacionesClient({
                 <button
                   type="button"
                   onClick={() => setListColumnHidden(false)}
-                  className="text-xs font-medium text-[#0EA5E9] hover:underline"
+                  className="text-xs font-medium text-[#4FAEB2] hover:underline"
                 >
                   Mostrar lista de chats
                 </button>
@@ -2273,7 +2273,7 @@ export function ConversacionesClient({
                       {selected.contact.cliente_id ? (
                         <Link
                           href={`/clientes/${selected.contact.cliente_id}`}
-                          className="inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold text-[#0EA5E9] hover:underline"
+                          className="inline-flex items-center rounded-md px-2 py-1 text-[11px] font-semibold text-[#4FAEB2] hover:underline"
                         >
                           Cliente
                         </Link>
@@ -2358,7 +2358,7 @@ export function ConversacionesClient({
                                   href={v.comprobante_url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-[#0EA5E9] hover:underline"
+                                  className="text-[#4FAEB2] hover:underline"
                                 >
                                   Ver archivo
                                 </a>
@@ -2427,7 +2427,7 @@ export function ConversacionesClient({
                         <div
                           className={`max-w-[88%] rounded-2xl px-2.5 py-1.5 text-sm ${
                             m.from_me
-                              ? "bg-[#0EA5E9] text-white rounded-br-md shadow-md shadow-sky-900/15 ring-1 ring-white/15"
+                              ? "bg-[#4FAEB2] text-white rounded-br-md shadow-md shadow-sky-900/15 ring-1 ring-white/15"
                               : "bg-white text-slate-800 rounded-bl-md border border-slate-200/95 shadow-sm border-l-[3px] border-l-sky-300/90"
                           }`}
                         >
@@ -2705,7 +2705,7 @@ export function ConversacionesClient({
                     ) : null}
                   </div>
                   <input
-                    className="flex-1 min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-sm min-h-[2.25rem] focus:ring-2 focus:ring-[#0EA5E9]/30 focus:border-[#0EA5E9] outline-none"
+                    className="flex-1 min-w-0 border border-slate-200 rounded-lg px-2.5 py-2 text-sm min-h-[2.25rem] focus:ring-2 focus:ring-[#4FAEB2]/30 focus:border-[#4FAEB2] outline-none"
                     placeholder="Escribí un mensaje…"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -2714,7 +2714,7 @@ export function ConversacionesClient({
                   <button
                     type="submit"
                     disabled={sending || !input.trim()}
-                    className="bg-[#0EA5E9] hover:bg-[#0284C7] disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium shrink-0 min-h-[2.25rem]"
+                    className="bg-[#4FAEB2] hover:bg-[#3F8E91] disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium shrink-0 min-h-[2.25rem]"
                   >
                     {sending ? "…" : "Enviar"}
                   </button>

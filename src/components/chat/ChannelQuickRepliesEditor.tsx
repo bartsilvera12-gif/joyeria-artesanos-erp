@@ -134,7 +134,7 @@ export function ChannelQuickRepliesEditor({ channelId, disabled = false, hideInt
           <button
             type="submit"
             disabled={disabled || creating || !draftTitle.trim() || !draftBody.trim()}
-            className="rounded-lg bg-[#0EA5E9] hover:bg-[#0284C7] disabled:opacity-50 text-white px-5 py-2 text-sm font-medium"
+            className="rounded-lg bg-[#4FAEB2] hover:bg-[#3F8E91] disabled:opacity-50 text-white px-5 py-2 text-sm font-medium"
           >
             {creating ? "Guardando…" : "Agregar"}
           </button>
@@ -147,7 +147,7 @@ export function ChannelQuickRepliesEditor({ channelId, disabled = false, hideInt
           <button
             type="button"
             onClick={() => void load()}
-            className="text-xs font-semibold text-[#0EA5E9] hover:underline disabled:opacity-50"
+            className="text-xs font-semibold text-[#4FAEB2] hover:underline disabled:opacity-50"
             disabled={loading || disabled}
           >
             Actualizar

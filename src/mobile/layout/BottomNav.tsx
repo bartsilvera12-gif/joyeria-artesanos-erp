@@ -61,7 +61,7 @@ export default function BottomNav({ onOpenMenu }: { onOpenMenu: () => void }) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`flex h-full min-h-[44px] flex-col items-center justify-center gap-0.5 px-1 transition-colors ${
-                  active ? "text-[#0EA5E9]" : "text-slate-500 hover:text-slate-700"
+                  active ? "text-[#4FAEB2]" : "text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <Icon className="h-5 w-5" aria-hidden />

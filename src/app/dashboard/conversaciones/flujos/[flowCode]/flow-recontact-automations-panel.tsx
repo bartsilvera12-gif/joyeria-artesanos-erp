@@ -551,7 +551,7 @@ export function FlowRecontactAutomationsPanel(props: {
         <button
           type="button"
           onClick={() => openCreate()}
-          className="mt-4 bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-4 py-2 rounded-lg text-sm font-medium"
+          className="mt-4 bg-[#4FAEB2] hover:bg-[#3F8E91] text-white px-4 py-2 rounded-lg text-sm font-medium"
         >
           Nueva automatización
         </button>
@@ -621,7 +621,7 @@ export function FlowRecontactAutomationsPanel(props: {
                     </button>
                     <button
                       type="button"
-                      className="text-[#0EA5E9] hover:underline text-xs font-medium"
+                      className="text-[#4FAEB2] hover:underline text-xs font-medium"
                       onClick={() => openEdit(row)}
                     >
                       Editar
@@ -1029,7 +1029,7 @@ export function FlowRecontactAutomationsPanel(props: {
               <button
                 type="button"
                 disabled={saving}
-                className="px-4 py-2 text-sm rounded-lg bg-[#0EA5E9] text-white hover:bg-[#0284C7] disabled:opacity-50"
+                className="px-4 py-2 text-sm rounded-lg bg-[#4FAEB2] text-white hover:bg-[#3F8E91] disabled:opacity-50"
                 onClick={() => void saveDraft()}
               >
                 {saving ? "Guardando…" : "Guardar"}

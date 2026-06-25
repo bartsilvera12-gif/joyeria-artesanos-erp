@@ -397,7 +397,7 @@ export function PresentacionesEditor({ productoId, fallbackImagenUrl, onChange }
               type="button"
               onClick={handleCrear}
               disabled={busy}
-              className="w-full bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-sm px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#4FAEB2] hover:bg-[#3F8E91] text-white text-sm px-3 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {busy ? "Guardando…" : "Agregar"}
             </button>

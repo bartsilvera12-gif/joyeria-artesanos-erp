@@ -219,7 +219,7 @@ export function ProductGaleria({ productoId, fallbackUrl, onPrincipalChange }: P
             className={`inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${
               total >= MAX_IMAGENES || busy
                 ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                : "bg-[#0EA5E9] hover:bg-[#0284C7] text-white"
+                : "bg-[#4FAEB2] hover:bg-[#3F8E91] text-white"
             }`}
           >
             <Upload size={14} aria-hidden="true" />

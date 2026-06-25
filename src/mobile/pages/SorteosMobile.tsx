@@ -39,7 +39,7 @@ export default function SorteosMobile() {
           </div>
           <Link
             href="/sorteos/nuevo"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#0EA5E9] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#0284C7]"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#4FAEB2] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#3F8E91]"
           >
             <Plus className="h-4 w-4" />
             Nuevo
@@ -54,7 +54,7 @@ export default function SorteosMobile() {
           placeholder="Nombre del sorteo"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0EA5E9]/40 focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]/30"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#4FAEB2]/40 focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]/30"
         />
       </div>
 
@@ -117,7 +117,7 @@ function SorteoCard({ sorteo }: { sorteo: Sorteo }) {
         </div>
         {sorteo.max_boletos > 0 ? (
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full rounded-full bg-[#0EA5E9]" style={{ width: `${Math.min(100, progreso)}%` }} />
+            <div className="h-full rounded-full bg-[#4FAEB2]" style={{ width: `${Math.min(100, progreso)}%` }} />
           </div>
         ) : null}
       </Link>
@@ -143,7 +143,7 @@ function Chip({ active, onClick, label }: { active: boolean; onClick: () => void
       type="button"
       onClick={onClick}
       className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-        active ? "bg-[#0EA5E9] text-white" : "border border-slate-200 bg-white text-slate-600"
+        active ? "bg-[#4FAEB2] text-white" : "border border-slate-200 bg-white text-slate-600"
       }`}
     >
       {label}

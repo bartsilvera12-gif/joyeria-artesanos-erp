@@ -32,7 +32,7 @@ import type { EstadoFactura, Factura } from "@/lib/gestion-clientes/types";
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
 const fInputClass =
-  "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none bg-white";
+  "w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none bg-white";
 const fLabelClass = "mb-0.5 block text-[11px] font-medium text-slate-500";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -389,7 +389,7 @@ function ModalFacturacion({
                           type="button"
                           disabled={emitiendo === item.mes}
                           onClick={() => handleEmitir(item.mes)}
-                          className="text-xs font-medium text-[#0EA5E9] hover:text-[#0284C7] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="text-xs font-medium text-[#4FAEB2] hover:text-[#0284C7] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {emitiendo === item.mes ? "Emitiendo..." : "Emitir factura"}
                         </button>
@@ -397,7 +397,7 @@ function ModalFacturacion({
                       {item.factura_id && (
                         <Link
                           href={`/facturas/${item.factura_id}`}
-                          className="text-xs font-medium text-[#0EA5E9] hover:text-[#0284C7] hover:underline"
+                          className="text-xs font-medium text-[#4FAEB2] hover:text-[#0284C7] hover:underline"
                         >
                           Ver factura
                         </Link>

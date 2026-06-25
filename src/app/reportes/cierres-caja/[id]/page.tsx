@@ -27,7 +27,7 @@ export default function CajaDetallePage({ params }: { params: Promise<{ id: stri
   if (loading) return <p className="py-10 text-center text-sm text-slate-400">Cargando…</p>;
   if (!det) return (
     <div className="space-y-3">
-      <Link href="/reportes/cierres-caja" className="text-xs text-[#0EA5E9] hover:underline">← Cierres de caja</Link>
+      <Link href="/reportes/cierres-caja" className="text-xs text-[#4FAEB2] hover:underline">← Cierres de caja</Link>
       <p className="text-sm text-slate-500">Caja no encontrada.</p>
     </div>
   );
@@ -39,7 +39,7 @@ export default function CajaDetallePage({ params }: { params: Promise<{ id: stri
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/reportes/cierres-caja" className="text-xs text-[#0EA5E9] hover:underline">← Cierres de caja</Link>
+        <Link href="/reportes/cierres-caja" className="text-xs text-[#4FAEB2] hover:underline">← Cierres de caja</Link>
         <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
           Caja N° {c.numero_caja}
           <span className={`ml-2 rounded-full px-2 py-0.5 align-middle text-xs font-semibold ${c.estado === "abierta" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
@@ -95,7 +95,7 @@ export default function CajaDetallePage({ params }: { params: Promise<{ id: stri
           <Field label="Tarjeta aprobada" value={formatGs(det.conciliacion.tarjeta_aprobada)} tone="ok" />
         </div>
         <p className="mt-1 text-[11px] text-slate-400">
-          <a href="/reportes/conciliacion-bancaria" className="text-[#0EA5E9] hover:underline">Ver conciliación bancaria →</a>
+          <a href="/reportes/conciliacion-bancaria" className="text-[#4FAEB2] hover:underline">Ver conciliación bancaria →</a>
         </p>
       </div>
 

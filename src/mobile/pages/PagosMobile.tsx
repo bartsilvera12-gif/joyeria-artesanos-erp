@@ -105,7 +105,7 @@ export default function PagosMobile() {
           placeholder="Número de factura o cliente"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0EA5E9]/40 focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]/30"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#4FAEB2]/40 focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]/30"
         />
       </div>
 
@@ -254,7 +254,7 @@ function FilterChip({
   label: string;
   tone?: "default" | "warn";
 }) {
-  const activeBg = tone === "warn" ? "bg-red-500" : "bg-[#0EA5E9]";
+  const activeBg = tone === "warn" ? "bg-red-500" : "bg-[#4FAEB2]";
   return (
     <button
       type="button"

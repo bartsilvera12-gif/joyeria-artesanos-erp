@@ -23,7 +23,7 @@ export default function MobileHeader({ onOpenMenu }: { onOpenMenu: () => void })
         type="button"
         onClick={onOpenMenu}
         aria-label="Abrir menú"
-        className="flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9]"
+        className="flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#4FAEB2]"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -34,7 +34,7 @@ export default function MobileHeader({ onOpenMenu }: { onOpenMenu: () => void })
         <button
           type="button"
           aria-label="Notificaciones"
-          className="relative flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9]"
+          className="relative flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#4FAEB2]"
         >
           <Bell className="h-5 w-5" />
         </button>

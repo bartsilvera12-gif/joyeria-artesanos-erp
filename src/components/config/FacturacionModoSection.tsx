@@ -48,7 +48,7 @@ const impresionLabels: Record<Impresion, string> = {
   ticket_58mm: "Ticket térmico 58 mm",
 };
 
-const inputClass = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none bg-white";
+const inputClass = "w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none bg-white";
 const labelClass = "block text-xs font-medium text-slate-600 mb-1";
 
 export default function FacturacionModoSection() {

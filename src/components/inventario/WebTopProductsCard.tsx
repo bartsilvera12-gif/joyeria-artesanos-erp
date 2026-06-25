@@ -88,7 +88,7 @@ export function WebTopProductsCard() {
     >
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <div className="flex items-center gap-2">
-          <TrendingUp size={20} className="text-[#0EA5E9]" aria-hidden="true" />
+          <TrendingUp size={20} className="text-[#4FAEB2]" aria-hidden="true" />
           <h2 className="text-xl font-bold text-[#0369A1]">
             Top 10 perfumes más buscados en la web
           </h2>
@@ -101,7 +101,7 @@ export function WebTopProductsCard() {
               onClick={() => setRange(r.value)}
               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 range === r.value
-                  ? "bg-white text-[#0EA5E9] shadow-sm"
+                  ? "bg-white text-[#4FAEB2] shadow-sm"
                   : "text-slate-600 hover:text-slate-800"
               }`}
               aria-pressed={range === r.value}

@@ -417,7 +417,7 @@ export default function NuevoProductoPage() {
   const esPerdida = markupCalc !== null && markupCalc < 0;
 
   const inputClass =
-    "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#0EA5E9] focus:outline-none bg-white text-sm";
+    "w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none bg-white text-sm";
   const labelClass = "block text-sm font-medium text-slate-700 mb-2";
 
   // Paso 0: selector inicial de tipo de producto
@@ -657,7 +657,7 @@ export default function NuevoProductoPage() {
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <label className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white text-sm px-4 py-2 rounded-lg cursor-pointer transition-colors">
+                  <label className="bg-[#4FAEB2] hover:bg-[#3F8E91] text-white text-sm px-4 py-2 rounded-lg cursor-pointer transition-colors">
                     {imagenFile ? "Cambiar imagen" : "Seleccionar imagen"}
                     <input
                       type="file"
@@ -1072,7 +1072,7 @@ export default function NuevoProductoPage() {
                   type="checkbox"
                   checked={activo}
                   onChange={(e) => setActivo(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                 />
                 Activo <span className="text-xs text-slate-400">(disponible para vender)</span>
               </label>
@@ -1081,7 +1081,7 @@ export default function NuevoProductoPage() {
                   type="checkbox"
                   checked={visibleWeb}
                   onChange={(e) => setVisibleWeb(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                 />
                 Visible en web <span className="text-xs text-slate-400">(catálogo público)</span>
               </label>
@@ -1090,7 +1090,7 @@ export default function NuevoProductoPage() {
                   type="checkbox"
                   checked={destacadoWeb}
                   onChange={(e) => setDestacadoWeb(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#0EA5E9] focus:ring-[#0EA5E9]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                 />
                 Destacado <span className="text-xs text-slate-400">(home "Más vendidas")</span>
               </label>
@@ -1102,7 +1102,7 @@ export default function NuevoProductoPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="bg-[#0EA5E9] hover:bg-[#0284C7] text-white px-5 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-[#4FAEB2] hover:bg-[#3F8E91] text-white px-5 py-3 rounded-lg text-sm font-medium transition-colors shadow-sm active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? "Guardando..." : "Guardar producto"}
             </button>

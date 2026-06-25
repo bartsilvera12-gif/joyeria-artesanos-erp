@@ -93,7 +93,7 @@ export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
         type="button"
         onClick={() => onOpenMobileSidebar?.()}
         aria-label="Abrir menú"
-        className="-ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9] md:hidden"
+        className="-ml-1 flex h-11 w-11 items-center justify-center rounded-lg text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#4FAEB2] md:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -106,11 +106,11 @@ export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
         {/* Notificaciones */}
         <button
           type="button"
-          className="relative rounded-lg p-2 text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9]"
+          className="relative rounded-lg p-2 text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#4FAEB2]"
           aria-label="Notificaciones"
         >
           <Bell className="h-5 w-5" />
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#0EA5E9] text-[10px] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#4FAEB2] text-[10px] font-bold text-white">
             0
           </span>
         </button>
@@ -146,7 +146,7 @@ export default function Header({ onOpenMobileSidebar }: HeaderProps = {}) {
                 await signOut();
                 router.push("/login");
               }}
-              className="flex w-full items-center gap-2 px-4 py-2 text-sm text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#0EA5E9]"
+              className="flex w-full items-center gap-2 px-4 py-2 text-sm text-[#475569] transition-colors hover:bg-slate-50 hover:text-[#4FAEB2]"
             >
               <LogOut className="h-4 w-4" />
               Cerrar sesión

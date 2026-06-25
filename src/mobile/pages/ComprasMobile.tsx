@@ -43,7 +43,7 @@ export default function ComprasMobile() {
           </div>
           <Link
             href="/compras/nueva"
-            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#0EA5E9] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#0284C7]"
+            className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#4FAEB2] px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors active:bg-[#3F8E91]"
           >
             <Plus className="h-4 w-4" />
             Nueva
@@ -58,7 +58,7 @@ export default function ComprasMobile() {
           placeholder="Proveedor, producto o número"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#0EA5E9]/40 focus:outline-none focus:ring-2 focus:ring-[#0EA5E9]/30"
+          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-800 placeholder:text-slate-400 focus:border-[#4FAEB2]/40 focus:outline-none focus:ring-2 focus:ring-[#4FAEB2]/30"
         />
       </div>
 
@@ -90,7 +90,7 @@ function CompraCard({ compra }: { compra: Compra }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#0EA5E9]">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#4FAEB2]">
                 {compra.numero_control}
               </span>
               <TipoPagoBadge tipo={compra.tipo_pago} />

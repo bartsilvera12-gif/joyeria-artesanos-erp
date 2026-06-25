@@ -54,7 +54,7 @@ const MD_COMPONENTS = {
         href={href}
         {...props}
         {...(isInternal ? {} : { target: "_blank", rel: "noopener noreferrer" })}
-        className="font-medium text-[#0EA5E9] underline underline-offset-2 hover:text-[#0284C7]"
+        className="font-medium text-[#4FAEB2] underline underline-offset-2 hover:text-[#0284C7]"
       />
     );
   },
