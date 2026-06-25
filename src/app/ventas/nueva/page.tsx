@@ -667,19 +667,22 @@ export default function NuevaVentaPage() {
       // SOLO si la venta la genera (cliente con usa_nota_remision o toggle activo).
       const v = resultado.venta;
       const generaNota = v.genera_nota_remision === true || !!v.nota_remision_numero;
-      // Abrir el ticket en una pestaña aparte (auto-print con ?auto=1) y
-      // volver a la caja. Si el navegador bloquea la pestaña, hacemos
-      // navigate normal a la URL del ticket como fallback antes de redirigir.
-      const ticketUrl = `/api/ventas/${v.id}/ticket?auto=1`;
-      let win: Window | null = null;
-      try { win = window.open(ticketUrl, "_blank", "noopener"); } catch { win = null; }
-      if (!win) {
-        // Popup bloqueado: redirigimos la propia pestaña al ticket. El
-        // usuario imprime y luego vuelve a /ventas con el back del browser.
-        window.location.href = ticketUrl;
-        return;
-      }
-      router.push("/ventas");
+      // Iframe oculto: el ticket carga ahí, dispara window.print() solo, y
+      // el ERP se queda en su lugar (no abre pestaña ni navega). Después
+      // del diálogo de impresión redirigimos a /ventas.
+      const ticketUrl = `/api/ventas/${v.id}/ticket`;
+      try {
+        const iframe = document.createElement("iframe");
+        iframe.setAttribute("aria-hidden", "true");
+        iframe.style.cssText =
+          "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+        iframe.src = ticketUrl;
+        document.body.appendChild(iframe);
+      } catch { /* fallback silencioso: igual seguimos a /ventas */ }
+      // Damos tiempo para que el iframe cargue + abra el print dialog y
+      // luego volvemos a la caja. El dialog bloquea la navegación hasta
+      // que el usuario imprima o cancele.
+      setTimeout(() => router.push("/ventas"), 1200);
       return;
     } finally {
       // Liberar el guard SIEMPRE: éxito, error o flujo de "confirmar sin stock".

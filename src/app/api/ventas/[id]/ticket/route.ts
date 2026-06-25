@@ -88,6 +88,11 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
   const wParam = url.searchParams.get("w") ?? "80";
   const widthMm = wParam === "58" ? 58 : 80;
   const fontPx = widthMm === 58 ? 11 : 12;
+  // URL absoluta para el logo: dentro del iframe oculto del ERP también
+  // resuelve bien con path relativo, pero la dejamos absoluta para que la
+  // pestaña standalone (si se abre directo) también la cargue.
+  const origin = `${url.protocol}//${url.host}`;
+  const logoUrl = `${origin}/web/uploads/logo.PNG`;
 
   // 1) Venta
   const vRes = await postgrestGet<VentaRow>("ventas", new URLSearchParams({
@@ -171,6 +176,17 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
       padding: 6mm 4mm;
       box-shadow: 0 1px 4px rgba(0,0,0,0.12);
     }
+    .logo-wrap {
+      text-align: center;
+      margin: 0 0 2mm;
+    }
+    .logo-wrap img {
+      max-width: ${widthMm === 58 ? 36 : 48}mm;
+      max-height: ${widthMm === 58 ? 14 : 18}mm;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+    }
     h1 {
       font-size: ${fontPx + 4}px;
       text-align: center;
@@ -236,6 +252,9 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
 </head>
 <body>
   <section class="paper">
+    <div class="logo-wrap">
+      <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(negocio)}" onerror="this.style.display='none'" />
+    </div>
     <h1>${escapeHtml(negocio)}</h1>
     <div class="header-meta">
       ${ruc ? `<p>RUC: ${escapeHtml(ruc)}</p>` : ""}
