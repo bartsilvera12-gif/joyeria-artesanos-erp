@@ -107,8 +107,8 @@ image-slot::part(ring){border:0 !important;display:none !important;}
   [data-grid-cat]{grid-template-columns:repeat(3,1fr);}
 }
 @media(max-width:900px){
-  [data-hero-bg]{width:100% !important;opacity:.55;background-position:center top !important;}
-  [data-hero-bg-fade]{background:linear-gradient(180deg,rgba(8,7,10,0.55) 0%,rgba(8,7,10,0.7) 35%,rgba(8,7,10,0.55) 60%,rgba(8,7,10,0.92) 100%) !important;}
+  [data-hero-bg]{top:0 !important;right:0 !important;bottom:0 !important;width:100% !important;opacity:.5;background-position:center 28% !important;background-size:contain !important;filter:none !important;}
+  [data-hero-bg-fade]{background:linear-gradient(180deg,rgba(8,7,10,0.45) 0%,rgba(8,7,10,0.6) 30%,rgba(8,7,10,0.5) 55%,rgba(8,7,10,0.92) 100%) !important;}
   [data-hero-bust]{right:50% !important;top:auto !important;bottom:30px !important;transform:translate(50%,0) !important;width:240px !important;opacity:.45;}
   [data-hero-divider]{display:none !important;}
 }
@@ -218,10 +218,13 @@ image-slot::part(ring){border:0 !important;display:none !important;}
 
   <!-- ===================== HERO (boutique editorial) ===================== -->
   <section id="inicio" style="position:relative;min-height:min(calc(100svh - 76px),860px);display:flex;align-items:center;padding:0;overflow:hidden;background:#08070a;">
-    <!-- Imagen principal: ocupa TODA la altura del hero del lado derecho, sin máscara que la oculte. -->
-    <div data-hero-bg style="position:absolute;top:0;right:0;bottom:0;width:58%;background:url('./uploads/fondo2.png') right center/cover no-repeat;"></div>
-    <!-- Degradado izquierda→derecha: el lado del texto queda casi opaco para legibilidad, el lado de la imagen queda limpio. -->
-    <div data-hero-bg-fade style="position:absolute;inset:0;background:linear-gradient(90deg,#08070a 0%,#08070a 32%,rgba(8,7,10,0.75) 48%,rgba(8,7,10,0.3) 66%,rgba(8,7,10,0.05) 82%,transparent 100%);pointer-events:none;"></div>
+    <!-- Imagen principal: contenida (sin cortes) y con respiración alrededor.
+         Los insets dejan aire arriba/abajo/derecha. background-size:contain mantiene
+         la composición completa visible; el espacio sobrante queda con el fondo
+         oscuro del section detrás. -->
+    <div data-hero-bg style="position:absolute;top:104px;right:clamp(24px,4vw,72px);bottom:80px;width:46%;background:url('./uploads/fondo2.png') center center/contain no-repeat;filter:drop-shadow(0 30px 80px rgba(0,0,0,.6));"></div>
+    <!-- Degradado izquierda→derecha: lado del texto opaco, transición suave hacia la imagen. -->
+    <div data-hero-bg-fade style="position:absolute;inset:0;background:linear-gradient(90deg,#08070a 0%,#08070a 36%,rgba(8,7,10,0.6) 52%,rgba(8,7,10,0.15) 72%,transparent 100%);pointer-events:none;"></div>
     <!-- Vignette suave para integrar bordes y darle profundidad. -->
     <div style="position:absolute;inset:0;background:radial-gradient(60% 60% at 18% 35%,rgba(192,192,192,0.08),transparent 70%),linear-gradient(180deg,rgba(8,7,10,0.55) 0%,transparent 18%,transparent 78%,rgba(8,7,10,0.7) 100%);pointer-events:none;"></div>
     <div data-hero-sparkle aria-hidden="true"><span class="gem-core"></span><span class="gem-h"></span><span class="gem-v"></span></div>
