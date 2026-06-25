@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -131,7 +132,7 @@ export default function PresupuestoDetallePage() {
 
   async function convertir() {
     if (busy) return;
-    if (!confirm("¿Crear un pedido desde este presupuesto? No se descuenta stock ni se genera venta.")) return;
+    if (!(await confirm({ message: "¿Crear un pedido desde este presupuesto? No se descuenta stock ni se genera venta.", variant: "danger", confirmText: "Aceptar" }))) return;
     setBusy(true);
     setError(null);
     setOk(null);

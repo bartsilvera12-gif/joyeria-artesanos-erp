@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -42,7 +43,7 @@ export default function GastosPage() {
   }, []);
 
   async function handleEliminar(g: Gasto) {
-    if (!confirm(`¿Eliminar el gasto "${g.descripcion || g.categoria || "sin descripción"}"?`)) return;
+    if (!(await confirm({ title: `¿Eliminar el gasto "${g.descripcion || g.categoria || "sin descripción"}"?`, message: "Esta acción no se puede deshacer.", variant: "danger", confirmText: "Eliminar" }))) return;
     setEliminando(g.id);
     try {
       await deleteGasto(g.id);

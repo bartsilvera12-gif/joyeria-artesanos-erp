@@ -1,4 +1,5 @@
 "use client";
+import { alert } from "@/components/ui/dialog";
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -287,7 +288,7 @@ export default function NuevaCompraPage() {
         items
       );
       if (!res.success) { setErrorSubmit(res.error); return; }
-      if (res.warning) alert(res.warning);
+      if (res.warning) void alert({ message: res.warning, variant: "warning" });
       router.push("/compras");
     } finally {
       setSubmitting(false);

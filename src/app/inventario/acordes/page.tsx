@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
@@ -103,7 +104,7 @@ export default function AcordesPage() {
   }
 
   async function quitarImagen(id: string) {
-    if (!confirm("¿Quitar la imagen de este acorde?")) return;
+    if (!(await confirm({ message: "¿Quitar la imagen de este acorde?", variant: "danger", confirmText: "Aceptar" }))) return;
     const r = await fetchWithSupabaseSession(`/api/inventario/acordes/${id}/imagen`, {
       method: "DELETE",
     });

@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -1023,9 +1024,12 @@ export function ConversacionesClient({
 
     let confirmHumanOverride = false;
     if (sel.human_taken_over || sel.flow_status === "human") {
-      const ok = window.confirm(
-        "La conversación está en modo humano. ¿Reenviar igualmente el mensaje del paso actual del bot?"
-      );
+      const ok = await confirm({
+        title: "Conversación en modo humano",
+        message: "La conversación está en modo humano. ¿Reenviar igualmente el mensaje del paso actual del bot?",
+        variant: "warning",
+        confirmText: "Reenviar",
+      });
       if (!ok) return;
       confirmHumanOverride = true;
     }
@@ -1053,9 +1057,12 @@ export function ConversacionesClient({
     try {
       let { res, json } = await postOnce(confirmHumanOverride);
       if (res.status === 409 && json.needs_human_override_confirmation) {
-        const ok = window.confirm(
-          "La conversación está en modo humano. ¿Reenviar igualmente el mensaje del paso actual del bot?"
-        );
+        const ok = await confirm({
+          title: "Conversación en modo humano",
+          message: "La conversación está en modo humano. ¿Reenviar igualmente el mensaje del paso actual del bot?",
+          variant: "warning",
+          confirmText: "Reenviar",
+        });
         if (!ok) return;
         ({ res, json } = await postOnce(true));
       }

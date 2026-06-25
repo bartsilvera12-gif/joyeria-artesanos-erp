@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Clapperboard, Trash2, Upload, AlertCircle } from "lucide-react";
@@ -230,7 +231,7 @@ export default function ResenasClient() {
   };
 
   const onDelete = async (id: string) => {
-    if (!confirm("¿Eliminar este video de reseña? Esta acción no se puede deshacer.")) return;
+    if (!(await confirm({ message: "¿Eliminar este video de reseña? Esta acción no se puede deshacer.", variant: "danger", confirmText: "Aceptar" }))) return;
     setError(null);
     try {
       const r = await fetchWithSupabaseSession(`/api/resenas-videos/${id}`, {

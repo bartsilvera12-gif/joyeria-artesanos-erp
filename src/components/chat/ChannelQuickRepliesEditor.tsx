@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -229,7 +230,7 @@ function QuickReplyRowEditor({
   }
 
   async function remove() {
-    if (!confirm("¿Eliminar esta respuesta rápida?")) return;
+    if (!(await confirm({ message: "¿Eliminar esta respuesta rápida?", variant: "danger", confirmText: "Aceptar" }))) return;
     onBusy(row.id);
     try {
       await deleteChannelQuickReply(row.id);

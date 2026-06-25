@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { ConfigFormCard, ConfigSectionTitle } from "@/components/config/global-config-primitives";
@@ -326,7 +327,12 @@ export default function ConfiguracionCrmPipelinePage() {
                     <button
                       type="button"
                       onClick={async () => {
-                        if (confirm("¿Eliminar esta etapa? Los prospectos en esta etapa quedarán sin etapa asignada.")) {
+                        if (await confirm({
+                          title: "¿Eliminar etapa?",
+                          message: "Los prospectos en esta etapa quedarán sin etapa asignada.",
+                          variant: "danger",
+                          confirmText: "Eliminar",
+                        })) {
                           await deleteEtapa(e.id);
                           loadEtapas();
                         }
@@ -673,7 +679,12 @@ export default function ConfiguracionCrmPipelinePage() {
                           className="whitespace-nowrap text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
                           disabled={busyTipoServ}
                           onClick={async () => {
-                            if (!window.confirm("¿Eliminar permanentemente este segmento? (sin clientes vinculados)")) {
+                            if (!(await confirm({
+                              title: "¿Eliminar este segmento?",
+                              message: "Se eliminará permanentemente (no tiene clientes vinculados).",
+                              variant: "danger",
+                              confirmText: "Eliminar",
+                            }))) {
                               return;
                             }
                             setMensajeTipos({ err: undefined, ok: undefined });

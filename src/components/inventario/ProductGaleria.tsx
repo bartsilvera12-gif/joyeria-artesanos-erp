@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Star, Trash2, Upload, ImageOff } from "lucide-react";
@@ -141,7 +142,7 @@ export function ProductGaleria({ productoId, fallbackUrl, onPrincipalChange }: P
   }
 
   async function handleDelete(imagenId: string) {
-    if (!confirm("¿Eliminar esta imagen? No se puede deshacer.")) return;
+    if (!(await confirm({ message: "¿Eliminar esta imagen? No se puede deshacer.", variant: "danger", confirmText: "Aceptar" }))) return;
     setBusy(true);
     setError(null);
     try {

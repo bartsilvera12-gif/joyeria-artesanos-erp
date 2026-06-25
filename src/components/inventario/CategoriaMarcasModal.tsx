@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { X, Trash2, Plus } from "lucide-react";
@@ -132,7 +133,7 @@ export function CategoriaMarcasModal({ categoriaId, categoriaNombre, onClose }: 
   }
 
   async function handleQuitar(marcaId: string, marcaNombre: string) {
-    if (!confirm(`¿Quitar "${marcaNombre}" de esta categoría? La marca seguirá existiendo.`)) {
+    if (!(await confirm({ title: `¿Quitar "${marcaNombre}"?`, message: "Se quitará de esta categoría. La marca seguirá existiendo.", variant: "warning", confirmText: "Quitar" }))) {
       return;
     }
     setBusy(true);

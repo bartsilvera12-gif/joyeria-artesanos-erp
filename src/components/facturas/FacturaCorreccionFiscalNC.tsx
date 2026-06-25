@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -297,7 +298,7 @@ export function FacturaCorreccionFiscalNC({
   }
 
   async function anularBorrador(nc: NotaCreditoListItemDTO) {
-    if (!confirm("¿Anular esta nota de crédito en borrador? Podrás crear otra después.")) return;
+    if (!(await confirm({ message: "¿Anular esta nota de crédito en borrador? Podrás crear otra después.", variant: "danger", confirmText: "Aceptar" }))) return;
     setFlash(null);
     try {
       const res = await fetchWithSupabaseSession(`/api/facturas/${facturaId}/notas-credito/${nc.id}`, {

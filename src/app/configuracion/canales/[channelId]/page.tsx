@@ -1,4 +1,5 @@
 "use client";
+import { confirm,alert } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -53,7 +54,7 @@ export default function EditarCanalPage() {
   }, [allowed, channelId, load]);
 
   async function handleDelete() {
-    if (!channelId || !confirm("¿Eliminar este canal? Las conversaciones asociadas pueden quedar huérfanas.")) {
+    if (!channelId || !(await confirm({ message: "¿Eliminar este canal? Las conversaciones asociadas pueden quedar huérfanas.", variant: "danger", confirmText: "Aceptar" }))) {
       return;
     }
     setDeleting(true);
@@ -61,7 +62,7 @@ export default function EditarCanalPage() {
       await deleteChatChannel(channelId);
       router.push("/configuracion/canales");
     } catch (e) {
-      alert(e instanceof Error ? e.message : "No se pudo eliminar");
+      void alert({ message: e instanceof Error ? e.message : "No se pudo eliminar", variant: "warning" });
     } finally {
       setDeleting(false);
     }

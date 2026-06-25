@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
+import { confirm, alert } from "@/components/ui/dialog";
 import { getClientes } from "@/lib/clientes/storage";
 import type { Cliente } from "@/lib/clientes/types";
 import { Search, MapPin, Trash2, Send, Loader2, CheckCircle2, Clock, XCircle } from "lucide-react";
@@ -175,11 +176,15 @@ export default function BuscadorPage() {
   );
 
   async function cancelarPedido(p: MiPedido) {
-    const ok = window.confirm(
-      `¿Cancelar el pedido "${p.titulo}"?\n\n` +
-      `Total: ${fmtGs(p.total_estimado)} · ${p.items_count} item(s)\n\n` +
-      `El cajero ya no lo va a ver. Esta acción no se puede deshacer.`
-    );
+    const ok = await confirm({
+      title: `¿Cancelar el pedido "${p.titulo}"?`,
+      message:
+        `Total: ${fmtGs(p.total_estimado)} · ${p.items_count} item(s)\n\n` +
+        `El cajero ya no lo va a ver. Esta acción no se puede deshacer.`,
+      variant: "danger",
+      confirmText: "Sí, cancelar",
+      cancelText: "Volver",
+    });
     if (!ok) return;
     try {
       const r = await fetchWithSupabaseSession(`/api/pedidos-caja/${p.id}?motivo=cancelado+por+vendedor`, {
@@ -189,7 +194,11 @@ export default function BuscadorPage() {
       if (!r.ok || !j?.success) throw new Error(j?.error ?? `Error ${r.status}`);
       void refreshMisPedidos();
     } catch (e) {
-      window.alert(e instanceof Error ? e.message : "No se pudo cancelar el pedido.");
+      void alert({
+        title: "No se pudo cancelar",
+        message: e instanceof Error ? e.message : "No se pudo cancelar el pedido.",
+        variant: "danger",
+      });
     }
   }
 

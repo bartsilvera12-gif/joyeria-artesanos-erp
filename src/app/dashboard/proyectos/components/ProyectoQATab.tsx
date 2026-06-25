@@ -1,4 +1,5 @@
 "use client";
+import { confirm,prompt } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
@@ -291,7 +292,7 @@ export default function ProyectoQATab({ projectId, dataSchema, usuarios }: Props
   }
 
   async function renombrarGrupo(g: Grupo) {
-    const n = window.prompt("Nuevo nombre del grupo:", g.nombre);
+    const n = await prompt({ title: "Renombrar grupo", message: "Nuevo nombre del grupo:", defaultValue: g.nombre });
     if (!n || n.trim() === g.nombre) return;
     await call(`/api/proyectos/${projectId}/qa/grupos/${g.id}`, {
       method: "PATCH",
@@ -302,7 +303,12 @@ export default function ProyectoQATab({ projectId, dataSchema, usuarios }: Props
   }
 
   async function eliminarGrupo(g: Grupo) {
-    if (!window.confirm(`¿Eliminar el grupo "${g.nombre}" con todas sus etapas e ítems?`)) return;
+    if (!(await confirm({
+      title: `¿Eliminar el grupo "${g.nombre}"?`,
+      message: "Se eliminarán todas sus etapas e ítems. No se puede deshacer.",
+      variant: "danger",
+      confirmText: "Eliminar",
+    }))) return;
     await call(`/api/proyectos/${projectId}/qa/grupos/${g.id}`, { method: "DELETE" });
     await cargar();
   }
@@ -323,7 +329,7 @@ export default function ProyectoQATab({ projectId, dataSchema, usuarios }: Props
   }
 
   async function renombrarEtapa(e: Etapa) {
-    const n = window.prompt("Nuevo nombre de la etapa:", e.nombre);
+    const n = await prompt({ title: "Renombrar etapa", message: "Nuevo nombre de la etapa:", defaultValue: e.nombre });
     if (!n || n.trim() === e.nombre) return;
     await call(`/api/proyectos/${projectId}/qa/etapas/${e.id}`, {
       method: "PATCH",
@@ -334,7 +340,12 @@ export default function ProyectoQATab({ projectId, dataSchema, usuarios }: Props
   }
 
   async function eliminarEtapa(e: Etapa) {
-    if (!window.confirm(`¿Eliminar la etapa "${e.nombre}" con todos sus ítems?`)) return;
+    if (!(await confirm({
+      title: `¿Eliminar la etapa "${e.nombre}"?`,
+      message: "Se eliminarán todos sus ítems. No se puede deshacer.",
+      variant: "danger",
+      confirmText: "Eliminar",
+    }))) return;
     await call(`/api/proyectos/${projectId}/qa/etapas/${e.id}`, { method: "DELETE" });
     await cargar();
   }
@@ -364,7 +375,7 @@ export default function ProyectoQATab({ projectId, dataSchema, usuarios }: Props
   }
 
   async function renombrarItem(it: Item) {
-    const n = window.prompt("Editar texto del ítem:", it.texto);
+    const n = await prompt({ title: "Editar ítem", message: "Texto del ítem:", defaultValue: it.texto });
     if (!n || n.trim() === it.texto) return;
     await call(`/api/proyectos/${projectId}/qa/items/${it.id}`, {
       method: "PATCH",
@@ -384,7 +395,12 @@ export default function ProyectoQATab({ projectId, dataSchema, usuarios }: Props
   }
 
   async function eliminarItem(it: Item) {
-    if (!window.confirm("¿Eliminar este ítem?")) return;
+    if (!(await confirm({
+      title: "¿Eliminar este ítem?",
+      message: "Se eliminará el ítem. No se puede deshacer.",
+      variant: "danger",
+      confirmText: "Eliminar",
+    }))) return;
     await call(`/api/proyectos/${projectId}/qa/items/${it.id}`, { method: "DELETE" });
     await cargar();
   }
@@ -413,7 +429,12 @@ export default function ProyectoQATab({ projectId, dataSchema, usuarios }: Props
   }
 
   async function eliminarArchivo(it: Item, a: Archivo) {
-    if (!window.confirm(`¿Eliminar "${a.nombre}"?`)) return;
+    if (!(await confirm({
+      title: `¿Eliminar "${a.nombre}"?`,
+      message: "Se eliminará el archivo adjunto. No se puede deshacer.",
+      variant: "danger",
+      confirmText: "Eliminar",
+    }))) return;
     await call(`/api/proyectos/${projectId}/qa/items/${it.id}/archivos/${a.id}`, { method: "DELETE" });
     await cargar();
   }

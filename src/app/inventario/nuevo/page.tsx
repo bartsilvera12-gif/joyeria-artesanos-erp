@@ -1,4 +1,5 @@
 "use client";
+import { alert } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -387,13 +388,13 @@ export default function NuevoProductoPage() {
           if (!up.ok || !upJson?.success) {
             // Producto creado, imagen falló. No perder el producto: ir a editar con aviso.
             const msg = upJson?.error ?? "No se pudo subir la imagen.";
-            alert(`Producto creado correctamente, pero la imagen no pudo subirse: ${msg}\n\nPodés intentar subirla nuevamente desde la edición del producto.`);
+            void alert({ message: "Producto creado correctamente, pero la imagen no pudo subirse: ${msg}\n\nPodés intentar subirla nuevamente desde la edición del producto.", variant: "warning" });
             router.push(`/inventario/${guardado.id}/editar`);
             return;
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : "Error de red";
-          alert(`Producto creado correctamente, pero la imagen no pudo subirse: ${msg}\n\nPodés intentar subirla nuevamente desde la edición del producto.`);
+          void alert({ message: "Producto creado correctamente, pero la imagen no pudo subirse: ${msg}\n\nPodés intentar subirla nuevamente desde la edición del producto.", variant: "warning" });
           router.push(`/inventario/${guardado.id}/editar`);
           return;
         }

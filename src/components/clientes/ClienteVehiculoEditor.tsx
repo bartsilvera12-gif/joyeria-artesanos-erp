@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { Trash2, Plus, X, Car } from "lucide-react";
@@ -108,7 +109,12 @@ export default function ClienteVehiculoEditor({ clienteId, onCountChange }: Prop
   }
 
   async function handleDelete(vehId: string) {
-    if (!window.confirm("¿Eliminar este vehículo del cliente?")) return;
+    if (!(await confirm({
+      title: "¿Eliminar vehículo?",
+      message: "Se eliminará el vehículo del cliente.",
+      variant: "danger",
+      confirmText: "Eliminar",
+    }))) return;
     setError(null);
     try {
       const res = await fetch(

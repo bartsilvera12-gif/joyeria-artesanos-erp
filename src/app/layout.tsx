@@ -6,6 +6,7 @@ import DeviceRouter from "../shared/device/DeviceRouter";
 import SWRPersistedProvider from "../shared/swr/SWRPersistedProvider";
 import { ThemeProvider } from "../components/ThemeProvider";
 import AuthGuard from "../components/AuthGuard";
+import { DialogHost } from "../components/ui/dialog";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -40,6 +41,7 @@ export default function RootLayout({
                 mobile={<MobileAppShell>{children}</MobileAppShell>}
               />
             </AuthGuard>
+            <DialogHost />
           </SWRPersistedProvider>
         </ThemeProvider>
       </body>

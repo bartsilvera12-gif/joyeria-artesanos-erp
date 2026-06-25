@@ -1,4 +1,5 @@
 "use client";
+import { prompt } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -216,7 +217,7 @@ function FlowsListContent() {
 
   async function duplicateFlow(sourceFlowCode: string) {
     const suggested = `${sourceFlowCode}_copy`;
-    const newFlowCode = prompt("Nuevo flow_code para duplicar:", suggested)?.trim() || "";
+    const newFlowCode = (await prompt({ title: "Duplicar flujo", message: "Nuevo flow_code:", defaultValue: suggested }))?.trim() || "";
     if (!newFlowCode) return;
     setDuplicatingCode(sourceFlowCode);
     setError(null);

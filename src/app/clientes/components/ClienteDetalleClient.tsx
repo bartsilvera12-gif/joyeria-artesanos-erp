@@ -1,4 +1,5 @@
 "use client";
+import { alert } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -2798,7 +2799,7 @@ export default function ClienteDetalleClient({
               setGuardandoPago(false);
               if (!resPago.ok) {
                 // Incluye PAY_OLDEST_FIRST (debe pagar primero la factura más antigua).
-                window.alert(resPago.error || "No se pudo registrar el pago.");
+                void alert({ title: "No se pudo registrar el pago", message: resPago.error || "Intentalo de nuevo.", variant: "danger" });
                 return;
               }
               setModalPago(false);

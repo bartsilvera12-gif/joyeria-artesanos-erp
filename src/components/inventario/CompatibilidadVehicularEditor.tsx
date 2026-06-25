@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { Trash2, Plus, X } from "lucide-react";
@@ -119,7 +120,12 @@ export default function CompatibilidadVehicularEditor({ productoId, onCountChang
   }
 
   async function handleDelete(compatId: string) {
-    if (!window.confirm("¿Eliminar esta compatibilidad?")) return;
+    if (!(await confirm({
+      title: "¿Eliminar compatibilidad?",
+      message: "Se eliminará esta compatibilidad vehicular del producto.",
+      variant: "danger",
+      confirmText: "Eliminar",
+    }))) return;
     setError(null);
     try {
       const res = await fetch(

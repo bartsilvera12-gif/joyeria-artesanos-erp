@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -39,10 +40,13 @@ export default function AdminEmpresasPage() {
 
   async function handleEliminar(e: Empresa) {
     setErrorLista(null);
-    const ok = window.confirm(
-      `¿Eliminar la empresa «${e.nombre_empresa}»?\n\n` +
-        "Se borrarán usuarios del ERP, el esquema de datos de esa empresa (tablas tenant) y las cuentas de inicio de sesión asociadas en Auth. No se puede deshacer."
-    );
+    const ok = await confirm({
+      title: `¿Eliminar la empresa «${e.nombre_empresa}»?`,
+      message:
+        "Se borrarán usuarios del ERP, el esquema de datos de esa empresa (tablas tenant) y las cuentas de inicio de sesión asociadas en Auth. No se puede deshacer.",
+      variant: "danger",
+      confirmText: "Sí, eliminar",
+    });
     if (!ok) return;
     setEliminandoId(e.id);
     try {

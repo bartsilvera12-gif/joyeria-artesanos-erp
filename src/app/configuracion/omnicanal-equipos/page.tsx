@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -99,7 +100,12 @@ export default function OmnicanalEquiposPage() {
   }
 
   async function handleRemove(id: string) {
-    if (!window.confirm("¿Quitar este agente del supervisor?")) return;
+    if (!(await confirm({
+      title: "¿Quitar agente?",
+      message: "El agente dejará de estar a cargo de este supervisor.",
+      variant: "warning",
+      confirmText: "Quitar",
+    }))) return;
     setError(null);
     try {
       await removeSupervisionLink(id);

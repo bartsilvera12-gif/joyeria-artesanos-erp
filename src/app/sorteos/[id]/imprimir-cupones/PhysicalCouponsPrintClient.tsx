@@ -1,4 +1,5 @@
 "use client";
+import { alert } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -400,9 +401,11 @@ export default function PhysicalCouponsPrintClient({
     /* Sin noopener en features: si no, algunos navegadores devuelven null y no podemos llamar a print(). */
     const w = window.open("", "_blank");
     if (!w) {
-      window.alert(
-        "No se pudo abrir la ventana de impresión. Permití ventanas emergentes para este sitio, o usá Ctrl+P en esta página."
-      );
+      void alert({
+        title: "No se pudo abrir la ventana de impresión",
+        message: "Permití ventanas emergentes para este sitio, o usá Ctrl+P en esta página.",
+        variant: "warning",
+      });
       return;
     }
     w.document.open();

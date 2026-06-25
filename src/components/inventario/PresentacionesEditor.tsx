@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithSupabaseSession } from "@/lib/api/fetch-with-supabase-session";
@@ -181,7 +182,7 @@ export function PresentacionesEditor({ productoId, fallbackImagenUrl, onChange }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("¿Eliminar esta presentación? No se puede deshacer.")) return;
+    if (!(await confirm({ message: "¿Eliminar esta presentación? No se puede deshacer.", variant: "danger", confirmText: "Aceptar" }))) return;
     setBusy(true);
     setError(null);
     try {

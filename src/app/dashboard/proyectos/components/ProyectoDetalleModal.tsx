@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import { useCallback, useEffect, useState } from "react";
 import ProyectoDetalleInner from "./ProyectoDetalleInner";
@@ -20,9 +21,16 @@ export default function ProyectoDetalleModal({
     if (!open) setDirty(false);
   }, [open]);
 
-  const requestClose = useCallback(() => {
+  const requestClose = useCallback(async () => {
     if (dirty) {
-      if (!window.confirm("Hay cambios sin guardar en Datos. ¿Cerrar igualmente?")) return;
+      const ok = await confirm({
+        title: "Hay cambios sin guardar",
+        message: "Tenés cambios sin guardar en Datos. ¿Cerrar igualmente?",
+        variant: "warning",
+        confirmText: "Cerrar sin guardar",
+        cancelText: "Seguir editando",
+      });
+      if (!ok) return;
     }
     onClose();
   }, [dirty, onClose]);

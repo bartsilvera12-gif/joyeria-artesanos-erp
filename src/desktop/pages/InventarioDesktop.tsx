@@ -1,4 +1,5 @@
 "use client";
+import { confirm,alert } from "@/components/ui/dialog";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
@@ -117,9 +118,7 @@ export default function InventarioPage() {
         console.error("[InventarioDesktop] toggleFlag fallo", err);
         // Revertir: traer el estado real del backend.
         setRefreshKey((k) => k + 1);
-        if (typeof window !== "undefined") {
-          window.alert("No se pudo actualizar el producto. Probá de nuevo.");
-        }
+        void alert({ title: "No se pudo actualizar", message: "No se pudo actualizar el producto. Probá de nuevo.", variant: "danger" });
       } finally {
         marcarMutando(producto.id, false);
       }
@@ -130,12 +129,13 @@ export default function InventarioPage() {
   const borrarProducto = useCallback(
     async (producto: Producto) => {
       if (mutandoIds.has(producto.id)) return;
-      if (typeof window !== "undefined") {
-        const ok = window.confirm(
-          `¿Borrar "${producto.nombre}"? El producto quedará inactivo y dejará de aparecer en el catálogo.`,
-        );
-        if (!ok) return;
-      }
+      const ok = await confirm({
+        title: `¿Borrar "${producto.nombre}"?`,
+        message: "El producto quedará inactivo y dejará de aparecer en el catálogo.",
+        variant: "danger",
+        confirmText: "Borrar",
+      });
+      if (!ok) return;
       marcarMutando(producto.id, true);
       try {
         const res = await fetch(`/api/productos/${producto.id}`, {
@@ -149,9 +149,7 @@ export default function InventarioPage() {
         setRefreshKey((k) => k + 1);
       } catch (err) {
         console.error("[InventarioDesktop] borrarProducto fallo", err);
-        if (typeof window !== "undefined") {
-          window.alert("No se pudo borrar el producto. Probá de nuevo.");
-        }
+        void alert({ title: "No se pudo borrar", message: "No se pudo borrar el producto. Probá de nuevo.", variant: "danger" });
       } finally {
         marcarMutando(producto.id, false);
       }

@@ -1,4 +1,5 @@
 "use client";
+import { alert } from "@/components/ui/dialog";
 
 import { useEffect, useState } from "react";
 import MontoInput, { parseMontoInput } from "@/components/ui/MontoInput";
@@ -62,11 +63,11 @@ export function RegistrarPagoModal({
     e.preventDefault();
     const m = parseMontoInput(String(monto));
     if (m > f.saldo) {
-      window.alert("El monto del pago no puede superar el saldo pendiente de la factura.");
+      await alert({ title: "Monto inválido", message: "El monto del pago no puede superar el saldo pendiente de la factura.", variant: "warning" });
       return;
     }
     if (m <= 0) {
-      window.alert("Ingresá un monto mayor a cero.");
+      await alert({ title: "Monto inválido", message: "Ingresá un monto mayor a cero.", variant: "warning" });
       return;
     }
     setGuardando(true);
@@ -82,7 +83,7 @@ export function RegistrarPagoModal({
       await Promise.resolve(onExito());
       onClose();
     } else {
-      window.alert("Error al registrar el pago. Verificá el monto y vuelve a intentar.");
+      await alert({ title: "Error al registrar el pago", message: "Verificá el monto y volvé a intentar.", variant: "danger" });
     }
   }
 

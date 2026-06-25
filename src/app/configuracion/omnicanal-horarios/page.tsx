@@ -1,4 +1,5 @@
 "use client";
+import { confirm } from "@/components/ui/dialog";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -124,7 +125,7 @@ export default function OmnicanalHorariosPage() {
   }
 
   async function eliminar(id: string) {
-    if (!confirm("¿Eliminar este horario? Los usuarios que lo usaban quedarán sin turno asignado.")) return;
+    if (!(await confirm({ message: "¿Eliminar este horario? Los usuarios que lo usaban quedarán sin turno asignado.", variant: "danger", confirmText: "Aceptar" }))) return;
     setSaving(true);
     try {
       await deleteOmnicanalWorkSchedule(id);
