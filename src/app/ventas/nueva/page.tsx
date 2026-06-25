@@ -667,7 +667,18 @@ export default function NuevaVentaPage() {
       // SOLO si la venta la genera (cliente con usa_nota_remision o toggle activo).
       const v = resultado.venta;
       const generaNota = v.genera_nota_remision === true || !!v.nota_remision_numero;
-      // Volver directo a la caja: sin modal post-venta intermedio.
+      // Abrir el ticket en una pestaña aparte (auto-print con ?auto=1) y
+      // volver a la caja. Si el navegador bloquea la pestaña, hacemos
+      // navigate normal a la URL del ticket como fallback antes de redirigir.
+      const ticketUrl = `/api/ventas/${v.id}/ticket?auto=1`;
+      let win: Window | null = null;
+      try { win = window.open(ticketUrl, "_blank", "noopener"); } catch { win = null; }
+      if (!win) {
+        // Popup bloqueado: redirigimos la propia pestaña al ticket. El
+        // usuario imprime y luego vuelve a /ventas con el back del browser.
+        window.location.href = ticketUrl;
+        return;
+      }
       router.push("/ventas");
       return;
     } finally {
