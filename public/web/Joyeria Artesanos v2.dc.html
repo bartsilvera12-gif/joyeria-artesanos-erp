@@ -596,25 +596,49 @@ class Component extends DCLogic {
   // Hidrata bestsellers desde el ERP. Si falla, queda el array hardcodeado.
   _hidratarDesdeERP = async () => {
     const ERP_PRODUCTOS_URL = 'https://joyeriaartesanos.neura.com.py/api/public/joyeria/productos';
+    // Map por nombre normalizado → imagen del catálogo original. Permite que
+    // los 7 productos seed conserven su foto cuando todavía no se subió
+    // imagen al ERP. Si el producto tiene imagen_url, esa tiene prioridad.
+    const IMG_POR_NOMBRE = {
+      'cadena crucifijo':     './uploads/joyeria artesanosss.jpeg',
+      'cadena medalla':       './uploads/joyeriia artesanos.jpeg',
+      'cadena enchapada oro': './uploads/precio 240.000gs.jpeg',
+      'rosarios':             './uploads/joyeria artesanoss.jpeg',
+      'anillo diamante':      './uploads/precio 1.900.000gs.jpeg',
+      'anillos color':        './uploads/precio 570.000gs cada uno.jpeg',
+      'cadenas familia':      './uploads/joyeria artesanos.jpeg',
+    };
+    const FALLBACK_IMG = './uploads/joyeria artesanos.jpeg';
+    const norm = (s) => String(s || '').trim().toLowerCase();
+
     try {
       const res = await fetch(ERP_PRODUCTOS_URL, { headers: { 'Accept': 'application/json' } });
       if (!res.ok) return;
       const json = await res.json();
       const list = Array.isArray(json.productos) ? json.productos : [];
       if (!list.length) return;
-      const bestsellers = list.slice(0, 7).map((p, i) => ({
-        id: 'erp-' + p.id,
-        name: p.nombre,
-        material: p.marca || '',
-        desc: p.descripcion || '',
-        badge: p.destacado ? 'Top' : '',
-        price: Number(p.precio_oferta || p.precio || 0),
-        img: p.imagen_url || './uploads/joyeria artesanos.jpeg',
-        idx: i,
-        slot: 'ja2-best-' + i,
-        priceFmt: new Intl.NumberFormat('es-PY').format(Number(p.precio_oferta || p.precio || 0)),
-      }));
-      bestsellers.forEach((b, i) => {
+
+      // SOLO destacados para "Más vendidas". Si no hay destacados, no
+      // pisamos el array hardcoded (deja la sección visible con seed).
+      const destacados = list.filter(p => p && p.destacado === true);
+      if (!destacados.length) return;
+
+      const bestsellers = destacados.slice(0, 24).map((p, i) => {
+        const fallbackImg = IMG_POR_NOMBRE[norm(p.nombre)] || FALLBACK_IMG;
+        return {
+          id: 'erp-' + p.id,
+          name: p.nombre,
+          material: p.marca || '',
+          desc: p.descripcion || '',
+          badge: 'Top',
+          price: Number(p.precio_oferta || p.precio || 0),
+          img: p.imagen_url || fallbackImg,
+          idx: i,
+          slot: 'ja2-best-' + i,
+          priceFmt: new Intl.NumberFormat('es-PY').format(Number(p.precio_oferta || p.precio || 0)),
+        };
+      });
+      bestsellers.forEach((b) => {
         b.dataAttr = JSON.stringify({ id: b.id, name: b.name, material: b.material, desc: b.desc, price: b.price, img: b.img });
       });
       this._erpBestsellers = bestsellers;

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+@font-face{
+  font-family:'CommercialScript';
+  src:url('./fonts/CommercialScript-Regular.woff') format('woff');
+  font-weight:normal;font-style:normal;font-display:swap;
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;scroll-padding-top:96px;-webkit-text-size-adjust:100%;}
+body{margin:0;background:#0a0908;color:#efe9dd;font-family:'Jost',-apple-system,sans-serif;font-weight:300;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;}
+::selection{background:rgba(201,162,75,0.32);color:#fff;}
+a{color:inherit;text-decoration:none;}
+image-slot{--is-bg:#15130f;}
+::-webkit-scrollbar{width:10px;}
+::-webkit-scrollbar-track{background:#0a0908;}
+::-webkit-scrollbar-thumb{background:#3a3122;border-radius:10px;}
+::-webkit-scrollbar-thumb:hover{background:#574826;}
+@keyframes ja-float{0%,100%{transform:translateY(0) scale(1);opacity:.5;}50%{transform:translateY(-26px) scale(1.25);opacity:1;}}
+@keyframes ja-shimmer{0%{background-position:-180% 0;}100%{background-position:180% 0;}}
+@keyframes ja-sheen{0%{transform:translateX(-130%) skewX(-18deg);}60%,100%{transform:translateX(230%) skewX(-18deg);}}
+@keyframes ja-bob{0%,100%{transform:translateY(0);}50%{transform:translateY(8px);}}
+[data-menu-btn]{display:none;}
+[data-mnav]{display:none;}
+@media(max-width:880px){
+  [data-dnav]{display:none !important;}
+  [data-menu-btn]{display:inline-flex !important;}
+  [data-mnav]{display:flex !important;}
+}
+@media(max-width:640px){
+  [data-hero-actions]{flex-direction:column;align-items:stretch;}
+}
+</style>
+</helmet>
+
+<div data-screen-label="Joyería Artesanos" style="position:relative;width:100%;background:#0a0908;">
+
+  <!-- ===================== HEADER ===================== -->
+  <header id="ja-header" style="position:fixed;top:0;left:0;right:0;z-index:90;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:26px clamp(20px,6vw,72px);background:rgba(12,11,9,0.22);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-bottom:1px solid rgba(201,162,75,0);transition:padding .5s cubic-bezier(.22,.61,.36,1),background .5s ease,border-color .5s ease,box-shadow .5s ease;">
+    <a href="#inicio" style="display:flex;align-items:center;gap:12px;line-height:.8;">
+      <span style="font-family:'CommercialScript',cursive;font-size:clamp(30px,4vw,40px);background:linear-gradient(180deg,#f3dca0,#c9a24b 60%,#9c7a36);-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:6px;">Joyería Artesanos</span>
+    </a>
+    <nav data-dnav style="display:flex;align-items:center;gap:clamp(18px,2.4vw,40px);">
+      <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+        <a href="{{ n.href }}" style="position:relative;white-space:nowrap;font-size:13px;font-weight:400;letter-spacing:.13em;text-transform:uppercase;color:#cfc8ba;padding:6px 0;transition:color .35s ease;" style-hover="color:#e7c87a;">{{ n.label }}</a>
+      </sc-for>
+      <a href="{{ waLink }}" target="_blank" rel="noopener" style="position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:9px;padding:12px 22px;border:1px solid rgba(201,162,75,0.55);border-radius:2px;font-size:12.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#f3dca0;background:rgba(201,162,75,0.06);transition:background .4s ease,color .4s ease,box-shadow .4s ease,border-color .4s ease;" style-hover="background:rgba(201,162,75,0.16);box-shadow:0 0 28px -6px rgba(201,162,75,0.55);border-color:rgba(201,162,75,0.9);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.2-5.2A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+        WhatsApp
+      </a>
+    </nav>
+    <button data-menu-btn onClick="{{ toggleMenu }}" aria-label="Menú" style="display:none;align-items:center;justify-content:center;flex-direction:column;gap:5px;width:46px;height:46px;background:rgba(201,162,75,0.06);border:1px solid rgba(201,162,75,0.4);border-radius:2px;cursor:pointer;">
+      <span style="display:block;width:20px;height:1.5px;background:#e7c87a;"></span>
+      <span style="display:block;width:20px;height:1.5px;background:#e7c87a;"></span>
+      <span style="display:block;width:14px;height:1.5px;background:#e7c87a;"></span>
+    </button>
+  </header>
+
+  <!-- Mobile drawer -->
+  <div data-mnav style="position:fixed;top:0;left:0;right:0;z-index:89;flex-direction:column;gap:6px;padding:96px clamp(20px,6vw,72px) 34px;background:rgba(9,8,7,0.97);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid rgba(201,162,75,0.22);transition:transform .55s cubic-bezier(.22,.61,.36,1),opacity .4s ease;transform:{{ mnavTransform }};opacity:{{ mnavOpacity }};">
+    <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+      <a href="{{ n.href }}" onClick="{{ closeMenu }}" style="padding:14px 0;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#d8d1c3;border-bottom:1px solid rgba(201,162,75,0.1);">{{ n.label }}</a>
+    </sc-for>
+    <a href="{{ waLink }}" target="_blank" rel="noopener" onClick="{{ closeMenu }}" style="margin-top:20px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:15px 22px;border-radius:2px;font-size:13px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 55%,#a17e38);">Consultar por WhatsApp</a>
+  </div>
+
+  <!-- ===================== HERO ===================== -->
+  <section id="inicio" style="position:relative;min-height:100svh;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:140px clamp(20px,6vw,72px) 90px;">
+    <image-slot id="ja-hero-bg" shape="rect" fit="cover" placeholder="Arrastrá una imagen de fondo" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.42;filter:saturate(.85) brightness(.7);"></image-slot>
+    <div style="position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 0%,rgba(201,162,75,0.16),rgba(10,9,8,0) 55%),linear-gradient(180deg,rgba(10,9,8,0.55),rgba(10,9,8,0.82) 55%,#0a0908);"></div>
+    <!-- fine vertical hairlines -->
+    <div style="position:absolute;inset:0;background-image:linear-gradient(90deg,rgba(201,162,75,0.05) 1px,transparent 1px);background-size:min(20vw,180px) 100%;background-position:center;opacity:.5;mask-image:radial-gradient(70% 70% at 50% 45%,#000,transparent);-webkit-mask-image:radial-gradient(70% 70% at 50% 45%,#000,transparent);"></div>
+    <!-- particles -->
+    <div style="position:absolute;inset:0;pointer-events:none;">
+      <span style="position:absolute;left:14%;top:30%;width:4px;height:4px;border-radius:50%;background:#e7c87a;box-shadow:0 0 10px 1px rgba(231,200,122,.8);animation:ja-float 7s ease-in-out infinite;"></span>
+      <span style="position:absolute;left:82%;top:24%;width:3px;height:3px;border-radius:50%;background:#e7c87a;box-shadow:0 0 8px 1px rgba(231,200,122,.7);animation:ja-float 9s ease-in-out infinite .8s;"></span>
+      <span style="position:absolute;left:70%;top:64%;width:5px;height:5px;border-radius:50%;background:#f3dca0;box-shadow:0 0 12px 2px rgba(231,200,122,.7);animation:ja-float 11s ease-in-out infinite 1.6s;"></span>
+      <span style="position:absolute;left:24%;top:70%;width:3px;height:3px;border-radius:50%;background:#e7c87a;box-shadow:0 0 8px 1px rgba(231,200,122,.7);animation:ja-float 8s ease-in-out infinite .4s;"></span>
+      <span style="position:absolute;left:46%;top:18%;width:2px;height:2px;border-radius:50%;background:#f3dca0;box-shadow:0 0 7px 1px rgba(231,200,122,.6);animation:ja-float 10s ease-in-out infinite 2.2s;"></span>
+    </div>
+
+    <div style="position:relative;z-index:2;max-width:1000px;text-align:center;display:flex;flex-direction:column;align-items:center;">
+      <div data-reveal data-delay="0" style="opacity:0;transform:translateY(26px);transition:opacity 1s cubic-bezier(.22,.61,.36,1),transform 1s cubic-bezier(.22,.61,.36,1);display:flex;align-items:center;gap:16px;margin-bottom:30px;">
+        <span style="width:42px;height:1px;background:linear-gradient(90deg,transparent,#c9a24b);"></span>
+        <span style="font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:#c9a24b;font-weight:400;">Joyería fina · Hecha a mano</span>
+        <span style="width:42px;height:1px;background:linear-gradient(270deg,transparent,#c9a24b);"></span>
+      </div>
+      <h1 data-reveal data-delay="1" style="opacity:0;transform:translateY(26px);transition:opacity 1.1s cubic-bezier(.22,.61,.36,1),transform 1.1s cubic-bezier(.22,.61,.36,1);margin:0;font-family:'CommercialScript',cursive;font-weight:400;line-height:.92;font-size:clamp(64px,13vw,180px);background:linear-gradient(180deg,#fbeecb 0%,#e7c87a 40%,#c9a24b 70%,#9c7a36 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 8px 40px rgba(201,162,75,0.25));padding:0 .12em;">Joyería Artesanos</h1>
+      <p data-reveal data-delay="2" style="opacity:0;transform:translateY(26px);transition:opacity 1.1s cubic-bezier(.22,.61,.36,1) .05s,transform 1.1s cubic-bezier(.22,.61,.36,1) .05s;margin:14px auto 0;max-width:620px;font-family:'Cormorant Garamond',serif;font-weight:400;font-style:italic;font-size:clamp(19px,2.4vw,27px);line-height:1.5;color:#d8d1c3;text-wrap:pretty;">Piezas únicas creadas con elegancia, detalle y tradición artesanal.</p>
+      <div data-hero-actions data-reveal data-delay="3" style="opacity:0;transform:translateY(26px);transition:opacity 1.1s cubic-bezier(.22,.61,.36,1) .1s,transform 1.1s cubic-bezier(.22,.61,.36,1) .1s;display:flex;gap:18px;margin-top:42px;flex-wrap:wrap;justify-content:center;">
+        <a href="#colecciones" style="position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:17px 38px;border-radius:2px;font-size:13px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 52%,#a17e38);box-shadow:0 14px 38px -16px rgba(201,162,75,0.8);transition:box-shadow .4s ease,transform .4s ease;" style-hover="box-shadow:0 18px 50px -14px rgba(201,162,75,0.95);transform:translateY(-2px);">
+          Ver colecciones
+          <span style="position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);animation:ja-sheen 4.5s ease-in-out infinite 1s;pointer-events:none;"></span>
+        </a>
+        <a href="{{ waLink }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:17px 38px;border:1px solid rgba(201,162,75,0.5);border-radius:2px;font-size:13px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#f3dca0;background:rgba(201,162,75,0.04);transition:background .4s ease,border-color .4s ease,box-shadow .4s ease;" style-hover="background:rgba(201,162,75,0.12);border-color:rgba(201,162,75,0.9);box-shadow:0 0 30px -8px rgba(201,162,75,0.6);">Consultar una pieza</a>
+      </div>
+    </div>
+
+    <a href="#colecciones" style="position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:2;display:flex;flex-direction:column;align-items:center;gap:10px;color:#9a9486;">
+      <span style="font-size:11px;letter-spacing:.32em;text-transform:uppercase;">Descubrí</span>
+      <span style="display:block;width:1px;height:46px;background:linear-gradient(180deg,#c9a24b,transparent);animation:ja-bob 2.4s ease-in-out infinite;"></span>
+    </a>
+  </section>
+
+  <!-- ===================== COLECCIONES ===================== -->
+  <section id="colecciones" style="position:relative;padding:clamp(80px,10vw,140px) clamp(20px,6vw,72px);max-width:1320px;margin:0 auto;">
+    <div data-reveal data-delay="0" style="opacity:0;transform:translateY(26px);transition:opacity 1s cubic-bezier(.22,.61,.36,1),transform 1s cubic-bezier(.22,.61,.36,1);text-align:center;margin-bottom:clamp(48px,6vw,80px);">
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:20px;">
+        <span style="width:34px;height:1px;background:#5a4a26;"></span>
+        <span style="font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#c9a24b;">Explorá nuestro mundo</span>
+        <span style="width:34px;height:1px;background:#5a4a26;"></span>
+      </div>
+      <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(34px,5.2vw,62px);line-height:1.05;color:#f2ecdf;letter-spacing:.5px;">Nuestras <span style="font-family:'CommercialScript',cursive;font-weight:400;background:linear-gradient(180deg,#f3dca0,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.28em;padding:0 .08em;">Colecciones</span></h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:clamp(18px,2vw,30px);">
+      <sc-for list="{{ collections }}" as="c" hint-placeholder-count="6">
+        <a href="{{ waLink }}" target="_blank" rel="noopener" data-reveal data-delay="{{ c.idx }}" style="opacity:0;transform:translateY(30px);transition:opacity .9s cubic-bezier(.22,.61,.36,1),transform .9s cubic-bezier(.22,.61,.36,1),border-color .5s ease,box-shadow .5s ease;position:relative;display:flex;flex-direction:column;border:1px solid rgba(201,162,75,0.16);border-radius:3px;background:linear-gradient(180deg,#141109,#0e0c08);overflow:hidden;" style-hover="border-color:rgba(201,162,75,0.55);box-shadow:0 30px 70px -40px rgba(0,0,0,0.95),0 0 40px -18px rgba(201,162,75,0.5);transform:translateY(-6px);">
+          <div style="position:relative;overflow:hidden;aspect-ratio:4/5;">
+            <image-slot id="{{ c.slot }}" shape="rect" fit="cover" placeholder="{{ c.name }}" style="width:100%;height:100%;transition:transform 1.1s cubic-bezier(.22,.61,.36,1);" style-hover="transform:scale(1.07);"></image-slot>
+            <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,transparent 45%,rgba(10,9,8,0.85));"></div>
+            <span style="position:absolute;top:14px;left:14px;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b);padding:5px 11px;border-radius:1px;">{{ c.tag }}</span>
+          </div>
+          <div style="padding:22px 24px 26px;display:flex;flex-direction:column;gap:8px;">
+            <h3 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:26px;color:#f2ecdf;">{{ c.name }}</h3>
+            <span style="width:34px;height:1px;background:#c9a24b;"></span>
+            <p style="margin:4px 0 0;font-size:14px;line-height:1.55;color:#9a9488;font-weight:300;">{{ c.desc }}</p>
+            <span style="margin-top:14px;display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#c9a24b;">Ver colección
+              <svg width="16" height="10" viewBox="0 0 24 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 7h21M16 1l6 6-6 6"/></svg>
+            </span>
+          </div>
+        </a>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- gold hairline divider -->
+  <div style="max-width:1320px;margin:0 auto;padding:0 clamp(20px,6vw,72px);"><div style="height:1px;background:linear-gradient(90deg,transparent,rgba(201,162,75,0.4),transparent);"></div></div>
+
+  <!-- ===================== PRODUCTOS DESTACADOS ===================== -->
+  <section style="position:relative;padding:clamp(80px,10vw,140px) clamp(20px,6vw,72px);max-width:1320px;margin:0 auto;">
+    <div data-reveal data-delay="0" style="opacity:0;transform:translateY(26px);transition:opacity 1s cubic-bezier(.22,.61,.36,1),transform 1s cubic-bezier(.22,.61,.36,1);display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:clamp(48px,6vw,80px);">
+      <span style="font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#c9a24b;margin-bottom:18px;">Selección de la casa</span>
+      <h2 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(34px,5.2vw,62px);line-height:1.05;color:#f2ecdf;">Piezas <span style="font-family:'CommercialScript',cursive;font-weight:400;background:linear-gradient(180deg,#f3dca0,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.28em;">destacadas</span></h2>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:clamp(18px,2vw,28px);">
+      <sc-for list="{{ products }}" as="p" hint-placeholder-count="4">
+        <div data-reveal data-delay="{{ p.idx }}" style="opacity:0;transform:translateY(30px);transition:opacity .9s cubic-bezier(.22,.61,.36,1),transform .9s cubic-bezier(.22,.61,.36,1),box-shadow .5s ease,border-color .5s ease;position:relative;display:flex;flex-direction:column;border:1px solid rgba(255,255,255,0.05);border-radius:3px;background:#100d09;overflow:hidden;" style-hover="border-color:rgba(201,162,75,0.45);box-shadow:0 30px 70px -42px rgba(0,0,0,0.95);transform:translateY(-5px);">
+          <div style="position:relative;overflow:hidden;aspect-ratio:1/1;background:#15120c;">
+            <image-slot id="{{ p.slot }}" shape="rect" fit="cover" placeholder="{{ p.name }}" style="width:100%;height:100%;transition:transform 1.1s cubic-bezier(.22,.61,.36,1);" style-hover="transform:scale(1.06);"></image-slot>
+          </div>
+          <div style="padding:24px 24px 28px;display:flex;flex-direction:column;flex:1;">
+            <span style="font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#c9a24b;margin-bottom:10px;">{{ p.material }}</span>
+            <h3 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:25px;color:#f2ecdf;">{{ p.name }}</h3>
+            <p style="margin:10px 0 0;font-size:14px;line-height:1.6;color:#928c80;font-weight:300;flex:1;">{{ p.desc }}</p>
+            <a href="{{ waLink }}" target="_blank" rel="noopener" style="margin-top:22px;display:inline-flex;align-items:center;justify-content:center;gap:9px;padding:13px 20px;border:1px solid rgba(201,162,75,0.45);border-radius:2px;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#f3dca0;transition:background .4s ease,box-shadow .4s ease;" style-hover="background:rgba(201,162,75,0.12);box-shadow:0 0 26px -8px rgba(201,162,75,0.6);">Consultar</a>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ===================== ARTE DETRÁS DE CADA PIEZA ===================== -->
+  <section id="arte" style="position:relative;background:linear-gradient(180deg,#0c0a07,#0a0908);padding:clamp(80px,10vw,150px) clamp(20px,6vw,72px);">
+    <div style="max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:clamp(40px,6vw,90px);align-items:center;">
+      <div data-reveal data-delay="0" style="opacity:0;transform:translateY(30px);transition:opacity 1s cubic-bezier(.22,.61,.36,1),transform 1s cubic-bezier(.22,.61,.36,1);position:relative;">
+        <div style="position:absolute;top:-16px;left:-16px;right:34px;bottom:34px;border:1px solid rgba(201,162,75,0.32);border-radius:3px;pointer-events:none;"></div>
+        <div style="position:relative;overflow:hidden;border-radius:3px;aspect-ratio:4/5;box-shadow:0 40px 90px -50px rgba(0,0,0,0.95);">
+          <image-slot id="ja-arte" shape="rect" fit="cover" placeholder="Imagen del taller / artesanía" style="width:100%;height:100%;"></image-slot>
+        </div>
+      </div>
+      <div data-reveal data-delay="1" style="opacity:0;transform:translateY(30px);transition:opacity 1.05s cubic-bezier(.22,.61,.36,1),transform 1.05s cubic-bezier(.22,.61,.36,1);">
+        <span style="font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#c9a24b;">Sobre nosotros</span>
+        <h2 style="margin:18px 0 0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(32px,4.6vw,56px);line-height:1.08;color:#f2ecdf;">El <span style="font-family:'CommercialScript',cursive;font-weight:400;background:linear-gradient(180deg,#f3dca0,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.3em;">arte</span> detrás de cada pieza</h2>
+        <p style="margin:24px 0 0;font-size:16px;line-height:1.8;color:#b3ac9f;font-weight:300;max-width:520px;text-wrap:pretty;">Cada joya nace de horas de trabajo manual, paciencia y oficio. Seleccionamos los mejores materiales y cuidamos cada engaste, cada curva y cada reflejo para que la pieza tenga identidad propia.</p>
+        <p style="margin:16px 0 0;font-size:16px;line-height:1.8;color:#b3ac9f;font-weight:300;max-width:520px;text-wrap:pretty;">No fabricamos en serie: creamos objetos para acompañar momentos, herencias y celebraciones. Esa es la diferencia de lo hecho a mano.</p>
+        <div style="display:flex;flex-direction:column;gap:16px;margin-top:30px;">
+          <sc-for list="{{ craftPoints }}" as="cp" hint-placeholder-count="3">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <span style="flex:none;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid rgba(201,162,75,0.4);border-radius:50%;color:#c9a24b;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </span>
+              <span style="font-size:15px;color:#d8d1c3;font-weight:300;letter-spacing:.01em;">{{ cp }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <p style="margin:34px 0 0;font-family:'CommercialScript',cursive;font-size:40px;line-height:.9;background:linear-gradient(180deg,#f3dca0,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent;">Joyería Artesanos</p>
+        <span style="display:block;margin-top:4px;font-size:11px;letter-spacing:.28em;text-transform:uppercase;color:#7e7768;">Taller · Desde el primer boceto</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== EXPERIENCIA PREMIUM ===================== -->
+  <section id="sobre" style="position:relative;padding:clamp(80px,10vw,140px) clamp(20px,6vw,72px);max-width:1320px;margin:0 auto;">
+    <div data-reveal data-delay="0" style="opacity:0;transform:translateY(26px);transition:opacity 1s cubic-bezier(.22,.61,.36,1),transform 1s cubic-bezier(.22,.61,.36,1);text-align:center;margin-bottom:clamp(48px,6vw,72px);">
+      <span style="font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#c9a24b;">La experiencia</span>
+      <h2 style="margin:16px 0 0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(32px,4.8vw,56px);color:#f2ecdf;">Una atención a la altura de la pieza</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:clamp(16px,2vw,26px);">
+      <sc-for list="{{ experiences }}" as="e" hint-placeholder-count="4">
+        <div data-reveal data-delay="{{ e.idx }}" style="opacity:0;transform:translateY(28px);transition:opacity .9s cubic-bezier(.22,.61,.36,1),transform .9s cubic-bezier(.22,.61,.36,1),border-color .5s ease,background .5s ease;display:flex;flex-direction:column;gap:16px;padding:36px 28px;border:1px solid rgba(201,162,75,0.14);border-radius:3px;background:linear-gradient(180deg,#120f0a,#0d0b08);" style-hover="border-color:rgba(201,162,75,0.45);background:linear-gradient(180deg,#171309,#100d08);">
+          <span style="display:flex;align-items:center;justify-content:center;width:56px;height:56px;border:1px solid rgba(201,162,75,0.4);border-radius:50%;color:#e7c87a;">
+            <span style="width:26px;height:26px;display:block;" data-icon="{{ e.icon }}"></span>
+          </span>
+          <h3 style="margin:0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:22px;color:#f2ecdf;">{{ e.title }}</h3>
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#928c80;font-weight:300;">{{ e.desc }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ===================== GALERÍA EDITORIAL ===================== -->
+  <section style="position:relative;padding:clamp(70px,9vw,130px) clamp(20px,6vw,72px);max-width:1320px;margin:0 auto;">
+    <div data-reveal data-delay="0" style="opacity:0;transform:translateY(26px);transition:opacity 1s cubic-bezier(.22,.61,.36,1),transform 1s cubic-bezier(.22,.61,.36,1);display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:clamp(34px,4vw,56px);">
+      <div>
+        <span style="font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#c9a24b;">Editorial</span>
+        <h2 style="margin:14px 0 0;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(32px,4.6vw,54px);color:#f2ecdf;">Galería</h2>
+      </div>
+      <p style="margin:0;max-width:340px;font-size:14px;line-height:1.7;color:#928c80;font-weight:300;">Detalles, texturas y reflejos. Una mirada cercana al oficio y a las piezas terminadas.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:140px;gap:clamp(10px,1.4vw,18px);">
+      <sc-for list="{{ gallery }}" as="g" hint-placeholder-count="6">
+        <div data-reveal data-delay="{{ g.idx }}" style="opacity:0;transform:translateY(28px);transition:opacity .9s cubic-bezier(.22,.61,.36,1),transform .9s cubic-bezier(.22,.61,.36,1),box-shadow .5s ease;position:relative;overflow:hidden;border-radius:3px;border:1px solid rgba(201,162,75,0.12);grid-column:span {{ g.cspan }};grid-row:span {{ g.rspan }};" style-hover="box-shadow:0 30px 60px -36px rgba(0,0,0,0.95),0 0 0 1px rgba(201,162,75,0.4) inset;">
+          <image-slot id="{{ g.slot }}" shape="rect" fit="cover" placeholder="{{ g.label }}" style="width:100%;height:100%;transition:transform 1.2s cubic-bezier(.22,.61,.36,1);" style-hover="transform:scale(1.07);"></image-slot>
+          <div style="position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,transparent 55%,rgba(8,7,5,0.78));"></div>
+          <span style="position:absolute;left:16px;bottom:14px;pointer-events:none;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:#e7c87a;">{{ g.label }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ===================== CTA FINAL ===================== -->
+  <section id="contacto" style="position:relative;padding:clamp(30px,6vw,80px) clamp(20px,6vw,72px) clamp(70px,9vw,120px);">
+    <div data-reveal data-delay="0" style="opacity:0;transform:translateY(30px);transition:opacity 1.1s cubic-bezier(.22,.61,.36,1),transform 1.1s cubic-bezier(.22,.61,.36,1);position:relative;overflow:hidden;max-width:1180px;margin:0 auto;border:1px solid rgba(201,162,75,0.28);border-radius:4px;background:radial-gradient(110% 130% at 50% 0%,rgba(201,162,75,0.16),rgba(10,9,8,0) 55%),linear-gradient(180deg,#0e0b07,#0a0908);padding:clamp(54px,8vw,110px) clamp(24px,6vw,80px);text-align:center;">
+      <div style="position:absolute;inset:0;pointer-events:none;">
+        <span style="position:absolute;left:18%;top:30%;width:3px;height:3px;border-radius:50%;background:#e7c87a;box-shadow:0 0 9px 1px rgba(231,200,122,.7);animation:ja-float 8s ease-in-out infinite;"></span>
+        <span style="position:absolute;left:80%;top:54%;width:4px;height:4px;border-radius:50%;background:#f3dca0;box-shadow:0 0 11px 1px rgba(231,200,122,.7);animation:ja-float 10s ease-in-out infinite 1s;"></span>
+      </div>
+      <span style="position:relative;font-size:12px;letter-spacing:.42em;text-transform:uppercase;color:#c9a24b;">Tu próxima joya</span>
+      <h2 style="position:relative;margin:22px auto 0;max-width:760px;font-family:'Cormorant Garamond',serif;font-weight:500;font-size:clamp(34px,5.6vw,68px);line-height:1.04;color:#f4eee2;">Creá una <span style="font-family:'CommercialScript',cursive;font-weight:400;background:linear-gradient(180deg,#fbeecb,#e7c87a 45%,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent;font-size:1.3em;padding:0 .06em;">joya</span> con historia propia</h2>
+      <p style="position:relative;margin:22px auto 0;max-width:520px;font-size:16px;line-height:1.7;color:#b3ac9f;font-weight:300;">Contanos qué tenés en mente. Diseñamos contigo una pieza única, a medida de tu historia.</p>
+      <a href="{{ waLink }}" target="_blank" rel="noopener" style="position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:11px;margin-top:38px;padding:18px 44px;border-radius:2px;font-size:13.5px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:#0c0a06;background:linear-gradient(120deg,#f3dca0,#c9a24b 52%,#a17e38);box-shadow:0 16px 44px -16px rgba(201,162,75,0.85);transition:transform .4s ease,box-shadow .4s ease;" style-hover="transform:translateY(-2px);box-shadow:0 22px 56px -14px rgba(201,162,75,1);">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.2-5.2A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+        Consultar por WhatsApp
+        <span style="position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.55),transparent);animation:ja-sheen 5s ease-in-out infinite 1.4s;pointer-events:none;"></span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer style="position:relative;border-top:1px solid rgba(201,162,75,0.18);background:#080705;padding:clamp(54px,7vw,84px) clamp(20px,6vw,72px) 36px;">
+    <div style="max-width:1280px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:clamp(34px,5vw,64px);">
+      <div style="max-width:340px;">
+        <span style="font-family:'CommercialScript',cursive;font-size:44px;line-height:.9;background:linear-gradient(180deg,#f3dca0,#c9a24b);-webkit-background-clip:text;background-clip:text;color:transparent;">Joyería Artesanos</span>
+        <p style="margin:18px 0 0;font-size:14px;line-height:1.7;color:#8b8578;font-weight:300;">Piezas únicas hechas a mano, con elegancia, detalle y tradición artesanal.</p>
+      </div>
+      <div>
+        <h4 style="margin:0 0 18px;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#c9a24b;font-weight:500;">Navegación</h4>
+        <div style="display:flex;flex-direction:column;gap:11px;">
+          <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+            <a href="{{ n.href }}" style="font-size:14px;color:#a39d90;font-weight:300;transition:color .3s ease;" style-hover="color:#e7c87a;">{{ n.label }}</a>
+          </sc-for>
+        </div>
+      </div>
+      <div>
+        <h4 style="margin:0 0 18px;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#c9a24b;font-weight:500;">Contacto</h4>
+        <div style="display:flex;flex-direction:column;gap:11px;font-size:14px;color:#a39d90;font-weight:300;">
+          <span>Buenos Aires, Argentina</span>
+          <a href="mailto:hola@joyeriaartesanos.com" style="transition:color .3s ease;" style-hover="color:#e7c87a;">hola@joyeriaartesanos.com</a>
+          <a href="{{ waLink }}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;transition:color .3s ease;" style-hover="color:#e7c87a;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-12.7 7.4L3 21l2.2-5.2A8.5 8.5 0 1 1 21 11.5Z"/></svg>
+            WhatsApp
+          </a>
+        </div>
+      </div>
+      <div>
+        <h4 style="margin:0 0 18px;font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:#c9a24b;font-weight:500;">Seguinos</h4>
+        <div style="display:flex;gap:12px;">
+          <sc-for list="{{ socials }}" as="s" hint-placeholder-count="3">
+            <a href="{{ s.href }}" target="_blank" rel="noopener" aria-label="{{ s.name }}" style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid rgba(201,162,75,0.28);border-radius:50%;color:#c9a24b;transition:background .35s ease,color .35s ease,border-color .35s ease;" style-hover="background:rgba(201,162,75,0.14);color:#f3dca0;border-color:rgba(201,162,75,0.6);">
+              <span style="width:18px;height:18px;display:block;" data-icon="{{ s.icon }}"></span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    <div style="max-width:1280px;margin:clamp(40px,5vw,64px) auto 0;padding-top:24px;border-top:1px solid rgba(201,162,75,0.1);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:#6f6a5e;letter-spacing:.04em;">© {{ year }} Joyería Artesanos · Todos los derechos reservados</span>
+      <span style="font-size:11px;letter-spacing:.26em;text-transform:uppercase;color:#5f5a50;">Hecho a mano, con detalle</span>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;whatsapp&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;5491100000000&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  state = { menuOpen: false };
+
+  get navItems(){
+    return [
+      { label:'Inicio', href:'#inicio' },
+      { label:'Colecciones', href:'#colecciones' },
+      { label:'Sobre Nosotros', href:'#sobre' },
+      { label:'Artesanía', href:'#arte' },
+      { label:'Contacto', href:'#contacto' },
+    ];
+  }
+
+  toggleMenu = () => this.setState(s => ({ menuOpen: !s.menuOpen }));
+  closeMenu = () => this.setState({ menuOpen: false });
+
+  componentDidMount(){
+    const phoneDefault = '5491100000000';
+    this._phone = (this.props.whatsapp || phoneDefault).replace(/[^0-9]/g,'') || phoneDefault;
+
+    // Header glass on scroll
+    this._onScroll = () => {
+      const h = document.getElementById('ja-header');
+      if(!h) return;
+      const s = window.scrollY > 40;
+      h.style.background = s ? 'rgba(9,8,6,0.78)' : 'rgba(12,11,9,0.22)';
+      h.style.backdropFilter = s ? 'blur(18px) saturate(1.3)' : 'blur(6px)';
+      h.style.webkitBackdropFilter = s ? 'blur(18px) saturate(1.3)' : 'blur(6px)';
+      h.style.borderBottomColor = s ? 'rgba(201,162,75,0.22)' : 'rgba(201,162,75,0)';
+      h.style.paddingTop = s ? '15px' : '26px';
+      h.style.paddingBottom = s ? '15px' : '26px';
+      h.style.boxShadow = s ? '0 20px 50px -30px rgba(0,0,0,0.95)' : 'none';
+    };
+    window.addEventListener('scroll', this._handleScroll, { passive:true });
+    window.addEventListener('resize', this._revealCheck, { passive:true });
+
+    // Inject line icons (experiences + socials)
+    this._injectIcons();
+
+    // Reveal driven by scroll-position check (robust: no IntersectionObserver dependency)
+    requestAnimationFrame(() => { this._onScroll(); this._revealCheck(); });
+    setTimeout(this._revealCheck, 80);
+  }
+
+  _handleScroll = () => { this._onScroll(); this._revealCheck(); };
+
+  _revealCheck = () => {
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const els = document.querySelectorAll('[data-reveal]');
+    els.forEach(el => {
+      if(el.getAttribute('data-shown') === '1') return;
+      const r = el.getBoundingClientRect();
+      if(r.top < vh * 0.92 && r.bottom > 0){
+        const d = parseFloat(el.getAttribute('data-delay') || '0');
+        el.style.transitionDelay = (d * 0.08) + 's';
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+        el.setAttribute('data-shown','1');
+      }
+    });
+  };
+
+  componentDidUpdate(){ this._injectIcons(); }
+
+  _injectIcons(){
+    const I = {
+      design: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>',
+      service: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+      craft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l4 6-10 13L2 9z"/><path d="M11 3 8 9l4 13 4-13-3-6"/><path d="M2 9h20"/></svg>',
+      quality: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+      ig: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>',
+      fb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>',
+      pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-1 3-4 3-4 3"/><path d="M12 2a8 8 0 0 0-3 15.4"/><path d="M9.5 17.5 12 8l2.5 9.5"/><circle cx="12" cy="2" r="0.1"/><path d="M12 2a8 8 0 0 1 0 16"/></svg>',
+    };
+    document.querySelectorAll('[data-icon]').forEach(el => {
+      const k = el.getAttribute('data-icon');
+      if(I[k] && el.getAttribute('data-iconset') !== '1'){
+        el.innerHTML = I[k];
+        el.setAttribute('data-iconset','1');
+        const svg = el.firstChild;
+        if(svg){ svg.style.width='100%'; svg.style.height='100%'; svg.style.display='block'; }
+      }
+    });
+  }
+
+  componentWillUnmount(){
+    window.removeEventListener('scroll', this._handleScroll);
+    window.removeEventListener('resize', this._revealCheck);
+  }
+
+  renderVals(){
+    const phone = ((this.props.whatsapp || '5491100000000').replace(/[^0-9]/g,'')) || '5491100000000';
+    const waLink = 'https://wa.me/' + phone + '?text=' + encodeURIComponent('Hola Joyería Artesanos, quisiera consultar por una pieza.');
+    const open = this.state.menuOpen;
+
+    const collections = [
+      { id:'anillos', name:'Anillos', tag:'Anillos', desc:'Compromiso, sellos y diseños a medida.' },
+      { id:'cadenas', name:'Cadenas', tag:'Cadenas', desc:'Eslabones nobles en oro y plata fina.' },
+      { id:'pulseras', name:'Pulseras', tag:'Pulseras', desc:'Tejidos delicados y piezas rígidas.' },
+      { id:'aros', name:'Aros', tag:'Aros', desc:'Desde lo mínimo hasta lo statement.' },
+      { id:'dijes', name:'Dijes', tag:'Dijes', desc:'Símbolos con significado propio.' },
+      { id:'personalizadas', name:'Piezas personalizadas', tag:'A medida', desc:'Creamos tu pieza desde cero, contigo.' },
+    ].map((c,i)=>({ ...c, idx:i, slot:'ja-col-'+c.id }));
+
+    const products = [
+      { name:'Anillo Aurora', material:'Oro 18k · Diamante', desc:'Solitario de talla brillante sobre banda pulida a mano.' },
+      { name:'Cadena Eslabón Real', material:'Oro amarillo 18k', desc:'Eslabones macizos con caída fluida y broche oculto.' },
+      { name:'Pulsera Hilo de Luz', material:'Oro blanco · Zafiros', desc:'Tejido fino que envuelve la muñeca con destellos sutiles.' },
+      { name:'Aros Gota', material:'Oro rosa 18k · Perla', desc:'Perla cultivada suspendida en un arco minimalista.' },
+    ].map((p,i)=>({ ...p, idx:i, slot:'ja-prod-'+i }));
+
+    const craftPoints = [
+      'Trabajo 100% artesanal, pieza por pieza',
+      'Materiales nobles seleccionados a mano',
+      'Cada joya con identidad y carácter propio',
+    ];
+
+    const experiences = [
+      { icon:'design', title:'Diseño personalizado', desc:'Creamos la pieza que imaginás, desde el primer boceto.' },
+      { icon:'service', title:'Atención exclusiva', desc:'Acompañamiento cercano en cada paso del proceso.' },
+      { icon:'craft', title:'Piezas artesanales', desc:'Oficio, paciencia y detalle en cada terminación.' },
+      { icon:'quality', title:'Calidad garantizada', desc:'Materiales nobles y acabados que perduran.' },
+    ].map((e,i)=>({ ...e, idx:i }));
+
+    const gallery = [
+      { label:'Engaste', cspan:4, rspan:2 },
+      { label:'Detalle', cspan:2, rspan:1 },
+      { label:'Taller', cspan:2, rspan:1 },
+      { label:'Pulido', cspan:2, rspan:2 },
+      { label:'Boceto', cspan:2, rspan:1 },
+      { label:'Terminación', cspan:2, rspan:1 },
+    ].map((g,i)=>({ ...g, idx:i, slot:'ja-gal-'+i }));
+
+    const socials = [
+      { name:'Instagram', icon:'ig', href:'#' },
+      { name:'Facebook', icon:'fb', href:'#' },
+      { name:'Pinterest', icon:'pin', href:'#' },
+    ];
+
+    return {
+      navItems: this.navItems,
+      waLink,
+      toggleMenu: this.toggleMenu,
+      closeMenu: this.closeMenu,
+      mnavTransform: open ? 'translateY(0)' : 'translateY(-105%)',
+      mnavOpacity: open ? '1' : '0',
+      collections, products, craftPoints, experiences, gallery, socials,
+      year: new Date().getFullYear(),
+    };
+  }
+}
+</script>
+</body>
+</html>

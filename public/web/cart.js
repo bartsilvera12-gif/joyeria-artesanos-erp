@@ -291,45 +291,14 @@
     pickerProduct = p;
     openLocalPicker('Elegí tu local', '¿A qué sucursal querés consultar esta pieza?');
   }
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const ERP_PEDIDOS_URL = '/api/public/joyeria/pedidos';
-
-  // POST al ERP. Devuelve { numero } si OK, null si la API no esta disponible
-  // o los IDs no son UUIDs (datos fallback hardcodeados). Errores de negocio
-  // (stock insuficiente, producto invalido) se loguean y NO bloquean el flujo
-  // WhatsApp — la web no debe romperse si el ERP esta caido.
-  async function registrarPedidoEnErp(localName){
-    if (!cart.every(it => UUID_RE.test(String(it.id || '')))) return null;
-    try {
-      const res = await fetch(ERP_PEDIDOS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cliente: { nombre: 'Cliente web', telefono: '-', notas: 'Local: ' + localName },
-          items: cart.map(it => ({ producto_id: it.id, cantidad: it.qty })),
-        }),
-      });
-      if (!res.ok) {
-        console.warn('[cart] ERP rechazo el pedido:', res.status, await res.text().catch(() => ''));
-        return null;
-      }
-      return await res.json();
-    } catch (err) {
-      console.warn('[cart] no se pudo registrar pedido en ERP:', err);
-      return null;
-    }
-  }
-
-  async function sendOrderToLocal(localKey){
+  function sendOrderToLocal(localKey){
     const phone = localKey === 'sl' ? WA_SAN_LORENZO : WA_MULTIPLAZA;
     const localName = localKey === 'sl' ? 'San Lorenzo' : 'Multiplaza';
     let msg;
     if(pickerMode === 'cart'){
       const lines = cart.map(it => `• ${it.name} (${it.material}) x${it.qty} — ₲ ${fmt(it.price*it.qty)}`).join('\n');
       const total = '₲ ' + fmt(totalAmount()) + ' PYG';
-      const pedido = await registrarPedidoEnErp(localName);
-      const refLine = pedido?.numero ? `\nN° pedido: ${pedido.numero}` : '';
-      msg = `Hola Joyería Artesanos (local ${localName}), quiero hacer un pedido:\n\n${lines}\n\nTotal: ${total}${refLine}`;
+      msg = `Hola Joyería Artesanos (local ${localName}), quiero hacer un pedido:\n\n${lines}\n\nTotal: ${total}`;
     } else if(pickerMode === 'product' && pickerProduct){
       const p = pickerProduct;
       msg = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por "${p.name}" (${p.material} · ₲ ${fmt(p.price)}).`;

@@ -1,0 +1,7 @@
+{
+  "cleanUrls": false,
+  "rewrites": [
+    { "source": "/", "destination": "/Joyeria Artesanos v2.dc.html" },
+    { "source": "/catalogo", "destination": "/catalogo.html" }
+  ]
+}
