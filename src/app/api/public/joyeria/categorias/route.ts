@@ -32,6 +32,7 @@ type CategoriaRow = {
   slug_web: string | null;
   descripcion_web: string | null;
   orden_web: number | null;
+  imagen_url: string | null;
 };
 
 export async function GET() {
@@ -48,7 +49,7 @@ export async function GET() {
   const supabase = createClient(url, key, { db: { schema: "joyeriaartesanos" } });
   const { data: cats, error } = await supabase
     .from("categorias_productos")
-    .select("id,nombre,slug_web,descripcion_web,orden_web")
+    .select("id,nombre,slug_web,descripcion_web,orden_web,imagen_url")
     .eq("activo", true)
     .eq("visible_web", true)
     .order("orden_web", { ascending: true, nullsFirst: false })
@@ -87,6 +88,7 @@ export async function GET() {
     nombre: c.nombre,
     slug: c.slug_web,
     descripcion: c.descripcion_web,
+    imagen_url: c.imagen_url,
     productos_count: countByCat.get(c.id) ?? 0,
   }));
 

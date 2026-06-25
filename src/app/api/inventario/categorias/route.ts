@@ -18,7 +18,7 @@ function trimNullable(v: unknown): string | null {
 
 const CATEGORIAS_COLS =
   "id,empresa_id,nombre,codigo,descripcion,parent_id,activo,created_at,updated_at," +
-  "slug_web,visible_web,orden_web,descripcion_web";
+  "slug_web,visible_web,orden_web,descripcion_web,imagen_path,imagen_url";
 
 export async function GET(request: NextRequest) {
   try {

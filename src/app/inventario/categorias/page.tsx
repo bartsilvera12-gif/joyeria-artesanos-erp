@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
 import ImportExcelButton from "@/components/ui/ImportExcelButton";
 import { useIsAdmin } from "@/lib/auth/use-is-admin";
@@ -13,6 +14,9 @@ interface Categoria {
   descripcion: string | null;
   parent_id: string | null;
   activo: boolean;
+  visible_web?: boolean;
+  imagen_path?: string | null;
+  imagen_url?: string | null;
 }
 
 export default function CategoriasProductosPage() {
@@ -83,6 +87,45 @@ export default function CategoriasProductosPage() {
     const j = await r.json();
     if (r.ok && j?.success) load();
     else setError(j?.error ?? "No se pudo actualizar.");
+  }
+
+  async function toggleVisibleWeb(cat: Categoria) {
+    const r = await fetch(`/api/inventario/categorias/${cat.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ visible_web: !cat.visible_web }),
+    });
+    const j = await r.json();
+    if (r.ok && j?.success) load();
+    else setError(j?.error ?? "No se pudo actualizar.");
+  }
+
+  async function subirImagen(cat: Categoria, file: File) {
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    const r = await fetch(`/api/inventario/categorias/${cat.id}/imagen`, {
+      method: "POST",
+      credentials: "include",
+      body: fd,
+    });
+    const j = await r.json();
+    if (r.ok && j?.success) load();
+    else setError(j?.error ?? "No se pudo subir la imagen.");
+  }
+
+  async function quitarImagen(cat: Categoria) {
+    const ok = window.confirm(`¿Quitar la imagen de "${cat.nombre}"?`);
+    if (!ok) return;
+    setError(null);
+    const r = await fetch(`/api/inventario/categorias/${cat.id}/imagen`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const j = await r.json();
+    if (r.ok && j?.success) load();
+    else setError(j?.error ?? "No se pudo quitar la imagen.");
   }
 
   async function borrar(cat: Categoria) {
@@ -193,10 +236,12 @@ export default function CategoriasProductosPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
               <tr>
+                <th className="text-left px-4 py-2 w-20">Imagen</th>
                 <th className="text-left px-4 py-2">Nombre</th>
                 <th className="text-left px-4 py-2">Código</th>
                 <th className="text-left px-4 py-2">Padre</th>
                 <th className="text-left px-4 py-2">Estado</th>
+                <th className="text-left px-4 py-2">Web</th>
                 <th className="px-4 py-2"></th>
               </tr>
             </thead>
@@ -204,34 +249,16 @@ export default function CategoriasProductosPage() {
               {items.map((c) => {
                 const parent = items.find((i) => i.id === c.parent_id);
                 return (
-                  <tr key={c.id} className="border-t border-slate-100">
-                    <td className="px-4 py-2 font-medium">{c.nombre}</td>
-                    <td className="px-4 py-2 text-gray-500">{c.codigo ?? "—"}</td>
-                    <td className="px-4 py-2 text-gray-500">{parent?.nombre ?? "—"}</td>
-                    <td className="px-4 py-2">
-                      {c.activo ? (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Activo</span>
-                      ) : (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Inactivo</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <div className="inline-flex items-center gap-3">
-                        <button
-                          onClick={() => toggleActivo(c)}
-                          className="text-xs text-sky-700 hover:text-sky-900 underline"
-                        >
-                          {c.activo ? "Desactivar" : "Activar"}
-                        </button>
-                        <button
-                          onClick={() => borrar(c)}
-                          className="text-xs text-red-600 hover:text-red-800 underline"
-                        >
-                          Borrar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                  <CategoriaRow
+                    key={c.id}
+                    cat={c}
+                    parentNombre={parent?.nombre ?? null}
+                    onToggleActivo={() => toggleActivo(c)}
+                    onToggleVisibleWeb={() => toggleVisibleWeb(c)}
+                    onSubirImagen={(f) => subirImagen(c, f)}
+                    onQuitarImagen={() => quitarImagen(c)}
+                    onBorrar={() => borrar(c)}
+                  />
                 );
               })}
             </tbody>
@@ -239,5 +266,107 @@ export default function CategoriasProductosPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function CategoriaRow({
+  cat,
+  parentNombre,
+  onToggleActivo,
+  onToggleVisibleWeb,
+  onSubirImagen,
+  onQuitarImagen,
+  onBorrar,
+}: {
+  cat: Categoria;
+  parentNombre: string | null;
+  onToggleActivo: () => void;
+  onToggleVisibleWeb: () => void;
+  onSubirImagen: (file: File) => void | Promise<void>;
+  onQuitarImagen: () => void;
+  onBorrar: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <tr className="border-t border-slate-100">
+      <td className="px-4 py-2">
+        <div className="relative h-12 w-12 rounded-md overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
+          {cat.imagen_url ? (
+            <Image
+              src={cat.imagen_url}
+              alt={cat.nombre}
+              fill
+              sizes="48px"
+              className="object-cover"
+              unoptimized
+            />
+          ) : (
+            <span className="text-[10px] text-slate-400">Sin img</span>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-2 font-medium">{cat.nombre}</td>
+      <td className="px-4 py-2 text-gray-500">{cat.codigo ?? "—"}</td>
+      <td className="px-4 py-2 text-gray-500">{parentNombre ?? "—"}</td>
+      <td className="px-4 py-2">
+        {cat.activo ? (
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Activo</span>
+        ) : (
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">Inactivo</span>
+        )}
+      </td>
+      <td className="px-4 py-2">
+        <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-slate-600">
+          <input
+            type="checkbox"
+            checked={cat.visible_web !== false}
+            onChange={onToggleVisibleWeb}
+            className="rounded border-slate-300"
+          />
+          Visible
+        </label>
+      </td>
+      <td className="px-4 py-2 text-right">
+        <div className="inline-flex items-center gap-3 flex-wrap justify-end">
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void onSubirImagen(f);
+              if (fileRef.current) fileRef.current.value = "";
+            }}
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="text-xs text-slate-600 hover:text-slate-900 underline"
+          >
+            {cat.imagen_url ? "Cambiar imagen" : "Subir imagen"}
+          </button>
+          {cat.imagen_url && (
+            <button
+              onClick={onQuitarImagen}
+              className="text-xs text-slate-500 hover:text-slate-700 underline"
+            >
+              Quitar
+            </button>
+          )}
+          <button
+            onClick={onToggleActivo}
+            className="text-xs text-sky-700 hover:text-sky-900 underline"
+          >
+            {cat.activo ? "Desactivar" : "Activar"}
+          </button>
+          <button
+            onClick={onBorrar}
+            className="text-xs text-red-600 hover:text-red-800 underline"
+          >
+            Borrar
+          </button>
+        </div>
+      </td>
+    </tr>
   );
 }
