@@ -33,6 +33,8 @@ export interface CreateVentaPgParams {
   subtotalDeclarado: number;
   montoIvaDeclarado: number;
   totalDeclarado: number;
+  /** Método de pago (módulo caja). Opcional; default null/efectivo. */
+  metodoPago?: "efectivo" | "tarjeta" | "transferencia" | null;
 }
 
 function qTable(schema: string, table: string): string {
@@ -89,6 +91,7 @@ export async function createVentaTransaccionalPg(
   }
 
   const ventasT = qTable(params.schema, "ventas");
+  const cajasT = qTable(params.schema, "cajas");
   const itemsT = qTable(params.schema, "ventas_items");
   const movT = qTable(params.schema, "movimientos_inventario");
   const prodT = qTable(params.schema, "productos");
@@ -183,14 +186,31 @@ export async function createVentaTransaccionalPg(
 
     const fechaIso = new Date().toISOString();
 
+    // Caja abierta actual (best-effort): si la tabla `cajas` aún no existe o
+    // no hay caja abierta, la venta se registra sin `caja_id`.
+    let cajaIdActual: string | null = null;
+    try {
+      const cQ = await client.query<{ id: string }>(
+        `SELECT id FROM ${cajasT}
+         WHERE empresa_id = $1 AND estado = 'abierta'
+         ORDER BY fecha_apertura DESC LIMIT 1`,
+        [params.empresaId]
+      );
+      cajaIdActual = cQ.rows[0]?.id ?? null;
+    } catch { /* tabla cajas inexistente: continuar sin enlace */ }
+
+    const metodoPago = params.metodoPago ?? null;
+
     const insVenta = await client.query<{ id: string }>(
       `
       INSERT INTO ${ventasT} (
         empresa_id, cliente_id, numero_control, moneda, tipo_cambio,
-        subtotal, monto_iva, total, estado, tipo_venta, plazo_dias, fecha, observaciones
+        subtotal, monto_iva, total, estado, tipo_venta, plazo_dias, fecha, observaciones,
+        caja_id, metodo_pago
       ) VALUES (
         $1, $2, $3, $4, $5,
-        $6, $7, $8, 'completada', $9, $10, $11::timestamptz, $12
+        $6, $7, $8, 'completada', $9, $10, $11::timestamptz, $12,
+        $13, $14
       )
       RETURNING id
       `,
@@ -207,6 +227,8 @@ export async function createVentaTransaccionalPg(
         params.plazoDias,
         fechaIso,
         params.observaciones,
+        cajaIdActual,
+        metodoPago,
       ]
     );
 

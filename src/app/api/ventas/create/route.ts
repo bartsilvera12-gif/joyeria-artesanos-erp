@@ -146,6 +146,12 @@ export async function POST(request: NextRequest) {
         ? null
         : String(o.observaciones).slice(0, 4000);
 
+    const metodoPagoRaw = o.metodo_pago;
+    const metodoPago =
+      metodoPagoRaw === "efectivo" || metodoPagoRaw === "tarjeta" || metodoPagoRaw === "transferencia"
+        ? metodoPagoRaw
+        : null;
+
     const subtotalDeclarado = Number(o.subtotal);
     const montoIvaDeclarado = Number(o.monto_iva);
     const totalDeclarado = Number(o.total);
@@ -173,6 +179,7 @@ export async function POST(request: NextRequest) {
       subtotalDeclarado,
       montoIvaDeclarado,
       totalDeclarado,
+      metodoPago,
     });
 
     let sub = 0;
