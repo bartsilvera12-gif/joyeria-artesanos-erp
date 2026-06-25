@@ -291,17 +291,31 @@
     pickerProduct = p;
     openLocalPicker('Elegí tu local', '¿A qué sucursal querés consultar esta pieza?');
   }
+  // Convierte una URL relativa (./uploads/x.jpg) en absoluta para que
+  // WhatsApp pueda hacer link preview con la imagen. Si ya es absoluta
+  // la devuelve tal cual.
+  function absUrl(u){
+    if(!u) return '';
+    try { return new URL(u, window.location.href).href; }
+    catch { return u; }
+  }
   function sendOrderToLocal(localKey){
     const phone = localKey === 'sl' ? WA_SAN_LORENZO : WA_MULTIPLAZA;
     const localName = localKey === 'sl' ? 'San Lorenzo' : 'Multiplaza';
     let msg;
     if(pickerMode === 'cart'){
-      const lines = cart.map(it => `• ${it.name} (${it.material}) x${it.qty} — ₲ ${fmt(it.price*it.qty)}`).join('\n');
+      const lines = cart.map(it => {
+        const img = absUrl(it.img);
+        const linea = `• ${it.name} (${it.material}) x${it.qty} — ₲ ${fmt(it.price*it.qty)}`;
+        return img ? `${linea}\n   ${img}` : linea;
+      }).join('\n\n');
       const total = '₲ ' + fmt(totalAmount()) + ' PYG';
       msg = `Hola Joyería Artesanos (local ${localName}), quiero hacer un pedido:\n\n${lines}\n\nTotal: ${total}`;
     } else if(pickerMode === 'product' && pickerProduct){
       const p = pickerProduct;
-      msg = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por "${p.name}" (${p.material} · ₲ ${fmt(p.price)}).`;
+      const img = absUrl(p.img);
+      const base = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por "${p.name}" (${p.material} · ₲ ${fmt(p.price)}).`;
+      msg = img ? `${base}\n\n${img}` : base;
     } else {
       msg = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por una pieza.`;
     }
