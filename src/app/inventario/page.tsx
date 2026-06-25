@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, Star, Trash2 } from "lucide-react";
+import Image from "next/image";
+import { Eye, EyeOff, Star, Trash2, ImageOff } from "lucide-react";
 import { getProductos } from "@/lib/inventario/storage";
+import { publicProductoImagenUrl } from "@/lib/inventario/imagen-storage";
 import type { Producto, MetodoValuacion } from "@/lib/inventario/types";
 import ExportExcelButton from "@/components/ui/ExportExcelButton";
 import ImportExcelButton from "@/components/ui/ImportExcelButton";
@@ -45,11 +47,13 @@ function margenColor(margen: number): string {
 }
 
 interface UbicacionMin { id: string; nombre: string; tipo: string }
+interface CategoriaMin { id: string; nombre: string }
 
 export default function InventarioPage() {
   const { isAdmin } = useIsAdmin();
   const [todos, setTodos] = useState<Producto[]>([]);
   const [ubicaciones, setUbicaciones] = useState<UbicacionMin[]>([]);
+  const [categorias, setCategorias] = useState<CategoriaMin[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Filtros por columna
@@ -96,8 +100,22 @@ export default function InventarioPage() {
         setUbicaciones((j.data?.ubicaciones ?? []) as UbicacionMin[]);
       })
       .catch(() => undefined);
+    // Categorías para mostrar el nombre en la tabla
+    fetch("/api/inventario/categorias?todas=1", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled || !j?.success) return;
+        setCategorias((j.data?.categorias ?? j.data ?? []) as CategoriaMin[]);
+      })
+      .catch(() => undefined);
     return () => { cancelled = true; };
   }, [refreshKey]);
+
+  const categoriaPorId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of categorias) m.set(c.id, c.nombre);
+    return m;
+  }, [categorias]);
 
   /** Patch optimista de un flag (activo/visible_web/destacado_web). */
   async function toggleFlag(p: Producto, flag: "activo" | "visible_web" | "destacado_web") {
@@ -615,8 +633,9 @@ export default function InventarioPage() {
 
             <thead>
               <tr className="bg-slate-50 text-slate-600 text-sm font-semibold">
+                <th className="py-3 pr-4 font-medium w-20"></th>
                 <th className="py-3 pr-4 font-medium">Nombre</th>
-                <th className="hidden py-3 pr-4 font-medium lg:table-cell">SKU</th>
+                <th className="hidden py-3 pr-4 font-medium lg:table-cell">Categoría</th>
                 <th className="py-3 pr-4 font-medium">Costo Prom.</th>
                 {tab !== "materia" && <th className="py-3 pr-4 font-medium">Precio Venta</th>}
                 <th className="py-3 pr-4 font-medium text-center">Stock actual</th>
@@ -635,7 +654,7 @@ export default function InventarioPage() {
             <tbody>
               {cargandoLista && (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
+                  <td colSpan={11} className="py-16 text-center text-sm text-slate-400">
                     <div className="inline-flex items-center gap-2">
                       <svg className="h-4 w-4 animate-spin text-[#4FAEB2]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
@@ -648,7 +667,7 @@ export default function InventarioPage() {
               )}
               {!cargandoLista && productosPagina.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="py-16 text-center text-sm text-slate-400">
+                  <td colSpan={11} className="py-16 text-center text-sm text-slate-400">
                     {todos.length === 0
                       ? "Todavía no cargaste productos. Probá con \"+ Nuevo producto\" o \"Importar Excel\"."
                       : "No hay productos que coincidan con los filtros aplicados."}
@@ -664,6 +683,30 @@ export default function InventarioPage() {
                   p.controla_stock === false && p.es_insumo !== true && p.modo_receta !== "produccion_previa";
                 return (
                   <tr key={p.id} className="border-b border-slate-200 last:border-0 hover:bg-[#4FAEB2]/[0.04] transition-colors">
+                    <td className="py-2 pr-4">
+                      {(() => {
+                        const url = p.imagen_url ?? publicProductoImagenUrl(p.imagen_path);
+                        if (url) {
+                          return (
+                            <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
+                              <Image
+                                src={url}
+                                alt={p.nombre}
+                                fill
+                                sizes="64px"
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-300">
+                            <ImageOff className="h-5 w-5" />
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="py-4 pr-4 font-medium text-gray-800">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span>{p.nombre}</span>
@@ -677,7 +720,9 @@ export default function InventarioPage() {
                         })()}
                       </div>
                     </td>
-                    <td className="hidden py-4 pr-4 font-mono text-gray-500 lg:table-cell">{p.sku}</td>
+                    <td className="hidden py-4 pr-4 text-gray-600 lg:table-cell">
+                      {categoriaPorId.get(p.categoria_principal_id ?? "") ?? <span className="text-slate-300">—</span>}
+                    </td>
                     <td className="py-4 pr-4 text-gray-700">{formatGs(p.costo_promedio)}</td>
                     {tab !== "materia" && <td className="py-4 pr-4 text-gray-700">{formatGs(p.precio_venta)}</td>}
                     <td className="py-4 pr-4 text-center">
