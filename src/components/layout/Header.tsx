@@ -21,7 +21,7 @@ function roleLabel(rol: string | null | undefined): string {
   const labels: Record<string, string> = {
     admin: "Admin",
     administrador: "Admin",
-    super_admin: "Super admin",
+    super_admin: "Admin",
     supervisor: "Supervisor",
     vendedor: "Vendedor",
     asesor: "Asesor",
