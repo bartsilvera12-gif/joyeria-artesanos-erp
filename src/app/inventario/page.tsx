@@ -54,6 +54,7 @@ export default function InventarioPage() {
   const [todos, setTodos] = useState<Producto[]>([]);
   const [ubicaciones, setUbicaciones] = useState<UbicacionMin[]>([]);
   const [categorias, setCategorias] = useState<CategoriaMin[]>([]);
+  const [imagenesPrincipales, setImagenesPrincipales] = useState<Map<string, string>>(new Map());
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Filtros por columna
@@ -106,6 +107,19 @@ export default function InventarioPage() {
       .then((j) => {
         if (cancelled || !j?.success) return;
         setCategorias((j.data?.categorias ?? j.data ?? []) as CategoriaMin[]);
+      })
+      .catch(() => undefined);
+    // Imagen principal de cada producto (galería — misma fuente que el web).
+    fetch("/api/inventario/imagenes-principales", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled || !j?.success) return;
+        const m = new Map<string, string>();
+        const items = (j.data?.items ?? []) as Array<{ producto_id: string; imagen_url: string | null }>;
+        for (const it of items) {
+          if (it.imagen_url) m.set(it.producto_id, it.imagen_url);
+        }
+        setImagenesPrincipales(m);
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
@@ -633,7 +647,7 @@ export default function InventarioPage() {
 
             <thead>
               <tr className="bg-slate-50 text-slate-600 text-sm font-semibold">
-                <th className="py-3 pr-4 font-medium w-32"></th>
+                <th className="py-3 pr-4 font-medium w-20"></th>
                 <th className="py-3 pr-4 font-medium">Nombre</th>
                 <th className="hidden py-3 pr-4 font-medium lg:table-cell">Categoría</th>
                 <th className="py-3 pr-4 font-medium">Costo Prom.</th>
@@ -685,15 +699,20 @@ export default function InventarioPage() {
                   <tr key={p.id} className="border-b border-slate-200 last:border-0 hover:bg-[#4FAEB2]/[0.04] transition-colors">
                     <td className="py-2 pr-4">
                       {(() => {
-                        const url = p.imagen_url ?? publicProductoImagenUrl(p.imagen_path);
+                        // Prefiere la imagen principal de la galería (la misma
+                        // que muestra el catálogo web); fallback a imagen legacy.
+                        const url =
+                          imagenesPrincipales.get(p.id) ??
+                          p.imagen_url ??
+                          publicProductoImagenUrl(p.imagen_path);
                         if (url) {
                           return (
-                            <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
+                            <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
                               <Image
                                 src={url}
                                 alt={p.nombre}
                                 fill
-                                sizes="96px"
+                                sizes="64px"
                                 className="object-cover"
                                 unoptimized
                               />
@@ -701,8 +720,8 @@ export default function InventarioPage() {
                           );
                         }
                         return (
-                          <div className="flex h-24 w-24 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-300">
-                            <ImageOff className="h-7 w-7" />
+                          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-300">
+                            <ImageOff className="h-5 w-5" />
                           </div>
                         );
                       })()}
