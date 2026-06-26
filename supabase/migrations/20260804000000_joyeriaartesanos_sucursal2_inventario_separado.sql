@@ -24,13 +24,9 @@ WHERE pss.sucursal_id = s.id
 
 -- 2. Bajar el rol del usuario sucursal2 a "usuario" (no admin) — así el
 -- resolutor de módulos aplica la intersección con usuario_modulos.
+-- Nota: el schema public.usuarios no se usa en este deploy, solo
+-- joyeriaartesanos.usuarios.
 UPDATE joyeriaartesanos.usuarios
-   SET rol = 'usuario'
- WHERE email = 'sucursal2@joyeriaartesanos.com'
-   AND COALESCE(rol, '') IN ('admin', 'administrador', 'super_admin', 'super admin', 'superadmin');
-
--- También en el catálogo público.usuarios (algunos paths leen de ahí).
-UPDATE public.usuarios
    SET rol = 'usuario'
  WHERE email = 'sucursal2@joyeriaartesanos.com'
    AND COALESCE(rol, '') IN ('admin', 'administrador', 'super_admin', 'super admin', 'superadmin');
