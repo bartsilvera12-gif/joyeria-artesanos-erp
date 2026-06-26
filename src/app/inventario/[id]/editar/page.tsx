@@ -10,6 +10,8 @@ import ProductImageUploader from "@/components/inventario/ProductImageUploader";
 import QuickNuevoProveedorModal from "@/components/proveedores/QuickNuevoProveedorModal";
 import SelectFromList from "@/components/inventario/SelectFromList";
 import ProveedoresCostos from "@/components/inventario/ProveedoresCostos";
+import StockPorSucursalBox from "@/components/inventario/StockPorSucursalBox";
+import { useIsAdmin } from "@/lib/auth/use-is-admin";
 import { ShoppingBag, Boxes, ClipboardList, type LucideIcon } from "lucide-react";
 
 // Opciones estándar de unidad de medida (UX simplificada gastro)
@@ -31,6 +33,10 @@ export default function EditarProductoPage() {
   const router = useRouter();
   const params = useParams();
   const id = (params?.id as string) ?? "";
+  // Solo admin puede editar campos de la página web pública. Operativos de
+  // sucursal ven la información pero no la modifican (esos toggles los oculta
+  // el sidebar en otros módulos; acá hay que ocultarlos a nivel de form).
+  const { isAdmin } = useIsAdmin();
 
   const [cargando, setCargando] = useState(true);
   const [errorDuplicado, setErrorDuplicado] = useState<string | null>(null);
@@ -393,9 +399,14 @@ export default function EditarProductoPage() {
         // Departamento → ubicacion_deposito (columna ya existe en DB).
         ubicacion_deposito: form.departamento.trim() || null,
         activo,
-        visible_web: visibleWeb,
-        destacado_web: destacadoWeb,
       };
+      // Solo admin envía los campos de la página web pública. Si el operativo
+      // los mandara, igual el backend los descarta — pero acá no los incluimos
+      // para evitar pisar valores que el admin haya configurado.
+      if (isAdmin) {
+        updatePayload.visible_web = visibleWeb;
+        updatePayload.destacado_web = destacadoWeb;
+      }
       if (cambioCodigo) {
         updatePayload.codigo_barras = codigoIngresado || null;
         updatePayload.codigo_barras_interno = false; // los códigos de barras son reales (no internos)
@@ -976,7 +987,11 @@ export default function EditarProductoPage() {
             </select>
           </div>
 
-          {/* Visibilidad en la web pública */}
+          {/* Stock por sucursal — admin puede transferir entre sucursales. */}
+          {id && <StockPorSucursalBox productoId={id} canTransfer={isAdmin} />}
+
+          {/* Visibilidad. Las opciones de catálogo web pública solo aplican
+              al admin; el operativo de sucursal sólo controla el flag "Activo". */}
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <p className="text-sm font-semibold text-slate-700 mb-3">Visibilidad</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -989,24 +1004,33 @@ export default function EditarProductoPage() {
                 />
                 Activo <span className="text-xs text-slate-400">(disponible para vender)</span>
               </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={visibleWeb}
-                  onChange={(e) => setVisibleWeb(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
-                />
-                Visible en web <span className="text-xs text-slate-400">(catálogo público)</span>
-              </label>
-              <label className="flex items-center gap-2 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={destacadoWeb}
-                  onChange={(e) => setDestacadoWeb(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
-                />
-                Destacado <span className="text-xs text-slate-400">(home "Más vendidas")</span>
-              </label>
+              {isAdmin && (
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={visibleWeb}
+                    onChange={(e) => setVisibleWeb(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
+                  />
+                  Visible en web <span className="text-xs text-slate-400">(catálogo público)</span>
+                </label>
+              )}
+              {isAdmin && (
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={destacadoWeb}
+                    onChange={(e) => setDestacadoWeb(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
+                  />
+                  Destacado <span className="text-xs text-slate-400">(home &quot;Más vendidas&quot;)</span>
+                </label>
+              )}
+              {!isAdmin && (
+                <p className="col-span-full text-xs text-slate-500 italic">
+                  La visibilidad en la página web pública solo la modifica el administrador.
+                </p>
+              )}
             </div>
           </div>
 

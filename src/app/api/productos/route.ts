@@ -18,6 +18,19 @@ import { postgrestGet, getAccessTokenForRequest } from "@/lib/supabase/postgrest
 import { syncCatalogoExtras } from "@/lib/inventario/server/catalogo-web-extras";
 import { getChatPostgresPool, quoteSchemaTable } from "@/lib/supabase/chat-pg-pool";
 import { assertAllowedChatDataSchema } from "@/lib/supabase/chat-data-schema";
+import { getAuthWithRol, isAdmin } from "@/lib/middleware/auth";
+
+/** Campos de presentación en la página web pública — solo admin los maneja. */
+const WEB_ONLY_FIELDS = [
+  "slug_web", "visible_web", "destacado_web",
+  "descripcion_corta", "descripcion_web",
+  "marca", "marca_id", "precio_web",
+  "precio_oferta", "oferta_hasta", "nuevo_hasta",
+  "concentracion", "volumen_ml", "genero",
+  "proximamente", "orden_web", "familia_olfativa_id",
+  "familia_olfativa_nombre", "notas_top", "notas_heart", "notas_base",
+  "visible_mayorista_web", "es_decant",
+] as const;
 
 const PRODUCTOS_COLS_PRIV =
   "id,empresa_id,nombre,sku,modelo,costo_promedio,precio_venta,stock_actual,stock_minimo," +
@@ -128,6 +141,14 @@ export async function POST(request: NextRequest) {
       body = (await request.json()) as Record<string, unknown>;
     } catch {
       return NextResponse.json(errorResponse("JSON inválido."), { status: 400 });
+    }
+
+    // Guard: operativos de sucursal no pueden tocar campos de la página web.
+    const authRol = await getAuthWithRol(request);
+    if (!isAdmin(authRol)) {
+      for (const k of WEB_ONLY_FIELDS) {
+        if (k in body) delete body[k];
+      }
     }
 
     const nombre = normalizeUpperText(body.nombre);

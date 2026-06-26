@@ -14,6 +14,24 @@ import {
 } from "@/lib/inventario/server/productos-postgrest";
 import { postgrestGet, postgrestDelete, getAccessTokenForRequest } from "@/lib/supabase/postgrest-runtime";
 import { syncCatalogoExtras } from "@/lib/inventario/server/catalogo-web-extras";
+import { getAuthWithRol, isAdmin } from "@/lib/middleware/auth";
+
+/**
+ * Campos del producto que afectan la página web pública (catálogo, ofertas,
+ * marca, descripciones SEO, decants, etc.). Solo el admin puede modificarlos:
+ * operativos de sucursal pueden ajustar stock/precios/categoría, pero no la
+ * presencia y presentación en la web.
+ */
+const WEB_ONLY_FIELDS = [
+  "slug_web", "visible_web", "destacado_web",
+  "descripcion_corta", "descripcion_web", "descripcion",
+  "marca", "marca_id", "precio_web",
+  "precio_oferta", "oferta_hasta", "nuevo_hasta",
+  "concentracion", "volumen_ml", "genero",
+  "proximamente", "orden_web", "familia_olfativa_id",
+  "familia_olfativa_nombre", "notas_top", "notas_heart", "notas_base",
+  "visible_mayorista_web", "es_decant",
+] as const;
 
 const PRODUCTO_COLS_PRIV =
   "id,empresa_id,nombre,sku,modelo,costo_promedio,precio_venta,stock_actual,stock_minimo," +
@@ -118,6 +136,17 @@ export async function PATCH(
       body = (await request.json()) as Record<string, unknown>;
     } catch {
       return NextResponse.json(errorResponse("JSON inválido."), { status: 400 });
+    }
+
+    // Guard: solo admin modifica campos de la página web pública. Los demás
+    // pueden tocar stock/precios/categoría pero no la presencia/aspecto del
+    // producto en el catálogo público. Si vienen, los descartamos silenciosamente
+    // (no rompemos el PATCH del operativo por un campo extra que no debería tocar).
+    const auth = await getAuthWithRol(request);
+    if (!isAdmin(auth)) {
+      for (const k of WEB_ONLY_FIELDS) {
+        if (k in body) delete body[k];
+      }
     }
 
     const patch: Parameters<typeof updateProductoPostgrest>[3] = {};
