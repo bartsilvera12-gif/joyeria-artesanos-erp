@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     const schema = assertAllowedChatDataSchema(await fetchDataSchemaForEmpresaId(auth.empresa_id));
     const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
     const tS = quoteSchemaTable(schema, "sucursales");
+    const tP = quoteSchemaTable(schema, "productos");
     const r = await pool.query<{
       sucursal_id: string; nombre: string; es_principal: boolean;
       stock_actual: number | string; incluido: boolean;
@@ -43,7 +44,33 @@ export async function GET(request: NextRequest) {
         ORDER BY s.es_principal DESC, s.nombre ASC`,
       [productoId, auth.empresa_id],
     );
-    return NextResponse.json(successResponse({ stocks: r.rows }));
+    // Fallback: si Principal no tiene fila o tiene 0 pero productos.stock_actual
+    // dice otra cosa (legacy: producto creado/editado antes de que el PATCH
+    // sincronizara producto_stock_sucursal), mostramos lo que está en productos
+    // como Principal. Esto evita que la caja muestre 0 cuando el form arriba
+    // dice 3.
+    let stocks = r.rows;
+    try {
+      const totalRow = await pool.query<{ stock_actual: number | string }>(
+        `SELECT stock_actual::float8 AS stock_actual FROM ${tP} WHERE id=$1::uuid`,
+        [productoId],
+      );
+      const totalProducto = Number(totalRow.rows[0]?.stock_actual ?? 0);
+      const sumaPss = stocks.reduce((acc, r) => acc + Number(r.stock_actual ?? 0), 0);
+      if (sumaPss < totalProducto) {
+        // Suma no llega al total → la diferencia va a Principal.
+        const principalIdx = stocks.findIndex((s) => s.es_principal);
+        const faltante = totalProducto - sumaPss;
+        if (principalIdx >= 0) {
+          stocks = stocks.map((s, i) =>
+            i === principalIdx
+              ? { ...s, stock_actual: Number(s.stock_actual) + faltante, incluido: true }
+              : s,
+          );
+        }
+      }
+    } catch { /* ignorar fallback */ }
+    return NextResponse.json(successResponse({ stocks }));
   } catch (e) {
     console.error("[stock-sucursal GET]", e instanceof Error ? e.message : e);
     return NextResponse.json(successResponse({ stocks: [] }));

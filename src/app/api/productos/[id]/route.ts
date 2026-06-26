@@ -157,7 +157,11 @@ export async function PATCH(
     }
     if (body.costo_promedio !== undefined) patch.costo_promedio = Number(body.costo_promedio) || 0;
     if (body.precio_venta !== undefined) patch.precio_venta = Number(body.precio_venta) || 0;
-    if (body.stock_actual !== undefined) patch.stock_actual = Number(body.stock_actual) || 0;
+    // Stock total: en modelo multi-sucursal va a Principal vía producto_stock_sucursal;
+    // el trigger reconcilia productos.stock_actual. Si el schema no tiene esa tabla,
+    // cae al PATCH directo a productos.stock_actual (legacy). Lo resolvemos abajo
+    // tras detectar si hay sucursales — acá solo dejamos el valor pendiente.
+    const stockActualEdit = body.stock_actual !== undefined ? Number(body.stock_actual) || 0 : null;
     if (body.stock_minimo !== undefined) patch.stock_minimo = Number(body.stock_minimo) || 0;
     if (body.cantidad_minima_minorista !== undefined) {
       const v = body.cantidad_minima_minorista;
@@ -367,7 +371,57 @@ export async function PATCH(
           });
         }
       }
-      return NextResponse.json(successResponse({ producto: rowToProductoApi(row) }));
+
+      // Multi-sucursal: cuando admin edita "Stock actual" desde el form, ese
+      // valor representa el TOTAL del producto. Lo bajamos a Principal en
+      // producto_stock_sucursal — la diferencia con lo que ya hay en otras
+      // sucursales. Si no alcanza (otras tienen más que el nuevo total),
+      // devolvemos un warning pero no rompemos el PATCH ya hecho.
+      let stockWarning: string | null = null;
+      if (stockActualEdit !== null) {
+        try {
+          const pool = getChatPostgresPool();
+          if (pool) {
+            const schema = assertAllowedChatDataSchema(await fetchDataSchemaForEmpresaId(empresaId));
+            const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
+            const tS = quoteSchemaTable(schema, "sucursales");
+            const principalRow = await pool.query<{ id: string }>(
+              `SELECT id FROM ${tS} WHERE empresa_id=$1::uuid AND es_principal=true LIMIT 1`,
+              [empresaId],
+            );
+            const principalId = principalRow.rows[0]?.id ?? null;
+            if (principalId) {
+              const otrasRow = await pool.query<{ s: number | string }>(
+                `SELECT COALESCE(SUM(stock_actual), 0)::float8 AS s
+                   FROM ${tPSS}
+                  WHERE producto_id=$1::uuid AND sucursal_id <> $2::uuid`,
+                [id, principalId],
+              );
+              const otrasSuma = Number(otrasRow.rows[0]?.s ?? 0);
+              const principalTarget = stockActualEdit - otrasSuma;
+              if (principalTarget < 0) {
+                stockWarning =
+                  `El stock total ingresado (${stockActualEdit}) es menor a lo que ya está ` +
+                  `repartido en otras sucursales (${otrasSuma}). Principal quedó en 0.`;
+              }
+              await pool.query(
+                `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+                   VALUES ($1::uuid, $2::uuid, $3::numeric, 0, now())
+                 ON CONFLICT (producto_id, sucursal_id)
+                   DO UPDATE SET stock_actual = EXCLUDED.stock_actual, updated_at = now()`,
+                [id, principalId, Math.max(0, principalTarget)],
+              );
+            }
+          }
+        } catch (err) {
+          console.error("[/api/productos/[id]] sync Principal pss fallo", {
+            empresaId, id,
+            message: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      return NextResponse.json(successResponse({ producto: rowToProductoApi(row), warning: stockWarning }));
     } catch (err) {
       if (err instanceof DuplicadoError) {
         return NextResponse.json(errorResponse(err.message), { status: 409 });
