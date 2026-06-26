@@ -699,33 +699,10 @@ export default function InventarioPage() {
                 return (
                   <tr key={p.id} className="border-b border-slate-200 last:border-0 hover:bg-[#4FAEB2]/[0.04] transition-colors">
                     <td className="py-2 pr-4">
-                      {(() => {
-                        // Prefiere la imagen principal de la galería (la misma
-                        // que muestra el catálogo web); fallback a imagen legacy.
-                        const url =
-                          imagenesPrincipales.get(p.id) ??
-                          p.imagen_url ??
-                          publicProductoImagenUrl(p.imagen_path);
-                        if (url) {
-                          return (
-                            <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
-                              <Image
-                                src={url}
-                                alt={p.nombre}
-                                fill
-                                sizes="64px"
-                                className="object-cover"
-                                unoptimized
-                              />
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-300">
-                            <ImageOff className="h-5 w-5" />
-                          </div>
-                        );
-                      })()}
+                      <ProductoThumb
+                        producto={p}
+                        urlPrincipal={imagenesPrincipales.get(p.id) ?? null}
+                      />
                     </td>
                     <td className="py-4 pr-4 font-medium text-gray-800">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -971,6 +948,48 @@ export default function InventarioPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Thumbnail con fallback a placeholder cuando la imagen no carga.
+ * Cubre 3 casos típicos:
+ *   1. imagen_url apunta a un archivo borrado del bucket.
+ *   2. signed URL expirada (TTL vencido).
+ *   3. imagen_path con typo o re-subida con otro nombre.
+ * En cualquiera de esos, `onError` dispara y mostramos el ícono de roto
+ * (en gris) en vez del 404 feo del navegador.
+ */
+function ProductoThumb({
+  producto, urlPrincipal,
+}: { producto: Producto; urlPrincipal: string | null }) {
+  const urlInicial =
+    urlPrincipal ?? producto.imagen_url ?? publicProductoImagenUrl(producto.imagen_path);
+  const [error, setError] = useState(false);
+  // Re-evaluar cuando el producto o la URL principal cambia (cache-bust al
+  // re-subir una imagen). El reseteo evita quedar "trancado" en error si el
+  // admin re-subió la imagen y volvió a la página.
+  useEffect(() => { setError(false); }, [urlInicial, producto.id]);
+
+  if (!urlInicial || error) {
+    return (
+      <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-300">
+        <ImageOff className="h-5 w-5" />
+      </div>
+    );
+  }
+  return (
+    <div className="relative h-16 w-16 overflow-hidden rounded-lg bg-slate-50 ring-1 ring-slate-200">
+      <Image
+        src={urlInicial}
+        alt={producto.nombre}
+        fill
+        sizes="64px"
+        className="object-cover"
+        unoptimized
+        onError={() => setError(true)}
+      />
     </div>
   );
 }
