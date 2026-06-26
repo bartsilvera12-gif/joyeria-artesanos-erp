@@ -57,19 +57,32 @@ const CAJA_COLS =
 
 // ── Lecturas ──────────────────────────────────────────────────────────────────
 
-/** Caja abierta actual de la empresa (o null si no hay ninguna abierta). */
-export async function getCajaAbiertaPg(schema: string, empresaId: string): Promise<Caja | null> {
+/**
+ * Caja abierta actual.
+ *
+ * Multi-sucursal: si `sucursalId` viene, filtra por esa sucursal (una caja
+ * abierta por sucursal). Si viene null, comportamiento legacy (cualquier caja
+ * abierta de la empresa). Sucursal2 ve solo su caja; admin (sucursal_id=NULL
+ * en el usuario) debería pasar la principal por arriba si quiere acotar.
+ */
+export async function getCajaAbiertaPg(
+  schema: string,
+  empresaId: string,
+  sucursalId?: string | null,
+): Promise<Caja | null> {
   const sb = createServiceRoleClientWithDbSchema(schema);
-  const q = await sb
+  let q = sb
     .from("cajas")
     .select(CAJA_COLS)
     .eq("empresa_id", empresaId)
-    .eq("estado", "abierta")
+    .eq("estado", "abierta");
+  if (sucursalId) q = q.eq("sucursal_id", sucursalId);
+  const r = await q
     .order("fecha_apertura", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (q.error) throw new Error(q.error.message);
-  return q.data ? mapCaja(q.data as unknown as CajaRow) : null;
+  if (r.error) throw new Error(r.error.message);
+  return r.data ? mapCaja(r.data as unknown as CajaRow) : null;
 }
 
 /** Historial de cajas (más recientes primero) con sus totales calculados. */
@@ -362,17 +375,25 @@ async function computeResumen(sb: Sb, empresaId: string, caja: Caja): Promise<Ca
 
 // ── Escrituras ────────────────────────────────────────────────────────────────
 
-/** Abre una caja. Falla si ya hay una abierta (índice único parcial en DB). */
+/**
+ * Abre una caja. Falla si ya hay una abierta en la misma sucursal
+ * (cada sucursal tiene su propia caja independiente).
+ */
 export async function abrirCajaPg(params: {
   schema: string;
   empresaId: string;
   montoApertura: number;
   observacion: string | null;
   usuarioId: string | null;
+  sucursalId?: string | null;
 }): Promise<Caja> {
   const sb = createServiceRoleClientWithDbSchema(params.schema);
 
-  const yaAbierta = await getCajaAbiertaPg(params.schema, params.empresaId);
+  const yaAbierta = await getCajaAbiertaPg(
+    params.schema,
+    params.empresaId,
+    params.sucursalId ?? null,
+  );
   if (yaAbierta) {
     throw new Error("Ya hay una caja abierta. Cerrala antes de abrir una nueva.");
   }
@@ -392,6 +413,7 @@ export async function abrirCajaPg(params: {
     .from("cajas")
     .insert({
       empresa_id: params.empresaId,
+      sucursal_id: params.sucursalId ?? null,
       numero_caja: numeroCaja,
       estado: "abierta",
       abierta_por: params.usuarioId,

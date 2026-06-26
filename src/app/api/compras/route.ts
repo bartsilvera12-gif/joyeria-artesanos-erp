@@ -4,6 +4,7 @@ import { fetchDataSchemaForEmpresaId } from "@/lib/supabase/empresa-data-schema"
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { API_ERRORS } from "@/lib/api/errors";
 import { insertCompraConImpacto } from "@/lib/compras/server/compras-pg";
+import { resolveSucursalIdForUserPg } from "@/lib/sucursales/server";
 import { postgrestGet, getAccessTokenForRequest } from "@/lib/supabase/postgrest-runtime";
 
 const COMPRAS_COLS =
@@ -67,6 +68,12 @@ export async function POST(request: NextRequest) {
     if (!req("nro_timbrado"))
       return NextResponse.json(errorResponse("Falta el N° de timbrado."), { status: 400 });
 
+    const sucursalId = await resolveSucursalIdForUserPg(
+      schema,
+      empresaId,
+      ctx.auth.sucursal_id ?? null,
+    );
+
     try {
       const out = await insertCompraConImpacto(schema, empresaId, {
         proveedor_id: String(body.proveedor_id),
@@ -90,7 +97,7 @@ export async function POST(request: NextRequest) {
         nro_timbrado: String(body.nro_timbrado).trim().toUpperCase(),
         created_by: ctx.auth.usuarioCatalogId ?? null,
         usuario_nombre: ctx.auth.user?.email ?? null,
-      });
+      }, sucursalId);
 
       return NextResponse.json(successResponse({
         compra: out.compra,

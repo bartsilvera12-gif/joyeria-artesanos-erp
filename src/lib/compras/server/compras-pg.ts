@@ -119,12 +119,14 @@ export interface CompraResult {
 export async function insertCompraConImpacto(
   schemaRaw: string,
   empresaId: string,
-  d: InsertCompraInput
+  d: InsertCompraInput,
+  sucursalId?: string | null,
 ): Promise<CompraResult> {
   const schema = assertAllowedChatDataSchema(schemaRaw);
   const tC = quoteSchemaTable(schema, "compras");
   const tM = quoteSchemaTable(schema, "movimientos_inventario");
   const tP = quoteSchemaTable(schema, "productos");
+  const tSS = quoteSchemaTable(schema, "producto_stock_sucursal");
 
   const client = await pool().connect();
   let movimientoId: string | null = null;
@@ -214,15 +216,36 @@ export async function insertCompraConImpacto(
     }
 
     // Actualizar producto: stock + costo_promedio + precio_venta
-    await client.query(
-      `UPDATE ${tP}
-          SET stock_actual = stock_actual + $1::numeric,
-              costo_promedio = $2::numeric,
-              precio_venta = $3::numeric,
-              updated_at = now()
-        WHERE id = $4::uuid AND empresa_id = $5::uuid`,
-      [d.cantidad, d.costo_unitario, d.precio_venta, d.producto_id, empresaId]
-    );
+    // Multi-sucursal: el stock se suma a la sucursal donde se recibió la compra
+    // (resta del path UPDATE productos.stock_actual; trigger sincroniza el agregado).
+    if (sucursalId) {
+      await client.query(
+        `INSERT INTO ${tSS} (producto_id, sucursal_id, stock_actual, updated_at)
+         VALUES ($1::uuid, $2::uuid, $3::numeric, now())
+         ON CONFLICT (producto_id, sucursal_id) DO UPDATE
+         SET stock_actual = ${tSS}.stock_actual + EXCLUDED.stock_actual,
+             updated_at = now()`,
+        [d.producto_id, sucursalId, d.cantidad]
+      );
+      await client.query(
+        `UPDATE ${tP}
+            SET costo_promedio = $1::numeric,
+                precio_venta = $2::numeric,
+                updated_at = now()
+          WHERE id = $3::uuid AND empresa_id = $4::uuid`,
+        [d.costo_unitario, d.precio_venta, d.producto_id, empresaId]
+      );
+    } else {
+      await client.query(
+        `UPDATE ${tP}
+            SET stock_actual = stock_actual + $1::numeric,
+                costo_promedio = $2::numeric,
+                precio_venta = $3::numeric,
+                updated_at = now()
+          WHERE id = $4::uuid AND empresa_id = $5::uuid`,
+        [d.cantidad, d.costo_unitario, d.precio_venta, d.producto_id, empresaId]
+      );
+    }
 
     await client.query("COMMIT");
     return { compra, movimiento_id: movimientoId, movimiento_warning: movimientoWarning };

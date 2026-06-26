@@ -35,6 +35,13 @@ export interface CreateVentaPgParams {
   totalDeclarado: number;
   /** Método de pago (módulo caja). Opcional; default null/efectivo. */
   metodoPago?: "efectivo" | "tarjeta" | "transferencia" | null;
+  /**
+   * Sucursal en la que se materializa la venta (Joyería Artesanos
+   * multi-sucursal). Si viene, el descuento de stock se hace en
+   * `producto_stock_sucursal` (un trigger sincroniza productos.stock_actual).
+   * Si es null, se usa el path legacy (UPDATE productos.stock_actual directo).
+   */
+  sucursalId?: string | null;
 }
 
 function qTable(schema: string, table: string): string {
@@ -95,7 +102,9 @@ export async function createVentaTransaccionalPg(
   const itemsT = qTable(params.schema, "ventas_items");
   const movT = qTable(params.schema, "movimientos_inventario");
   const prodT = qTable(params.schema, "productos");
+  const stockSucT = qTable(params.schema, "producto_stock_sucursal");
   const cliT = qTable(params.schema, "clientes");
+  const sucursalId = params.sucursalId ?? null;
 
   const client = await pool.connect();
   try {
@@ -145,6 +154,27 @@ export async function createVentaTransaccionalPg(
       });
     }
 
+    // Multi-sucursal: el stock relevante es el de la sucursal donde se vende.
+    // Reemplaza el total agregado por el valor per-sucursal (lock incluido).
+    if (sucursalId) {
+      const ssLocked = await client.query<{ producto_id: string; stock_actual: string }>(
+        `SELECT producto_id, stock_actual
+         FROM ${stockSucT}
+         WHERE sucursal_id = $1 AND producto_id = ANY($2::uuid[])
+         FOR UPDATE`,
+        [sucursalId, ids]
+      );
+      const ssMap = new Map<string, number>();
+      for (const row of ssLocked.rows) {
+        ssMap.set(row.producto_id, Number(row.stock_actual));
+      }
+      for (const id of ids) {
+        const ref = stockMap.get(id);
+        if (!ref) continue;
+        ref.stock = ssMap.has(id) ? (ssMap.get(id) as number) : 0;
+      }
+    }
+
     // Validación Fase Decants: rechazar items sin_cargo cuyo producto no es decant.
     for (const it of items) {
       if (it.es_sin_cargo === true) {
@@ -188,14 +218,18 @@ export async function createVentaTransaccionalPg(
 
     // Caja abierta actual (best-effort): si la tabla `cajas` aún no existe o
     // no hay caja abierta, la venta se registra sin `caja_id`.
+    // Multi-sucursal: cuando hay sucursalId, busca caja abierta DE ESA sucursal.
     let cajaIdActual: string | null = null;
     try {
-      const cQ = await client.query<{ id: string }>(
-        `SELECT id FROM ${cajasT}
-         WHERE empresa_id = $1 AND estado = 'abierta'
-         ORDER BY fecha_apertura DESC LIMIT 1`,
-        [params.empresaId]
-      );
+      const cajaSql = sucursalId
+        ? `SELECT id FROM ${cajasT}
+           WHERE empresa_id = $1 AND estado = 'abierta' AND sucursal_id = $2
+           ORDER BY fecha_apertura DESC LIMIT 1`
+        : `SELECT id FROM ${cajasT}
+           WHERE empresa_id = $1 AND estado = 'abierta'
+           ORDER BY fecha_apertura DESC LIMIT 1`;
+      const cajaArgs = sucursalId ? [params.empresaId, sucursalId] : [params.empresaId];
+      const cQ = await client.query<{ id: string }>(cajaSql, cajaArgs);
       cajaIdActual = cQ.rows[0]?.id ?? null;
     } catch { /* tabla cajas inexistente: continuar sin enlace */ }
 
@@ -206,11 +240,11 @@ export async function createVentaTransaccionalPg(
       INSERT INTO ${ventasT} (
         empresa_id, cliente_id, numero_control, moneda, tipo_cambio,
         subtotal, monto_iva, total, estado, tipo_venta, plazo_dias, fecha, observaciones,
-        caja_id, metodo_pago
+        caja_id, metodo_pago, sucursal_id
       ) VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, 'completada', $9, $10, $11::timestamptz, $12,
-        $13, $14
+        $13, $14, $15
       )
       RETURNING id
       `,
@@ -229,6 +263,7 @@ export async function createVentaTransaccionalPg(
         params.observaciones,
         cajaIdActual,
         metodoPago,
+        sucursalId,
       ]
     );
 
@@ -290,10 +325,21 @@ export async function createVentaTransaccionalPg(
       );
 
       const nuevoStock = p.stock - line.cantidad;
-      await client.query(
-        `UPDATE ${prodT} SET stock_actual = $1 WHERE id = $2 AND empresa_id = $3`,
-        [nuevoStock, line.producto_id, params.empresaId]
-      );
+      if (sucursalId) {
+        // El trigger trg_sync_producto_stock_total_aiud actualiza productos.stock_actual.
+        await client.query(
+          `INSERT INTO ${stockSucT} (producto_id, sucursal_id, stock_actual, updated_at)
+           VALUES ($1, $2, $3, now())
+           ON CONFLICT (producto_id, sucursal_id) DO UPDATE
+           SET stock_actual = EXCLUDED.stock_actual, updated_at = now()`,
+          [line.producto_id, sucursalId, nuevoStock]
+        );
+      } else {
+        await client.query(
+          `UPDATE ${prodT} SET stock_actual = $1 WHERE id = $2 AND empresa_id = $3`,
+          [nuevoStock, line.producto_id, params.empresaId]
+        );
+      }
       p.stock = nuevoStock;
 
       await client.query(

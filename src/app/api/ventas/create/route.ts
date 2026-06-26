@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserAndEmpresa } from "@/lib/middleware/auth";
 import { fetchDataSchemaForEmpresaId } from "@/lib/supabase/empresa-data-schema";
 import { createVentaTransaccionalPg } from "@/lib/ventas/server/create-venta-pg";
+import { resolveSucursalIdForUserPg } from "@/lib/sucursales/server";
 import type { CreateVentaItemInput } from "@/lib/ventas/server/create-venta-pg";
 import { successResponse, errorResponse } from "@/lib/api/response";
 import { API_ERRORS } from "@/lib/api/errors";
@@ -167,6 +168,11 @@ export async function POST(request: NextRequest) {
     }
 
     const schema = await fetchDataSchemaForEmpresaId(auth.empresa_id);
+    const sucursalId = await resolveSucursalIdForUserPg(
+      schema,
+      auth.empresa_id,
+      auth.sucursal_id ?? null,
+    );
 
     const { ventaId, numeroControl, fechaIso } = await createVentaTransaccionalPg({
       schema,
@@ -182,6 +188,7 @@ export async function POST(request: NextRequest) {
       montoIvaDeclarado,
       totalDeclarado,
       metodoPago,
+      sucursalId,
     });
 
     let sub = 0;
