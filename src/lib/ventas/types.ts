@@ -48,4 +48,9 @@ export interface Venta {
   nota_remision_numero?: string | null;
 
   fecha: string;             // ISO string, generado automáticamente
+
+  /** Multi-sucursal (Joyería). Null para deploys sin sucursales. */
+  sucursal_id?: string | null;
+  /** Nombre legible de la sucursal, resuelto en el endpoint. */
+  sucursal_nombre?: string | null;
 }

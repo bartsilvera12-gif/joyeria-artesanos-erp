@@ -332,6 +332,7 @@ export default function VentasPage() {
                 <th className="py-3 pr-4 font-medium text-right">Total</th>
                 <th className="hidden py-3 pr-4 font-medium lg:table-cell">Tipo</th>
                 <th className="hidden py-3 pr-4 font-medium lg:table-cell">Pago</th>
+                <th className="hidden py-3 pr-4 font-medium lg:table-cell">Sucursal</th>
                 <th className="py-3 pr-4 font-medium">Fecha</th>
                 <th className="py-3 font-medium text-center">Ticket</th>
               </tr>
@@ -339,7 +340,7 @@ export default function VentasPage() {
             <tbody>
               {cargandoLista ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-sm text-slate-400">
+                  <td colSpan={11} className="py-12 text-center text-sm text-slate-400">
                     <div className="inline-flex items-center gap-2">
                       <svg className="h-4 w-4 animate-spin text-[#4FAEB2]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
                         <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
@@ -351,7 +352,7 @@ export default function VentasPage() {
                 </tr>
               ) : filtradas.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-gray-400">
+                  <td colSpan={11} className="py-12 text-center text-gray-400">
                     {todas.length === 0
                       ? "No hay ventas registradas"
                       : "Ninguna venta coincide con los filtros"}
@@ -396,6 +397,9 @@ export default function VentasPage() {
                           : v.metodo_pago === "transferencia" ? "Transfer."
                           : v.metodo_pago === "efectivo" ? "Efectivo"
                           : "—"}
+                      </td>
+                      <td className="hidden py-4 pr-4 align-middle text-xs text-gray-600 lg:table-cell">
+                        {v.sucursal_nombre ?? "—"}
                       </td>
                       <td className="py-4 pr-4 text-gray-500 text-xs tabular-nums align-middle">
                         {formatFecha(v.fecha)}

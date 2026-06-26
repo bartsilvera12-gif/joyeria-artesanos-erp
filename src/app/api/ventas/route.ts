@@ -17,6 +17,8 @@ interface VentaRow {
   tipo_venta: string;
   plazo_dias: number | null;
   fecha: string;
+  sucursal_id?: string | null;
+  sucursal?: { nombre?: string | null } | null;
 }
 
 interface VentaItemRow {
@@ -63,7 +65,11 @@ function mapItems(rows: VentaItemRow[]): LineaVenta[] {
  * GET /api/ventas — listado vía PostgREST HTTPS (JWT). 2 queries
  * secuenciales (ventas + items) y join en app, igual contrato que antes.
  */
-const VENTAS_COLS = "id,empresa_id,numero_control,moneda,tipo_cambio,subtotal,monto_iva,total,tipo_venta,plazo_dias,fecha";
+// VENTAS_COLS_BASE = columnas siempre presentes.
+// sucursal_id + relación a sucursales son best-effort: si el schema no las
+// tiene (deploys que no son Joyería) se reintenta sin esas columnas.
+const VENTAS_COLS_BASE = "id,empresa_id,numero_control,moneda,tipo_cambio,subtotal,monto_iva,total,tipo_venta,plazo_dias,fecha";
+const VENTAS_COLS_CON_SUCURSAL = `${VENTAS_COLS_BASE},sucursal_id,sucursal:sucursal_id(nombre)`;
 const VENTAS_ITEMS_COLS = "venta_id,producto_id,producto_nombre,sku,cantidad,precio_venta_original,precio_venta,tipo_iva,subtotal,monto_iva,total_linea,es_sin_cargo,motivo_sin_cargo,costo_promocional_total";
 
 export async function GET(request: NextRequest) {
@@ -74,15 +80,25 @@ export async function GET(request: NextRequest) {
     const jwt = await getAccessTokenForRequest(request);
 
     const ventasQ = new URLSearchParams({
-      select: VENTAS_COLS,
+      select: VENTAS_COLS_CON_SUCURSAL,
       empresa_id: `eq.${empresaId}`,
       order: "fecha.desc",
       limit: "500",
     });
-    const ventasRes = await postgrestGet<VentaRow>("ventas", ventasQ.toString(), { role: "jwt", jwt, noStore: true });
+    let ventasRes = await postgrestGet<VentaRow>("ventas", ventasQ.toString(), { role: "jwt", jwt, noStore: true });
     if (!ventasRes.ok) {
-      console.error("[/api/ventas GET] ventas", ventasRes.error);
-      return NextResponse.json(errorResponse("No se pudieron cargar las ventas."), { status: 502 });
+      // Fallback para schemas sin sucursal_id/sucursales (deploys Elevate).
+      const fallback = new URLSearchParams({
+        select: VENTAS_COLS_BASE,
+        empresa_id: `eq.${empresaId}`,
+        order: "fecha.desc",
+        limit: "500",
+      });
+      ventasRes = await postgrestGet<VentaRow>("ventas", fallback.toString(), { role: "jwt", jwt, noStore: true });
+      if (!ventasRes.ok) {
+        console.error("[/api/ventas GET] ventas", ventasRes.error);
+        return NextResponse.json(errorResponse("No se pudieron cargar las ventas."), { status: 502 });
+      }
     }
 
     const itemsQ = new URLSearchParams({
@@ -116,6 +132,8 @@ export async function GET(request: NextRequest) {
         tipo_venta: r.tipo_venta === "CREDITO" ? "CREDITO" : "CONTADO",
         plazo_dias: r.plazo_dias ?? undefined,
         fecha: r.fecha,
+        sucursal_id: r.sucursal_id ?? null,
+        sucursal_nombre: r.sucursal?.nombre ?? null,
       };
     });
 

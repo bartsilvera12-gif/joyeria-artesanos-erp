@@ -51,6 +51,22 @@ export default function CierresCajaPage() {
 
   const hayFiltros = desde || hasta || estado !== "todas" || sucursalFiltro !== "todas";
 
+  /** Agregado por sucursal sobre el set filtrado (admin ve breakdown). */
+  const totalesPorSucursal = useMemo(() => {
+    const map = new Map<string, { vendido: number; efectivo: number; transferencia: number; tarjeta: number; cajas: number }>();
+    for (const c of filtradas) {
+      const k = c.sucursal_nombre ?? "Sin sucursal";
+      const acc = map.get(k) ?? { vendido: 0, efectivo: 0, transferencia: 0, tarjeta: 0, cajas: 0 };
+      acc.vendido += c.total_vendido;
+      acc.efectivo += c.total_efectivo;
+      acc.transferencia += c.total_transferencia;
+      acc.tarjeta += c.total_tarjeta;
+      acc.cajas += 1;
+      map.set(k, acc);
+    }
+    return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [filtradas]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -96,6 +112,26 @@ export default function CierresCajaPage() {
           )}
           <span className="ml-auto text-sm text-slate-400">{filtradas.length} de {cajas.length} cajas</span>
         </div>
+
+        {totalesPorSucursal.length > 1 && (
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {totalesPorSucursal.map(([nombre, t]) => (
+              <div key={nombre} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">{nombre}</span>
+                  <span className="text-[11px] text-slate-400">{t.cajas} {t.cajas === 1 ? "caja" : "cajas"}</span>
+                </div>
+                <p className="mt-1.5 text-lg font-bold tabular-nums text-slate-800">{formatGs(t.vendido)}</p>
+                <p className="text-[11px] text-slate-500">vendido</p>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-slate-600">
+                  <div><span className="block text-slate-400">Efvo.</span><span className="tabular-nums">{formatGs(t.efectivo)}</span></div>
+                  <div><span className="block text-slate-400">Transf.</span><span className="tabular-nums">{formatGs(t.transferencia)}</span></div>
+                  <div><span className="block text-slate-400">Tarjeta</span><span className="tabular-nums">{formatGs(t.tarjeta)}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {loading ? (
           <p className="py-8 text-center text-sm text-slate-400">Cargando…</p>
