@@ -105,21 +105,120 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorResponse("Producto o sucursal inválida."), { status: 400 });
     }
 
-    if (incluido) {
-      await pool.query(
+    // Principal es el "pool" del stock: todo lo que no esté asignado a otra
+    // sucursal queda ahí. Cuando admin sube stock en Sucursal 2 (= sucursalId
+    // != principal), restamos esa diferencia de Principal en la misma
+    // transacción para que el total (productos.stock_actual) no cambie.
+    // Si se está incluyendo Principal directamente, simplemente upsert sin
+    // tocar otras sucursales.
+    const principalRow = await pool.query<{ id: string }>(
+      `SELECT id FROM ${tS} WHERE empresa_id=$1::uuid AND es_principal=true LIMIT 1`,
+      [auth.empresa_id],
+    );
+    const principalId = principalRow.rows[0]?.id ?? null;
+    const esPrincipal = principalId && sucursalId === principalId;
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      if (esPrincipal) {
+        // Edición directa de Principal (no debería pasar desde la UI nueva,
+        // pero lo aceptamos para no perder flexibilidad). Sin auto-balance.
+        if (incluido) {
+          await client.query(
+            `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+               VALUES ($1::uuid, $2::uuid, $3::numeric, 0, now())
+             ON CONFLICT (producto_id, sucursal_id)
+               DO UPDATE SET stock_actual = EXCLUDED.stock_actual, updated_at = now()`,
+            [productoId, sucursalId, stockNum],
+          );
+        } else {
+          await client.query(
+            `DELETE FROM ${tPSS} WHERE producto_id=$1::uuid AND sucursal_id=$2::uuid`,
+            [productoId, sucursalId],
+          );
+        }
+        await client.query("COMMIT");
+        return NextResponse.json(successResponse({ ok: true }));
+      }
+
+      // Sucursal no-principal: ajustar Principal en función del delta.
+      // 1. Leer stock actual de esta sucursal y de Principal (lock pesimista).
+      const stockThisRow = await client.query<{ stock: number | string }>(
+        `SELECT stock_actual::float8 AS stock FROM ${tPSS}
+          WHERE producto_id=$1::uuid AND sucursal_id=$2::uuid FOR UPDATE`,
+        [productoId, sucursalId],
+      );
+      const currentThis = Number(stockThisRow.rows[0]?.stock ?? 0);
+
+      let currentPrincipal = 0;
+      if (principalId) {
+        const stockPrinRow = await client.query<{ stock: number | string }>(
+          `SELECT stock_actual::float8 AS stock FROM ${tPSS}
+            WHERE producto_id=$1::uuid AND sucursal_id=$2::uuid FOR UPDATE`,
+          [productoId, principalId],
+        );
+        currentPrincipal = Number(stockPrinRow.rows[0]?.stock ?? 0);
+      }
+
+      if (!incluido) {
+        // Sacar el producto de esta sucursal: el stock que tenía vuelve a Principal.
+        await client.query(
+          `DELETE FROM ${tPSS} WHERE producto_id=$1::uuid AND sucursal_id=$2::uuid`,
+          [productoId, sucursalId],
+        );
+        if (principalId && currentThis > 0) {
+          await client.query(
+            `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+               VALUES ($1::uuid, $2::uuid, $3::numeric, 0, now())
+             ON CONFLICT (producto_id, sucursal_id)
+               DO UPDATE SET stock_actual = ${tPSS}.stock_actual + $3::numeric, updated_at = now()`,
+            [productoId, principalId, currentThis],
+          );
+        }
+        await client.query("COMMIT");
+        return NextResponse.json(successResponse({ ok: true }));
+      }
+
+      // Incluido=true: ajustar stock y rebalancear con Principal.
+      const delta = stockNum - currentThis;
+      if (delta > 0 && currentPrincipal < delta) {
+        await client.query("ROLLBACK");
+        return NextResponse.json(
+          errorResponse(
+            `No alcanza el stock disponible. En esta sucursal querés ${stockNum} pero ` +
+            `solo hay ${currentPrincipal + currentThis} en total disponible para mover.`,
+          ),
+          { status: 400 },
+        );
+      }
+      // Upsert esta sucursal con el nuevo stock.
+      await client.query(
         `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
            VALUES ($1::uuid, $2::uuid, $3::numeric, 0, now())
          ON CONFLICT (producto_id, sucursal_id)
            DO UPDATE SET stock_actual = EXCLUDED.stock_actual, updated_at = now()`,
         [productoId, sucursalId, stockNum],
       );
-    } else {
-      await pool.query(
-        `DELETE FROM ${tPSS} WHERE producto_id=$1::uuid AND sucursal_id=$2::uuid`,
-        [productoId, sucursalId],
-      );
+      // Ajustar Principal (-delta) para preservar el total.
+      if (principalId) {
+        await client.query(
+          `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+             VALUES ($1::uuid, $2::uuid, $3::numeric, 0, now())
+           ON CONFLICT (producto_id, sucursal_id)
+             DO UPDATE SET stock_actual = ${tPSS}.stock_actual - $4::numeric, updated_at = now()`,
+          [productoId, principalId, Math.max(0, currentPrincipal - delta), delta],
+        );
+      }
+      await client.query("COMMIT");
+      return NextResponse.json(successResponse({ ok: true }));
+    } catch (e) {
+      try { await client.query("ROLLBACK"); } catch { /* swallow */ }
+      throw e;
+    } finally {
+      client.release();
     }
-    return NextResponse.json(successResponse({ ok: true }));
   } catch (e) {
     console.error("[stock-sucursal POST]", e instanceof Error ? e.message : e);
     return NextResponse.json(errorResponse("No se pudo actualizar el stock."), { status: 500 });

@@ -653,6 +653,7 @@ export default function InventarioPage() {
                 <th className="py-3 pr-4 font-medium">Costo Prom.</th>
                 {tab !== "materia" && <th className="py-3 pr-4 font-medium">Precio Venta</th>}
                 <th className="py-3 pr-4 font-medium text-center">Stock actual</th>
+                <th className="py-3 pr-4 font-medium text-center hidden md:table-cell">Sucursal</th>
                 <th className="py-3 pr-4 text-center font-medium hidden lg:table-cell">Stock Mín.</th>
                 <th className="py-3 pr-4 font-medium text-center">Activo</th>
                 <th className="py-3 pr-4 font-medium text-center">Destacado</th>
@@ -753,6 +754,31 @@ export default function InventarioPage() {
                           <span className={`text-xs font-normal ${stockBajo ? "text-red-400" : "text-gray-400"}`}>{p.unidad_medida}</span>
                         </span>
                       )}
+                    </td>
+                    <td className="py-4 pr-4 text-center hidden md:table-cell">
+                      {(() => {
+                        const list = (p.sucursales ?? []).filter((s) => s.stock_actual > 0);
+                        if (list.length === 0) {
+                          return <span className="text-xs text-slate-300">—</span>;
+                        }
+                        return (
+                          <div className="flex flex-wrap gap-1 justify-center">
+                            {list.map((s) => (
+                              <span
+                                key={s.sucursal_id}
+                                className={`inline-flex items-center gap-1 rounded-full text-[10px] font-medium px-2 py-0.5 border ${
+                                  s.es_principal
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-sky-50 text-sky-700 border-sky-200"
+                                }`}
+                                title={`${s.nombre}: ${s.stock_actual}`}
+                              >
+                                {s.nombre} <span className="tabular-nums opacity-70">·{s.stock_actual}</span>
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="py-4 pr-4 text-center text-gray-500 hidden lg:table-cell">
                       {sinControl ? "—" : <span className="tabular-nums">{formatStock(p.stock_minimo)}</span>}

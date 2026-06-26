@@ -58,6 +58,8 @@ interface ProductoRow {
   proximamente?: boolean | null;
   orden_web?: number | null;
   familia_olfativa_id?: string | null;
+  /** Desglose multi-sucursal: adjuntado por /api/productos GET para admin. */
+  sucursales?: Array<{ sucursal_id: string; nombre: string; es_principal: boolean; stock_actual: number }>;
 }
 
 interface MovimientoRow {
@@ -133,6 +135,14 @@ function rowToProducto(row: ProductoRow): Producto {
     proximamente: row.proximamente === true,
     orden_web: row.orden_web == null ? null : Number(row.orden_web),
     familia_olfativa_id: row.familia_olfativa_id ?? null,
+    sucursales: Array.isArray(row.sucursales)
+      ? row.sucursales.map((s) => ({
+          sucursal_id: s.sucursal_id,
+          nombre: s.nombre,
+          es_principal: s.es_principal === true,
+          stock_actual: Number(s.stock_actual ?? 0),
+        }))
+      : undefined,
   };
 }
 

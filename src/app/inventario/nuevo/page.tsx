@@ -49,8 +49,10 @@ export default function NuevoProductoPage() {
         if (cancel || !j?.success) return;
         const list: SucursalOpt[] = (j.data?.sucursales ?? []) as SucursalOpt[];
         setSucursales(list);
+        // Principal va siempre — el operativo no tiene checkbox para
+        // destildarla. Otras sucursales arrancan sin marcar.
         const principal = list.find((s) => s.es_principal);
-        setIncluirSucursales(new Set(principal ? [principal.id] : list[0] ? [list[0].id] : []));
+        setIncluirSucursales(new Set(principal ? [principal.id] : []));
       })
       .catch(() => { /* silencioso */ });
     return () => { cancel = true; };
@@ -387,15 +389,17 @@ export default function NuevoProductoPage() {
           activo,
           visible_web: visibleWeb,
           destacado_web: destacadoWeb,
-          incluir_sucursales: incluirSucursales.size > 0 ? [...incluirSucursales] : undefined,
-          sucursal_id: (() => {
-            // El stock del form se imputa a la sucursal Principal si fue
-            // seleccionada; sino a la primera marcada.
+          // Principal va siempre (es la vista web). Las otras sucursales
+          // dependen del checkbox del admin.
+          incluir_sucursales: (() => {
             const principal = sucursales.find((s) => s.es_principal);
-            if (principal && incluirSucursales.has(principal.id)) return principal.id;
-            const primera = [...incluirSucursales][0];
-            return primera ?? null;
+            const ids = new Set<string>(incluirSucursales);
+            if (principal) ids.add(principal.id);
+            return ids.size > 0 ? [...ids] : undefined;
           })(),
+          // El stock del form se imputa SIEMPRE a Principal (no se reparte
+          // en el alta — para repartir, se usa la edición del producto).
+          sucursal_id: sucursales.find((s) => s.es_principal)?.id ?? null,
         });
       } catch (err) {
         console.error("[inventario/nuevo] saveProducto error:", err);
@@ -1098,15 +1102,17 @@ export default function NuevoProductoPage() {
             </select>
           </div>
 
-          {/* Sucursales en las que el producto debe aparecer (admin only). */}
-          {isAdmin && sucursales.length > 1 && (
+          {/* Sucursales en las que el producto debe aparecer (admin only).
+              Principal siempre se incluye (es lo que muestra la web pública);
+              el admin solo elige si además se va a vender en otras sucursales. */}
+          {isAdmin && sucursales.filter((s) => !s.es_principal).length > 0 && (
             <div className="rounded-lg border border-sky-200 bg-sky-50 p-4">
-              <p className="text-sm font-semibold text-sky-900 mb-2">Sucursales</p>
+              <p className="text-sm font-semibold text-sky-900 mb-2">Sucursales adicionales</p>
               <p className="text-xs text-sky-800 mb-3">
-                Elegí en qué sucursales se va a poder vender este producto. El stock cargado arriba se imputa a la sucursal Principal (o a la primera marcada); el resto arranca en 0 y se ajusta desde la edición del producto.
+                Principal siempre se incluye (es lo que se refleja en la página web). Marcá si además este producto se va a vender en otra sucursal — desde la edición podés mover stock entre ellas.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {sucursales.map((s) => (
+                {sucursales.filter((s) => !s.es_principal).map((s) => (
                   <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700 bg-white border border-sky-100 rounded-lg px-3 py-2">
                     <input
                       type="checkbox"
@@ -1122,9 +1128,6 @@ export default function NuevoProductoPage() {
                       className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
                     />
                     Incluir en <strong>{s.nombre}</strong>
-                    {s.es_principal && (
-                      <span className="text-[10px] uppercase tracking-wide text-slate-400">Principal</span>
-                    )}
                   </label>
                 ))}
               </div>

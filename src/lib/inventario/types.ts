@@ -99,6 +99,15 @@ export interface Producto {
   unidad_receta?: string | null;
   factor_compra_receta?: number | null;
   tiempo_prep_minutos?: number | null;
+
+  /** Desglose multi-sucursal: dónde está el producto y con cuánto stock.
+   *  Solo presente en lecturas de admin (operativos ven su propia sucursal). */
+  sucursales?: Array<{
+    sucursal_id: string;
+    nombre: string;
+    es_principal: boolean;
+    stock_actual: number;
+  }>;
 }
 
 /** Fase Presentaciones: cada presentación por ml de un producto. */

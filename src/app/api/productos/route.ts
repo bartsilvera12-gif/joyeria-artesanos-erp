@@ -90,7 +90,40 @@ export async function GET(request: NextRequest) {
     // efectivamente asignados a esa sucursal (es decir, que tienen una fila en
     // producto_stock_sucursal). Sin esto el operativo veía todo el catálogo
     // del admin.
+    //
+    // Para admin (sin sucursal_id): adjunto un campo `sucursales` por producto
+    // con la lista de sucursales donde está cargado, para mostrar la columna
+    // "Ubicación" en la lista de inventario.
     let productos = r.rows;
+    if (!ctx.auth.sucursal_id && productos.length) {
+      try {
+        const ids = productos.map((p) => String((p as { id?: string }).id ?? "")).filter(Boolean);
+        const qss = new URLSearchParams();
+        qss.set("select", "producto_id,sucursal_id,stock_actual,sucursal:sucursales(nombre,es_principal)");
+        qss.set("producto_id", `in.(${ids.join(",")})`);
+        const rs = await postgrestGet<{
+          producto_id: string; sucursal_id: string; stock_actual: number | string;
+          sucursal?: { nombre: string; es_principal: boolean } | null;
+        }>("producto_stock_sucursal", qss.toString(), { role: "jwt", jwt, noStore: true });
+        if (rs.ok) {
+          const byProducto = new Map<string, { sucursal_id: string; nombre: string; es_principal: boolean; stock_actual: number }[]>();
+          for (const row of rs.rows) {
+            const arr = byProducto.get(row.producto_id) ?? [];
+            arr.push({
+              sucursal_id: row.sucursal_id,
+              nombre: row.sucursal?.nombre ?? "",
+              es_principal: row.sucursal?.es_principal === true,
+              stock_actual: Number(row.stock_actual ?? 0),
+            });
+            byProducto.set(row.producto_id, arr);
+          }
+          productos = productos.map((p) => {
+            const id = (p as { id?: string }).id;
+            return { ...p, sucursales: id ? (byProducto.get(id) ?? []) : [] };
+          });
+        }
+      } catch { /* schema sin sucursales: dejar sin campo */ }
+    }
     if (ctx.auth.sucursal_id && productos.length) {
       try {
         const ids = productos.map((p) => String((p as { id?: string }).id ?? "")).filter(Boolean);
