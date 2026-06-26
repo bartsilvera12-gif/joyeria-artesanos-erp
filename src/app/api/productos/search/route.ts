@@ -144,6 +144,30 @@ export async function GET(request: NextRequest) {
     }
     const rows = r.rows;
 
+    // Multi-sucursal: si el usuario tiene sucursal_id, mostrar SU stock (no el
+    // agregado). Best-effort: si no existe la tabla en este schema, sigue con
+    // stock_actual como hoy.
+    const stockBySucursalById = new Map<string, number>();
+    if (auth.sucursal_id && rows.length) {
+      try {
+        const ids = rows.map((r) => r.id);
+        const qss = new URLSearchParams();
+        qss.set("select", "producto_id,stock_actual");
+        qss.set("sucursal_id", `eq.${auth.sucursal_id}`);
+        qss.set("producto_id", `in.(${ids.join(",")})`);
+        const rs = await postgrestGet<{ producto_id: string; stock_actual: number | string }>(
+          "producto_stock_sucursal",
+          qss.toString(),
+          { role: "jwt", jwt, noStore: true },
+        );
+        if (rs.ok) {
+          for (const row of rs.rows) {
+            stockBySucursalById.set(row.producto_id, Number(row.stock_actual ?? 0));
+          }
+        }
+      } catch { /* schema sin sucursales: ignorar */ }
+    }
+
     // Firmar URLs solo para los primeros 20 visibles (optimización).
     const SIGN_TOP = 20;
     const signedUrls: (string | null)[] = await Promise.all(
@@ -186,7 +210,9 @@ export async function GET(request: NextRequest) {
         oferta_hasta: ofertaHasta,
         precio_efectivo: precioEfectivo,
         costo_promedio: Number(row.costo_promedio ?? 0),
-        stock_actual: Number(row.stock_actual ?? 0),
+        stock_actual: auth.sucursal_id
+          ? (stockBySucursalById.get(row.id) ?? 0)
+          : Number(row.stock_actual ?? 0),
         stock_minimo: Number(row.stock_minimo ?? 0),
         unidad_medida: row.unidad_medida,
         metodo_valuacion: row.metodo_valuacion,

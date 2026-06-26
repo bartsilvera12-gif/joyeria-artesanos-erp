@@ -69,7 +69,37 @@ export async function GET(request: NextRequest) {
       console.error("[/api/productos GET]", r.error);
       return NextResponse.json(errorResponse("No se pudieron cargar los productos."), { status: 502 });
     }
-    return NextResponse.json(successResponse({ productos: r.rows }));
+
+    // Multi-sucursal: si el usuario tiene sucursal_id, mostrar SU stock en
+    // stock_actual (no el agregado). Best-effort.
+    let productos = r.rows;
+    if (ctx.auth.sucursal_id && productos.length) {
+      try {
+        const ids = productos.map((p) => String((p as { id?: string }).id ?? "")).filter(Boolean);
+        const qss = new URLSearchParams();
+        qss.set("select", "producto_id,stock_actual,stock_minimo");
+        qss.set("sucursal_id", `eq.${ctx.auth.sucursal_id}`);
+        qss.set("producto_id", `in.(${ids.join(",")})`);
+        const rs = await postgrestGet<{ producto_id: string; stock_actual: number | string; stock_minimo: number | string | null }>(
+          "producto_stock_sucursal",
+          qss.toString(),
+          { role: "jwt", jwt, noStore: true },
+        );
+        if (rs.ok) {
+          const byId = new Map(rs.rows.map((row) => [row.producto_id, row]));
+          productos = productos.map((p) => {
+            const id = (p as { id?: string }).id;
+            const ss = id ? byId.get(id) : undefined;
+            return {
+              ...p,
+              stock_actual: ss ? Number(ss.stock_actual ?? 0) : 0,
+              stock_minimo: ss && ss.stock_minimo != null ? Number(ss.stock_minimo) : (p as { stock_minimo?: number }).stock_minimo,
+            };
+          });
+        }
+      } catch { /* schema sin sucursales: dejar agregado */ }
+    }
+    return NextResponse.json(successResponse({ productos }));
   } catch (err) {
     console.error("[/api/productos GET] uncaught", err instanceof Error ? err.message : err);
     return NextResponse.json(errorResponse("No se pudieron cargar los productos."), { status: 500 });
