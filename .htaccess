@@ -7,9 +7,7 @@
 # a /public/web/ y bloqueamos lo que no debe verse.
 # =============================================================================
 
-# Apache 2.4 / shared hosting de Hostinger
 Options -Indexes
-DirectoryIndex Joyeria\ Artesanos\ v2.dc.html index.html
 
 # --- 1. Bloquear directorios sensibles del repo --------------------------------
 RedirectMatch 404 ^/(src|scripts|supabase|docs|public/brand|public/sorteos-ticket-fonts|node_modules|\.next|\.claude|\.cursor|\.git)(/|$)
@@ -26,21 +24,19 @@ RedirectMatch 404 ^/(src|scripts|supabase|docs|public/brand|public/sorteos-ticke
 RewriteEngine On
 RewriteBase /
 
-# Si la URL ya empieza con /public/web/ — pasar directo (evita loop).
-RewriteRule ^public/web/.*$ - [L]
+# Caso especial: raiz -> landing (silencioso, sin cambiar URL)
+RewriteRule ^$ public/web/Joyeria%20Artesanos%20v2.dc.html [L]
 
-# Pretty URL: /privacidad -> archivo
-RewriteRule ^privacidad/?$ /public/web/privacidad.html [L]
-RewriteRule ^catalogo/?$ /public/web/catalogo.html [L]
+# Pretty URLs
+RewriteRule ^privacidad/?$ public/web/privacidad.html [L]
+RewriteRule ^catalogo/?$ public/web/catalogo.html [L]
 
-# Cualquier otro request -> /public/web/<lo-que-sea>
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^(.*)$ /public/web/$1 [L]
+# Si ya viene a /public/web/, dejar pasar (evita loop)
+RewriteRule ^public/web/ - [L]
 
-# Si el archivo existe dentro de /public/web/, servirlo igual silenciosamente
+# Cualquier otro request: si existe en /public/web/, servirlo silenciosamente
 RewriteCond %{DOCUMENT_ROOT}/public/web/$1 -f
-RewriteRule ^(.*)$ /public/web/$1 [L]
+RewriteRule ^(.+)$ public/web/$1 [L]
 
 # --- 4. Cache control para assets ---------------------------------------------
 <IfModule mod_expires.c>
