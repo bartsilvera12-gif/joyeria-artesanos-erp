@@ -17,6 +17,13 @@ export interface AuthCtx {
   filename: string;
   rows: Record<string, string>[];
   crearFaltantes: boolean;
+  /**
+   * Sucursal destino para escritura de stock. Multi-sucursal:
+   *   - admin elige en el wizard a qué sucursal cargar el inventario
+   *   - operativos heredan la suya
+   *   - null = legacy (escribe al agregado productos.stock_actual)
+   */
+  sucursalIdDestino: string | null;
 }
 
 /** Lee form-data, valida auth + admin, parsea xlsx/csv. */
@@ -48,6 +55,12 @@ export async function leerArchivoYAuth(request: Request): Promise<
 
   const crearFaltantes = String(form.get("crear_faltantes") ?? "") === "1";
 
+  // Sucursal destino: viene del wizard (admin la elige). Si el usuario tiene
+  // sucursal_id propia (operativo) se ignora lo que mande el form y se fuerza
+  // a la suya — un operativo de Sucursal 2 no puede cargar stock a Principal.
+  const sucursalIdFromForm = String(form.get("sucursal_id") ?? "").trim() || null;
+  const sucursalIdDestino = tenant.auth.sucursal_id ?? sucursalIdFromForm;
+
   return {
     ok: true,
     ctx: {
@@ -58,6 +71,7 @@ export async function leerArchivoYAuth(request: Request): Promise<
       filename: file.name,
       rows: parsed.rows,
       crearFaltantes,
+      sucursalIdDestino,
     },
   };
 }

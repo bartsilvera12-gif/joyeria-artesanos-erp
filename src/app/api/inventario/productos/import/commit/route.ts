@@ -15,10 +15,14 @@ export async function POST(request: NextRequest) {
       filename: res.ctx.filename,
       createdBy: res.ctx.usuarioCatalogId,
       usuarioNombre: res.ctx.usuarioNombre,
+      sucursalIdDestino: res.ctx.sucursalIdDestino,
     });
     const auditWarnings = [
       ...out.warningMessages,
       `Movimientos generados: ${out.movimientos_generados} (entrada=${out.unidades_entrada}, salida=${out.unidades_salida})`,
+      res.ctx.sucursalIdDestino
+        ? `Sucursal destino del stock: ${res.ctx.sucursalIdDestino}`
+        : "Sucursal destino: agregado (legacy)",
     ];
     const auditId = await registrarImportAudit(res.ctx.schema, res.ctx.empresaId, {
       entidad: "productos", filename: res.ctx.filename, total_rows: parsed.length,

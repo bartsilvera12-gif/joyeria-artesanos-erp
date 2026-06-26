@@ -16,6 +16,8 @@ import {
 import { normalizeUpperText, normalizeUpperCodigoBarras } from "@/lib/text/normalize";
 import { postgrestGet, getAccessTokenForRequest } from "@/lib/supabase/postgrest-runtime";
 import { syncCatalogoExtras } from "@/lib/inventario/server/catalogo-web-extras";
+import { getChatPostgresPool, quoteSchemaTable } from "@/lib/supabase/chat-pg-pool";
+import { assertAllowedChatDataSchema } from "@/lib/supabase/chat-data-schema";
 
 const PRODUCTOS_COLS_PRIV =
   "id,empresa_id,nombre,sku,modelo,costo_promedio,precio_venta,stock_actual,stock_minimo," +
@@ -137,6 +139,11 @@ export async function POST(request: NextRequest) {
     const codigoBarras = normalizeUpperCodigoBarras(body.codigo_barras);
     const codigoBarrasInterno = codigoBarras != null && body.codigo_barras_interno === true;
     const stockActual = Number(body.stock_actual ?? 0) || 0;
+    // Multi-sucursal: si el form (o el usuario operativo) trae sucursal_id,
+    // el stock_actual se imputa a esa sucursal. Usuarios con sucursal_id
+    // propia no pueden saltar a otra: se fuerza la suya.
+    const sucursalIdDestino =
+      ctx.auth.sucursal_id ?? (typeof body.sucursal_id === "string" && body.sucursal_id.trim() ? String(body.sucursal_id) : null);
     const costoPromedio = Number(body.costo_promedio ?? 0) || 0;
     const stockMinimo = Number(body.stock_minimo ?? 0) || 0;
     const precioVenta = Number(body.precio_venta ?? 0) || 0;
@@ -228,13 +235,17 @@ export async function POST(request: NextRequest) {
     const esDecant = body.es_decant === true;
 
     try {
+      // En modo per-sucursal arrancamos el agregado en 0 y el trigger
+      // sync_producto_stock_total lo reconcilia tras el upsert de stock.
+      const stockActualParaProducto = sucursalIdDestino ? 0 : stockActual;
+
       const row = await insertProductoPostgrest(jwt, empresaId, {
         nombre,
         sku,
         modelo,
         costo_promedio: costoPromedio,
         precio_venta: precioVenta,
-        stock_actual: stockActual,
+        stock_actual: stockActualParaProducto,
         stock_minimo: stockMinimo,
         cantidad_minima_minorista: cantidadMinimaMinorista,
         unidad_medida: unidadMedida,
@@ -267,6 +278,35 @@ export async function POST(request: NextRequest) {
         familia_olfativa_id: familiaOlfativaId,
         es_decant: esDecant,
       });
+
+      // Stock per-sucursal: si vino sucursal destino, imputar el stock cargado
+      // a esa sucursal en producto_stock_sucursal. El trigger en BD reconcilia
+      // productos.stock_actual = SUM(per-sucursal).
+      if (sucursalIdDestino && stockActual > 0) {
+        try {
+          const pool = getChatPostgresPool();
+          if (pool) {
+            const schema = assertAllowedChatDataSchema(
+              await fetchDataSchemaForEmpresaId(empresaId),
+            );
+            const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
+            await pool.query(
+              `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+                 VALUES ($1::uuid, $2::uuid, $3::numeric, $4::numeric, now())
+               ON CONFLICT (producto_id, sucursal_id)
+                 DO UPDATE SET stock_actual = EXCLUDED.stock_actual,
+                               stock_minimo = EXCLUDED.stock_minimo,
+                               updated_at   = now()`,
+              [row.id, sucursalIdDestino, stockActual, stockMinimo],
+            );
+          }
+        } catch (e) {
+          console.error("[/api/productos] upsert producto_stock_sucursal fallo", {
+            empresaId, productoId: row.id, sucursalIdDestino,
+            message: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
 
       // Inventario inicial (mismo schema, via PG directo).
       // Si falla aqui, el producto YA fue creado — registramos el error en

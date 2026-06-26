@@ -133,6 +133,11 @@ export interface ResolverMaps {
   proveedoresByName: Map<string, string>;
   ubicacionesByName: Map<string, string>;
   ubicacionesByCodigo: Map<string, string>;
+  /**
+   * Stock per-sucursal cuando el commit es sucursal-aware. Map<producto_id, stock_en_esa_sucursal>.
+   * Cargado opcionalmente en buildResolverMapsConSucursal.
+   */
+  stockPorSucursal?: Map<string, number>;
 }
 
 export async function buildResolverMaps(schemaRaw: string, empresaId: string): Promise<ResolverMaps> {
@@ -185,6 +190,37 @@ export async function buildResolverMaps(schemaRaw: string, empresaId: string): P
     if (u.codigo) ubicacionesByCodigo.set(u.codigo.trim().toUpperCase(), u.id);
   }
   return { productosBySku, productosByCodigo, categoriasByName, proveedoresByName, ubicacionesByName, ubicacionesByCodigo };
+}
+
+/**
+ * Carga stock_actual per-sucursal y lo deja en maps.stockPorSucursal.
+ * Best-effort: si el schema no tiene producto_stock_sucursal, no hace nada.
+ */
+export async function cargarStockPorSucursal(
+  schemaRaw: string,
+  empresaId: string,
+  sucursalId: string,
+  maps: ResolverMaps,
+): Promise<void> {
+  const schema = assertAllowedChatDataSchema(schemaRaw);
+  const pool = getChatPostgresPool();
+  if (!pool) return;
+  const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
+  const tP = quoteSchemaTable(schema, "productos");
+  try {
+    const r = await pool.query<{ producto_id: string; stock_actual: number | string }>(
+      `SELECT pss.producto_id, pss.stock_actual
+         FROM ${tPSS} pss
+         JOIN ${tP} p ON p.id = pss.producto_id
+        WHERE pss.sucursal_id = $1::uuid AND p.empresa_id = $2::uuid`,
+      [sucursalId, empresaId],
+    );
+    const m = new Map<string, number>();
+    for (const row of r.rows) m.set(row.producto_id, Number(row.stock_actual ?? 0));
+    maps.stockPorSucursal = m;
+  } catch {
+    /* schema sin sucursales: ignorar */
+  }
 }
 
 export function buildPreview(parsed: ProductoParsed[], maps: ResolverMaps): PreviewResponse {
@@ -326,6 +362,14 @@ export interface CommitContext {
   filename?: string | null;
   createdBy?: string | null;
   usuarioNombre?: string | null;
+  /**
+   * Sucursal a la que se imputa el stock cargado del Excel. Si viene null,
+   * comportamiento legacy: escribe directo a productos.stock_actual (deploys
+   * sin tabla sucursales). Si viene un uuid, escribe a producto_stock_sucursal
+   * de esa sucursal y el trigger sync_producto_stock_total reconcilia el
+   * agregado en productos.stock_actual.
+   */
+  sucursalIdDestino?: string | null;
 }
 
 export async function commitProductos(
@@ -345,8 +389,31 @@ export async function commitProductos(
   const tPr = quoteSchemaTable(schema, "proveedores");
   const tU = quoteSchemaTable(schema, "inventario_ubicaciones");
   const tM = quoteSchemaTable(schema, "movimientos_inventario");
+  const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
   const tSec = `"${schema.replace(/"/g, '""')}".incrementar_secuencia_producto`;
   const refImport = `IMPORT_EXCEL:${(ctx.filename ?? "").slice(0, 80)}`;
+
+  // Multi-sucursal: si vino sucursalIdDestino, el stock del Excel se imputa
+  // a esa sucursal en producto_stock_sucursal y el trigger reconcilia el
+  // agregado en productos.stock_actual. Sin sucursalIdDestino, comportamiento
+  // legacy (escritura directa al agregado).
+  const sucursalId = ctx.sucursalIdDestino ?? null;
+  if (sucursalId) {
+    await cargarStockPorSucursal(schema, empresaId, sucursalId, maps);
+  }
+
+  // Upsert helper de stock per-sucursal. Usado tanto en INSERT como UPDATE.
+  async function upsertStockSucursal(producto_id: string, stock: number, stock_min: number) {
+    await pool.query(
+      `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+         VALUES ($1::uuid, $2::uuid, $3::numeric, $4::numeric, now())
+       ON CONFLICT (producto_id, sucursal_id)
+         DO UPDATE SET stock_actual = EXCLUDED.stock_actual,
+                       stock_minimo = EXCLUDED.stock_minimo,
+                       updated_at   = now()`,
+      [producto_id, sucursalId, stock, stock_min],
+    );
+  }
 
   const out: CommitOutcome = {
     inserted: 0, updated: 0, skipped: 0, skippedNoCambios: 0, errors: 0, warnings: 0,
@@ -462,19 +529,26 @@ export async function commitProductos(
           const existente = (p.sku && maps.productosBySku.get(p.sku))
             || (p.codigo_barras && maps.productosByCodigo.get(p.codigo_barras))
             || null;
-          const stockAnterior = Number(existente?.stock_actual ?? 0);
+          // Multi-sucursal: stockAnterior es el de la sucursal destino (no el agregado).
+          const stockAnteriorAgregado = Number(existente?.stock_actual ?? 0);
+          const stockAnterior = sucursalId
+            ? Number(maps.stockPorSucursal?.get(p.match_id) ?? 0)
+            : stockAnteriorAgregado;
 
           // No-op detection: si todos los campos relevantes son idénticos
           // a lo que ya está en DB, no hacemos ni UPDATE ni movimiento.
           // Esto es CRÍTICO para imports masivos donde el Excel no cambió
           // (caso de Felix Bogado: 6k SKUs re-importados sin cambios).
           if (existente) {
+            const stockIgual = sucursalId
+              ? stockAnterior === Number(p.stock_actual)
+              : Number(existente.stock_actual) === Number(p.stock_actual);
             const igual =
               existente.nombre === p.nombre &&
               Number(existente.costo_promedio) === Number(p.costo_promedio) &&
               Number(existente.precio_venta) === Number(p.precio_venta) &&
               Number(existente.precio_mayorista ?? 0) === Number(p.precio_mayorista ?? 0) &&
-              Number(existente.stock_actual) === Number(p.stock_actual) &&
+              stockIgual &&
               Number(existente.stock_minimo) === Number(p.stock_minimo) &&
               (existente.unidad_medida ?? "") === (p.unidad_medida ?? "") &&
               (existente.ubicacion_deposito ?? "") === (p.ubicacion_deposito ?? "") &&
@@ -486,23 +560,47 @@ export async function commitProductos(
             }
           }
 
-          await pool.query(
-            `UPDATE ${tP} SET
-               nombre=$1, sku=$2, codigo_barras=NULLIF($3,''),
-               unidad_medida=$4, costo_promedio=$5::numeric, precio_venta=$6::numeric,
-               stock_actual=$7::numeric, stock_minimo=$8::numeric,
-               metodo_valuacion=$9, activo=$10::boolean,
-               categoria_principal_id=$11::uuid, proveedor_principal_id=$12::uuid, ubicacion_principal_id=$13::uuid,
-               precio_mayorista=NULLIF($14::numeric, 0),
-               ubicacion_deposito=NULLIF($15, ''),
-               updated_at=now()
-             WHERE id=$16::uuid AND empresa_id=$17::uuid`,
-            [p.nombre, p.sku, p.codigo_barras, p.unidad_medida, p.costo_promedio, p.precio_venta,
-             p.stock_actual, p.stock_minimo, p.metodo_valuacion, p.activo,
-             categoriaId, proveedorId, ubicacionId,
-             p.precio_mayorista, p.ubicacion_deposito,
-             p.match_id, empresaId]
-          );
+          // En modo per-sucursal, NO actualizamos productos.stock_actual: el
+          // trigger sync_producto_stock_total lo recalcula desde el agregado
+          // de producto_stock_sucursal. Solo metadata acá.
+          if (sucursalId) {
+            await pool.query(
+              `UPDATE ${tP} SET
+                 nombre=$1, sku=$2, codigo_barras=NULLIF($3,''),
+                 unidad_medida=$4, costo_promedio=$5::numeric, precio_venta=$6::numeric,
+                 stock_minimo=$7::numeric,
+                 metodo_valuacion=$8, activo=$9::boolean,
+                 categoria_principal_id=$10::uuid, proveedor_principal_id=$11::uuid, ubicacion_principal_id=$12::uuid,
+                 precio_mayorista=NULLIF($13::numeric, 0),
+                 ubicacion_deposito=NULLIF($14, ''),
+                 updated_at=now()
+               WHERE id=$15::uuid AND empresa_id=$16::uuid`,
+              [p.nombre, p.sku, p.codigo_barras, p.unidad_medida, p.costo_promedio, p.precio_venta,
+               p.stock_minimo, p.metodo_valuacion, p.activo,
+               categoriaId, proveedorId, ubicacionId,
+               p.precio_mayorista, p.ubicacion_deposito,
+               p.match_id, empresaId]
+            );
+            await upsertStockSucursal(p.match_id, p.stock_actual, p.stock_minimo);
+          } else {
+            await pool.query(
+              `UPDATE ${tP} SET
+                 nombre=$1, sku=$2, codigo_barras=NULLIF($3,''),
+                 unidad_medida=$4, costo_promedio=$5::numeric, precio_venta=$6::numeric,
+                 stock_actual=$7::numeric, stock_minimo=$8::numeric,
+                 metodo_valuacion=$9, activo=$10::boolean,
+                 categoria_principal_id=$11::uuid, proveedor_principal_id=$12::uuid, ubicacion_principal_id=$13::uuid,
+                 precio_mayorista=NULLIF($14::numeric, 0),
+                 ubicacion_deposito=NULLIF($15, ''),
+                 updated_at=now()
+               WHERE id=$16::uuid AND empresa_id=$17::uuid`,
+              [p.nombre, p.sku, p.codigo_barras, p.unidad_medida, p.costo_promedio, p.precio_venta,
+               p.stock_actual, p.stock_minimo, p.metodo_valuacion, p.activo,
+               categoriaId, proveedorId, ubicacionId,
+               p.precio_mayorista, p.ubicacion_deposito,
+               p.match_id, empresaId]
+            );
+          }
           out.updated++;
           // Movimiento por delta (ajuste_manual + ENTRADA/SALIDA segun signo)
           const delta = p.stock_actual - stockAnterior;
@@ -511,7 +609,7 @@ export async function commitProductos(
               p.match_id, p.nombre, p.sku,
               delta > 0 ? "ENTRADA" : "SALIDA", "ajuste_manual",
               Math.abs(delta), p.costo_promedio,
-              `Δ ${delta > 0 ? "+" : ""}${delta} (prev=${stockAnterior} new=${p.stock_actual})`
+              `Δ ${delta > 0 ? "+" : ""}${delta} (prev=${stockAnterior} new=${p.stock_actual})${sucursalId ? ` [sucursal=${sucursalId.slice(0,8)}]` : ""}`
             );
           }
         } else {
@@ -528,6 +626,9 @@ export async function commitProductos(
               }
             } catch (e) { out.warningMessages.push(`Fila ${p.row_number}: no se pudo generar código interno (${(e as Error).message})`); }
           }
+          // En modo per-sucursal, productos.stock_actual arranca en 0; el
+          // trigger lo reconciliará cuando insertemos producto_stock_sucursal.
+          const stockProductoInicial = sucursalId ? 0 : p.stock_actual;
           const inserted = await pool.query<{ id: string }>(
             `INSERT INTO ${tP} (
                empresa_id, nombre, sku, codigo_barras, codigo_barras_interno,
@@ -541,11 +642,16 @@ export async function commitProductos(
                NULLIF($16::numeric, 0), NULLIF($17, '')
              ) RETURNING id`,
             [empresaId, p.nombre, p.sku, codigoBarras, codigoInterno,
-             p.unidad_medida, p.costo_promedio, p.precio_venta, p.stock_actual, p.stock_minimo,
+             p.unidad_medida, p.costo_promedio, p.precio_venta, stockProductoInicial, p.stock_minimo,
              p.metodo_valuacion, p.activo, categoriaId, proveedorId, ubicacionId,
              p.precio_mayorista, p.ubicacion_deposito]
           );
           out.inserted++;
+          if (sucursalId && inserted.rows[0]?.id) {
+            // Imputa el stock del Excel a la sucursal elegida. El trigger
+            // recalcula productos.stock_actual = SUM(producto_stock_sucursal).
+            await upsertStockSucursal(inserted.rows[0].id, p.stock_actual, p.stock_minimo);
+          }
           // Movimiento de inventario inicial si stock > 0
           if (p.stock_actual > 0 && inserted.rows[0]?.id) {
             await registrarMovimiento(

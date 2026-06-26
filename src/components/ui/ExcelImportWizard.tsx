@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { PreviewResponse, CommitResponse } from "@/lib/excel/import-types";
 import { MAX_BYTES, MAX_ROWS } from "@/lib/excel/import";
+
+interface SucursalOpt { id: string; nombre: string; slug: string; es_principal: boolean; activo: boolean }
 
 const MAX_MB = Math.round(MAX_BYTES / 1024 / 1024);
 const MAX_ROWS_LABEL = MAX_ROWS.toLocaleString("es-PY");
@@ -37,6 +39,30 @@ export default function ExcelImportWizard({
   const [crearFaltantes, setCrearFaltantes] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Multi-sucursal: selector para que el admin elija a qué sucursal cargar
+  // el stock. Sólo aplica al importador de productos; las otras entidades
+  // (categorías, proveedores, etc.) no tienen stock y el selector queda oculto.
+  const muestraSelectorSucursal = entidad.toLowerCase().includes("producto");
+  const [sucursales, setSucursales] = useState<SucursalOpt[]>([]);
+  const [sucursalId, setSucursalId] = useState<string>("");
+  useEffect(() => {
+    if (!muestraSelectorSucursal) return;
+    let cancel = false;
+    fetch("/api/sucursales", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancel || !j?.success) return;
+        const list: SucursalOpt[] = (j.data?.sucursales ?? []).filter((s: SucursalOpt) => s.activo);
+        setSucursales(list);
+        // Por defecto: Principal (es_principal=true) si existe.
+        const principal = list.find((s) => s.es_principal);
+        if (principal) setSucursalId(principal.id);
+        else if (list[0]) setSucursalId(list[0].id);
+      })
+      .catch(() => { /* silencioso */ });
+    return () => { cancel = true; };
+  }, [muestraSelectorSucursal]);
 
   function pickFile(f: File | null | undefined) {
     if (!f) { setFile(null); return; }
@@ -78,6 +104,7 @@ export default function ExcelImportWizard({
       const fd = new FormData();
       fd.append("file", file);
       if (permiteCrearFaltantes) fd.append("crear_faltantes", crearFaltantes ? "1" : "0");
+      if (muestraSelectorSucursal && sucursalId) fd.append("sucursal_id", sucursalId);
       const r = await fetch(commitUrl, { method: "POST", credentials: "include", body: fd });
       const j = await r.json();
       if (!r.ok || !j?.success) { setError(j?.error ?? `Error ${r.status}`); return; }
@@ -217,6 +244,28 @@ export default function ExcelImportWizard({
                   <input type="checkbox" checked={crearFaltantes} onChange={(e) => setCrearFaltantes(e.target.checked)} />
                   Crear categorías, proveedores o ubicaciones faltantes durante la importación
                 </label>
+              )}
+              {muestraSelectorSucursal && sucursales.length > 0 && (
+                <div className="flex flex-col gap-1 bg-sky-50 border border-sky-200 rounded p-3">
+                  <label htmlFor="sucursal-destino" className="text-sm font-medium text-sky-900">
+                    Sucursal de destino del stock
+                  </label>
+                  <select
+                    id="sucursal-destino"
+                    value={sucursalId}
+                    onChange={(e) => setSucursalId(e.target.value)}
+                    className="border border-sky-300 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none"
+                  >
+                    {sucursales.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}{s.es_principal ? " (Principal)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-sky-800">
+                    El stock de la columna del Excel se imputa a esta sucursal. El resto de los datos (precios, categorías, etc.) se actualiza globalmente.
+                  </p>
+                </div>
               )}
               <PreviewTable rows={preview.rows} />
               <div className="flex justify-between gap-2 pt-2">
