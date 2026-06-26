@@ -25,6 +25,8 @@ export interface Caja {
   diferencia: number | null;
   observacion_apertura: string | null;
   observacion_cierre: string | null;
+  /** Sucursal a la que pertenece la caja (Joyería Artesanos multi-sucursal). */
+  sucursal_id: string | null;
 }
 
 export interface CajaMovimiento {
@@ -45,6 +47,8 @@ export interface CajaResumen {
   /** Nombres resueltos (catálogo zentra_erp.usuarios) para mostrar en reportes. */
   abierta_por_nombre: string | null;
   cerrada_por_nombre: string | null;
+  /** Nombre legible de la sucursal (resuelto server-side para evitar lookups extra). */
+  sucursal_nombre: string | null;
   /** Cantidad de ventas asociadas a la caja. */
   cantidad_ventas: number;
   /** Σ total de todas las ventas (efectivo + tarjeta + transferencia). */

@@ -32,6 +32,7 @@ interface CajaRow {
   diferencia: number | string | null;
   observacion_apertura: string | null;
   observacion_cierre: string | null;
+  sucursal_id?: string | null;
 }
 
 function mapCaja(r: CajaRow): Caja {
@@ -49,11 +50,44 @@ function mapCaja(r: CajaRow): Caja {
     diferencia: r.diferencia == null ? null : num(r.diferencia),
     observacion_apertura: r.observacion_apertura,
     observacion_cierre: r.observacion_cierre,
+    sucursal_id: r.sucursal_id ?? null,
   };
+}
+
+function emptySucursalInfo(): { sucursal_id: string | null; sucursal_nombre: string | null } {
+  return { sucursal_id: null, sucursal_nombre: null };
 }
 
 const CAJA_COLS =
   "id, numero_caja, estado, abierta_por, cerrada_por, fecha_apertura, fecha_cierre, monto_apertura, monto_cierre_contado, monto_esperado_efectivo, diferencia, observacion_apertura, observacion_cierre";
+
+/**
+ * Lookup best-effort: ids de caja → sucursal_id + nombre. Si el schema no
+ * tiene tabla sucursales o columna cajas.sucursal_id (deploys que no son
+ * Joyería), devuelve un mapa vacío.
+ */
+async function fetchSucursalesParaCajasBestEffort(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  cajaIds: string[],
+): Promise<Map<string, { sucursal_id: string | null; sucursal_nombre: string | null }>> {
+  const map = new Map<string, { sucursal_id: string | null; sucursal_nombre: string | null }>();
+  if (!cajaIds.length) return map;
+  try {
+    const { data, error } = await sb
+      .from("cajas")
+      .select("id, sucursal_id, sucursal:sucursal_id(nombre)")
+      .in("id", cajaIds);
+    if (error || !data) return map;
+    for (const row of data as { id: string; sucursal_id: string | null; sucursal?: { nombre?: string } | null }[]) {
+      map.set(row.id, {
+        sucursal_id: row.sucursal_id ?? null,
+        sucursal_nombre: row.sucursal?.nombre ?? null,
+      });
+    }
+  } catch { /* schema sin sucursales: ignorar */ }
+  return map;
+}
 
 // ── Lecturas ──────────────────────────────────────────────────────────────────
 
@@ -82,20 +116,28 @@ export async function getCajaAbiertaPg(
     .limit(1)
     .maybeSingle();
   if (r.error) throw new Error(r.error.message);
-  return r.data ? mapCaja(r.data as unknown as CajaRow) : null;
+  if (!r.data) return null;
+  const caja = mapCaja(r.data as unknown as CajaRow);
+  const sucMap = await fetchSucursalesParaCajasBestEffort(sb, [caja.id]);
+  const info = sucMap.get(caja.id);
+  if (info) caja.sucursal_id = info.sucursal_id;
+  return caja;
 }
 
 /** Historial de cajas (más recientes primero) con sus totales calculados. */
 export async function listarCajasPg(
   schema: string,
   empresaId: string,
-  limit = 100
+  limit = 100,
+  opts?: { sucursalId?: string | null },
 ): Promise<CajaResumen[]> {
   const sb = createServiceRoleClientWithDbSchema(schema);
-  const q = await sb
+  let baseQ = sb
     .from("cajas")
     .select(CAJA_COLS)
-    .eq("empresa_id", empresaId)
+    .eq("empresa_id", empresaId);
+  if (opts?.sucursalId) baseQ = baseQ.eq("sucursal_id", opts.sucursalId);
+  const q = await baseQ
     .order("fecha_apertura", { ascending: false })
     .limit(limit);
   if (q.error) throw new Error(q.error.message);
@@ -105,6 +147,16 @@ export async function listarCajasPg(
     resumenes.push(await computeResumen(sb, empresaId, mapCaja(row)));
   }
   await attachUsuarioNombres(sb, resumenes);
+  // Adjuntar sucursal_nombre + sucursal_id (best-effort).
+  const sucMap = await fetchSucursalesParaCajasBestEffort(
+    sb,
+    resumenes.map((r) => r.caja.id),
+  );
+  for (const r of resumenes) {
+    const info = sucMap.get(r.caja.id) ?? emptySucursalInfo();
+    r.caja.sucursal_id = info.sucursal_id;
+    r.sucursal_nombre = info.sucursal_nombre;
+  }
   return resumenes;
 }
 
@@ -125,6 +177,12 @@ export async function getResumenCajaPg(
   if (!q.data) return null;
   const resumen = await computeResumen(sb, empresaId, mapCaja(q.data as unknown as CajaRow));
   await attachUsuarioNombres(sb, [resumen]);
+  const sucMap = await fetchSucursalesParaCajasBestEffort(sb, [resumen.caja.id]);
+  const info = sucMap.get(resumen.caja.id);
+  if (info) {
+    resumen.caja.sucursal_id = info.sucursal_id;
+    resumen.sucursal_nombre = info.sucursal_nombre;
+  }
   return resumen;
 }
 
@@ -359,6 +417,7 @@ async function computeResumen(sb: Sb, empresaId: string, caja: Caja): Promise<Ca
     caja,
     abierta_por_nombre: null,
     cerrada_por_nombre: null,
+    sucursal_nombre: null,
     cantidad_ventas: ventas.length,
     total_vendido: totalVendido,
     total_efectivo: totalEfectivo,

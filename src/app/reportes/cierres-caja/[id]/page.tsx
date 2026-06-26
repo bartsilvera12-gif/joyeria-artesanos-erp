@@ -45,6 +45,11 @@ export default function CajaDetallePage({ params }: { params: Promise<{ id: stri
           <span className={`ml-2 rounded-full px-2 py-0.5 align-middle text-xs font-semibold ${c.estado === "abierta" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
             {c.estado === "abierta" ? "Abierta" : "Cerrada"}
           </span>
+          {resumen.sucursal_nombre && (
+            <span className="ml-2 rounded-full bg-sky-50 px-2 py-0.5 align-middle text-xs font-semibold text-sky-700">
+              {resumen.sucursal_nombre}
+            </span>
+          )}
         </h1>
       </div>
 

@@ -17,6 +17,7 @@ export default function CierresCajaPage() {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [estado, setEstado] = useState<FiltroEstado>("todas");
+  const [sucursalFiltro, setSucursalFiltro] = useState<string>("todas");
 
   useEffect(() => {
     let cancelled = false;
@@ -26,20 +27,29 @@ export default function CierresCajaPage() {
     return () => { cancelled = true; };
   }, []);
 
+  const sucursalesUnicas = useMemo(() => {
+    const set = new Map<string, string>();
+    for (const c of cajas) {
+      if (c.sucursal_nombre) set.set(c.sucursal_nombre, c.sucursal_nombre);
+    }
+    return [...set.keys()].sort();
+  }, [cajas]);
+
   const filtradas = useMemo(() => {
     const dStart = desde ? new Date(`${desde}T00:00:00`) : null;
     const dEnd = hasta ? new Date(`${hasta}T23:59:59.999`) : null;
     return cajas.filter((c) => {
       if (estado !== "todas" && c.caja.estado !== estado) return false;
+      if (sucursalFiltro !== "todas" && (c.sucursal_nombre ?? "") !== sucursalFiltro) return false;
       // Filtro por fecha de APERTURA (el turno puede cruzar medianoche; se agrupa por caja).
       const f = new Date(c.caja.fecha_apertura);
       if (dStart && f < dStart) return false;
       if (dEnd && f > dEnd) return false;
       return true;
     });
-  }, [cajas, desde, hasta, estado]);
+  }, [cajas, desde, hasta, estado, sucursalFiltro]);
 
-  const hayFiltros = desde || hasta || estado !== "todas";
+  const hayFiltros = desde || hasta || estado !== "todas" || sucursalFiltro !== "todas";
 
   return (
     <div className="space-y-6">
@@ -68,8 +78,19 @@ export default function CierresCajaPage() {
               <option value="cerrada">Cerrada</option>
             </select>
           </div>
+          {sucursalesUnicas.length > 1 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Sucursal</label>
+              <select value={sucursalFiltro} onChange={(e) => setSucursalFiltro(e.target.value)} className={inputClass}>
+                <option value="todas">Todas</option>
+                {sucursalesUnicas.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {hayFiltros && (
-            <button onClick={() => { setDesde(""); setHasta(""); setEstado("todas"); }} className="px-2 py-2 text-sm text-slate-400 hover:text-slate-600">
+            <button onClick={() => { setDesde(""); setHasta(""); setEstado("todas"); setSucursalFiltro("todas"); }} className="px-2 py-2 text-sm text-slate-400 hover:text-slate-600">
               Limpiar
             </button>
           )}
@@ -86,6 +107,7 @@ export default function CierresCajaPage() {
               <thead>
                 <tr className="bg-slate-50 text-xs font-semibold text-slate-600">
                   <th className="px-3 py-2.5">N°</th>
+                  <th className="px-3 py-2.5">Sucursal</th>
                   <th className="px-3 py-2.5">Estado</th>
                   <th className="px-3 py-2.5">Apertura</th>
                   <th className="px-3 py-2.5">Cierre</th>
@@ -107,6 +129,7 @@ export default function CierresCajaPage() {
                   return (
                     <tr key={c.caja.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                       <td className="px-3 py-2.5 font-medium tabular-nums">{c.caja.numero_caja}</td>
+                      <td className="px-3 py-2.5 text-xs text-slate-700">{c.sucursal_nombre ?? "—"}</td>
                       <td className="px-3 py-2.5">
                         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${c.caja.estado === "abierta" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                           {c.caja.estado === "abierta" ? "Abierta" : "Cerrada"}
