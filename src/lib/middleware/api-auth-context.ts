@@ -24,6 +24,8 @@ export type ApiAuthContext = {
   userScopedSupabase: AppSupabaseClient;
   usuarioRol?: string | null;
   usuarioNombre?: string | null;
+  /** Sucursal del usuario (Joyería Artesanos multi-sucursal). NULL = ve todas. */
+  sucursal_id?: string | null;
 };
 
 export type ApiAuthResult =
@@ -61,6 +63,29 @@ type UsuarioRow = {
   rol?: string | null;
   nombre?: string | null;
 };
+
+/**
+ * Lectura best-effort de `usuarios.sucursal_id` (solo schemas multi-sucursal
+ * como `joyeriaartesanos`). Si la columna no existe (deploys Elevate viejos),
+ * devuelve null sin tirar error.
+ */
+async function fetchSucursalIdBestEffort(
+  client: AppSupabaseClient,
+  usuarioId: string,
+): Promise<string | null> {
+  try {
+    const { data, error } = await client
+      .from("usuarios")
+      .select("sucursal_id")
+      .eq("id", usuarioId)
+      .maybeSingle();
+    if (error) return null;
+    const raw = (data as { sucursal_id?: string | null } | null)?.sucursal_id;
+    return typeof raw === "string" ? raw : null;
+  } catch {
+    return null;
+  }
+}
 
 export type ResolveApiAuthOptions = {
   forDataSchemaEndpoint?: boolean;
@@ -216,6 +241,9 @@ export async function resolveApiAuthContext(
   const usuarioRol = row.rol ?? null;
   const usuarioNombre = row.nombre ?? null;
   const usuarioCatalogId = typeof row.id === "string" ? row.id : null;
+  const sucursal_id = usuarioCatalogId
+    ? await fetchSucursalIdBestEffort(userScopedSupabase, usuarioCatalogId)
+    : null;
 
   if (empresa_id) {
     return {
@@ -227,6 +255,7 @@ export async function resolveApiAuthContext(
         userScopedSupabase,
         usuarioRol,
         usuarioNombre,
+        sucursal_id,
       },
     };
   }
@@ -241,6 +270,7 @@ export async function resolveApiAuthContext(
         userScopedSupabase,
         usuarioRol,
         usuarioNombre,
+        sucursal_id,
       },
     };
   }

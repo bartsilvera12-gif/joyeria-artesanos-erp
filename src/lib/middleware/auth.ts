@@ -7,6 +7,8 @@ export interface UsuarioConEmpresa {
   empresa_id: string;
   /** PK `zentra_erp.usuarios.id` cuando se resolvió la fila. */
   usuarioCatalogId?: string | null;
+  /** Sucursal del usuario (Joyería Artesanos multi-sucursal). NULL = ve todas. */
+  sucursal_id?: string | null;
 }
 
 export interface UsuarioConEmpresaYRol extends UsuarioConEmpresa {
@@ -31,6 +33,7 @@ export async function getAuthWithRol(request?: Request | null): Promise<UsuarioC
     empresa_id: r.ctx.empresa_id,
     rol: r.ctx.usuarioRol ?? undefined,
     nombre: r.ctx.usuarioNombre ?? undefined,
+    sucursal_id: r.ctx.sucursal_id ?? null,
   };
 }
 
@@ -50,5 +53,6 @@ export async function getUserAndEmpresa(request?: Request | null): Promise<Usuar
     user: r.ctx.user,
     empresa_id: r.ctx.empresa_id,
     usuarioCatalogId: r.ctx.usuarioCatalogId ?? null,
+    sucursal_id: r.ctx.sucursal_id ?? null,
   };
 }
