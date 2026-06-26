@@ -216,7 +216,16 @@ export async function productoExiste(
   );
 }
 
-export type NuevoProductoData = Omit<Producto, "id">;
+export type NuevoProductoData = Omit<Producto, "id"> & {
+  /**
+   * Multi-sucursal: ids de sucursales en las que el producto debe aparecer.
+   * Sólo lo manda el admin desde /inventario/nuevo. El backend crea una fila
+   * en producto_stock_sucursal por cada una (stock=0, salvo la sucursal que
+   * recibe el stock inicial del form).
+   */
+  incluir_sucursales?: string[];
+  sucursal_id?: string | null;
+};
 
 /**
  * Crea producto via API server-side (POST /api/productos).
@@ -271,6 +280,10 @@ export async function saveProducto(
     proximamente: datos.proximamente ?? false,
     orden_web: datos.orden_web ?? null,
     familia_olfativa_id: datos.familia_olfativa_id ?? null,
+    // Multi-sucursal (admin only — el server descarta si no es admin
+    // o pisa con la sucursal_id del operativo).
+    incluir_sucursales: datos.incluir_sucursales ?? undefined,
+    sucursal_id: datos.sucursal_id ?? undefined,
   };
 
   const res = await fetchWithSupabaseSession("/api/productos", {

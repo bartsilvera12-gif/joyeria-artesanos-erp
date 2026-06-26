@@ -86,7 +86,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Multi-sucursal: si el usuario tiene sucursal_id, mostrar SU stock en
-    // stock_actual (no el agregado). Best-effort.
+    // stock_actual (no el agregado) Y filtrar a SOLO los productos que están
+    // efectivamente asignados a esa sucursal (es decir, que tienen una fila en
+    // producto_stock_sucursal). Sin esto el operativo veía todo el catálogo
+    // del admin.
     let productos = r.rows;
     if (ctx.auth.sucursal_id && productos.length) {
       try {
@@ -102,15 +105,20 @@ export async function GET(request: NextRequest) {
         );
         if (rs.ok) {
           const byId = new Map(rs.rows.map((row) => [row.producto_id, row]));
-          productos = productos.map((p) => {
-            const id = (p as { id?: string }).id;
-            const ss = id ? byId.get(id) : undefined;
-            return {
-              ...p,
-              stock_actual: ss ? Number(ss.stock_actual ?? 0) : 0,
-              stock_minimo: ss && ss.stock_minimo != null ? Number(ss.stock_minimo) : (p as { stock_minimo?: number }).stock_minimo,
-            };
-          });
+          productos = productos
+            .filter((p) => {
+              const id = (p as { id?: string }).id;
+              return id ? byId.has(id) : false;
+            })
+            .map((p) => {
+              const id = (p as { id?: string }).id;
+              const ss = id ? byId.get(id) : undefined;
+              return {
+                ...p,
+                stock_actual: ss ? Number(ss.stock_actual ?? 0) : 0,
+                stock_minimo: ss && ss.stock_minimo != null ? Number(ss.stock_minimo) : (p as { stock_minimo?: number }).stock_minimo,
+              };
+            });
         }
       } catch { /* schema sin sucursales: dejar agregado */ }
     }
@@ -300,33 +308,57 @@ export async function POST(request: NextRequest) {
         es_decant: esDecant,
       });
 
-      // Stock per-sucursal: si vino sucursal destino, imputar el stock cargado
-      // a esa sucursal en producto_stock_sucursal. El trigger en BD reconcilia
-      // productos.stock_actual = SUM(per-sucursal).
-      if (sucursalIdDestino && stockActual > 0) {
-        try {
+      // Multi-sucursal: crear filas per-sucursal de inclusión.
+      //   - `incluir_sucursales`: lista de sucursales en las que el producto
+      //     debe aparecer (default: solo Principal si el admin no eligió).
+      //   - `sucursalIdDestino`: la sucursal que recibe el stock inicial
+      //     cargado en el form. El resto arranca en 0.
+      //   El trigger sync_producto_stock_total reconcilia productos.stock_actual.
+      try {
+        const incluirRaw = Array.isArray(body.incluir_sucursales) ? body.incluir_sucursales : [];
+        const incluir = (incluirRaw as unknown[])
+          .filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+        // Si admin no eligió nada y hay sucursal destino, incluir esa al menos.
+        const setSucursales = new Set<string>(incluir);
+        if (sucursalIdDestino) setSucursales.add(sucursalIdDestino);
+
+        if (setSucursales.size > 0) {
           const pool = getChatPostgresPool();
           if (pool) {
             const schema = assertAllowedChatDataSchema(
               await fetchDataSchemaForEmpresaId(empresaId),
             );
             const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
-            await pool.query(
-              `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
-                 VALUES ($1::uuid, $2::uuid, $3::numeric, $4::numeric, now())
-               ON CONFLICT (producto_id, sucursal_id)
-                 DO UPDATE SET stock_actual = EXCLUDED.stock_actual,
-                               stock_minimo = EXCLUDED.stock_minimo,
-                               updated_at   = now()`,
-              [row.id, sucursalIdDestino, stockActual, stockMinimo],
+            const tS = quoteSchemaTable(schema, "sucursales");
+            // Validar ownership: solo sucursales de la empresa del usuario.
+            const valid = await getChatPostgresPool()!.query<{ id: string }>(
+              `SELECT id::text FROM ${tS}
+                WHERE empresa_id=$1::uuid
+                  AND id::text = ANY($2::text[])`,
+              [empresaId, [...setSucursales]],
             );
+            const validIds = new Set(valid.rows.map((r) => r.id));
+            for (const sid of validIds) {
+              const esDestino = sid === sucursalIdDestino;
+              const stockParaFila = esDestino ? stockActual : 0;
+              const minimoParaFila = esDestino ? stockMinimo : 0;
+              await pool.query(
+                `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+                   VALUES ($1::uuid, $2::uuid, $3::numeric, $4::numeric, now())
+                 ON CONFLICT (producto_id, sucursal_id)
+                   DO UPDATE SET stock_actual = EXCLUDED.stock_actual,
+                                 stock_minimo = EXCLUDED.stock_minimo,
+                                 updated_at   = now()`,
+                [row.id, sid, stockParaFila, minimoParaFila],
+              );
+            }
           }
-        } catch (e) {
-          console.error("[/api/productos] upsert producto_stock_sucursal fallo", {
-            empresaId, productoId: row.id, sucursalIdDestino,
-            message: e instanceof Error ? e.message : String(e),
-          });
         }
+      } catch (e) {
+        console.error("[/api/productos] upsert producto_stock_sucursal fallo", {
+          empresaId, productoId: row.id, sucursalIdDestino,
+          message: e instanceof Error ? e.message : String(e),
+        });
       }
 
       // Inventario inicial (mismo schema, via PG directo).

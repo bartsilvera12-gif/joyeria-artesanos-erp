@@ -987,8 +987,8 @@ export default function EditarProductoPage() {
             </select>
           </div>
 
-          {/* Stock por sucursal — admin puede transferir entre sucursales. */}
-          {id && <StockPorSucursalBox productoId={id} canTransfer={isAdmin} />}
+          {/* Stock por sucursal — admin puede editar (incluir/excluir y setear stock). */}
+          {id && <StockPorSucursalBox productoId={id} canEdit={isAdmin} />}
 
           {/* Visibilidad. Las opciones de catálogo web pública solo aplican
               al admin; el operativo de sucursal sólo controla el flag "Activo". */}

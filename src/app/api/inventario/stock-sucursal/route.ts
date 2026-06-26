@@ -1,0 +1,127 @@
+import { NextRequest, NextResponse } from "next/server";
+import { successResponse, errorResponse } from "@/lib/api/response";
+import { getAuthWithRol, isAdmin } from "@/lib/middleware/auth";
+import { fetchDataSchemaForEmpresaId } from "@/lib/supabase/empresa-data-schema";
+import { getChatPostgresPool, quoteSchemaTable } from "@/lib/supabase/chat-pg-pool";
+import { assertAllowedChatDataSchema } from "@/lib/supabase/chat-data-schema";
+
+/**
+ * GET /api/inventario/stock-sucursal?producto_id=...
+ *
+ * Devuelve TODAS las sucursales de la empresa y, para cada una, el stock
+ * actual del producto y un flag `incluido` (true si tiene fila en
+ * producto_stock_sucursal — o sea, si el producto pertenece al inventario
+ * de esa sucursal).
+ */
+export async function GET(request: NextRequest) {
+  const auth = await getAuthWithRol(request);
+  if (!auth) return NextResponse.json(errorResponse("No autenticado."), { status: 401 });
+  const url = new URL(request.url);
+  const productoId = (url.searchParams.get("producto_id") ?? "").trim();
+  if (!productoId) {
+    return NextResponse.json(errorResponse("Falta producto_id."), { status: 400 });
+  }
+
+  const pool = getChatPostgresPool();
+  if (!pool) return NextResponse.json(successResponse({ stocks: [] }));
+
+  try {
+    const schema = assertAllowedChatDataSchema(await fetchDataSchemaForEmpresaId(auth.empresa_id));
+    const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
+    const tS = quoteSchemaTable(schema, "sucursales");
+    const r = await pool.query<{
+      sucursal_id: string; nombre: string; es_principal: boolean;
+      stock_actual: number | string; incluido: boolean;
+    }>(
+      `SELECT s.id AS sucursal_id, s.nombre, s.es_principal,
+              COALESCE(pss.stock_actual, 0)::float8 AS stock_actual,
+              (pss.producto_id IS NOT NULL) AS incluido
+         FROM ${tS} s
+         LEFT JOIN ${tPSS} pss
+           ON pss.sucursal_id = s.id AND pss.producto_id = $1::uuid
+        WHERE s.empresa_id = $2::uuid AND s.activo = true
+        ORDER BY s.es_principal DESC, s.nombre ASC`,
+      [productoId, auth.empresa_id],
+    );
+    return NextResponse.json(successResponse({ stocks: r.rows }));
+  } catch (e) {
+    console.error("[stock-sucursal GET]", e instanceof Error ? e.message : e);
+    return NextResponse.json(successResponse({ stocks: [] }));
+  }
+}
+
+/**
+ * POST /api/inventario/stock-sucursal
+ *
+ * Admin-only. Body: `{producto_id, sucursal_id, stock_actual, incluido}`.
+ *   - incluido=true  → UPSERT con el stock provisto (0 si no se manda).
+ *   - incluido=false → DELETE de la fila (producto deja de aparecer en esa sucursal).
+ * El trigger sync_producto_stock_total reconcilia productos.stock_actual.
+ */
+export async function POST(request: NextRequest) {
+  const auth = await getAuthWithRol(request);
+  if (!auth) return NextResponse.json(errorResponse("No autenticado."), { status: 401 });
+  if (!isAdmin(auth)) {
+    return NextResponse.json(
+      errorResponse("Solo administradores pueden ajustar stock per-sucursal."),
+      { status: 403 },
+    );
+  }
+
+  let body: { producto_id?: string; sucursal_id?: string; stock_actual?: number | null; incluido?: boolean };
+  try { body = await request.json(); } catch {
+    return NextResponse.json(errorResponse("JSON inválido."), { status: 400 });
+  }
+
+  const productoId = String(body.producto_id ?? "").trim();
+  const sucursalId = String(body.sucursal_id ?? "").trim();
+  const incluido = body.incluido !== false; // default true
+  if (!productoId || !sucursalId) {
+    return NextResponse.json(errorResponse("Faltan producto_id o sucursal_id."), { status: 400 });
+  }
+  const stockNum = body.stock_actual == null ? 0 : Number(body.stock_actual);
+  if (!Number.isFinite(stockNum) || stockNum < 0) {
+    return NextResponse.json(errorResponse("Stock inválido."), { status: 400 });
+  }
+
+  const pool = getChatPostgresPool();
+  if (!pool) return NextResponse.json(errorResponse("Base de datos no disponible."), { status: 503 });
+
+  try {
+    const schema = assertAllowedChatDataSchema(await fetchDataSchemaForEmpresaId(auth.empresa_id));
+    const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
+    const tP = quoteSchemaTable(schema, "productos");
+    const tS = quoteSchemaTable(schema, "sucursales");
+
+    // Validar ownership: producto y sucursal pertenecen a la empresa del usuario.
+    const owner = await pool.query<{ producto: string | null; sucursal: string | null }>(
+      `SELECT
+         (SELECT empresa_id::text FROM ${tP} WHERE id=$1::uuid) AS producto,
+         (SELECT empresa_id::text FROM ${tS} WHERE id=$2::uuid) AS sucursal`,
+      [productoId, sucursalId],
+    );
+    const row = owner.rows[0];
+    if (row?.producto !== auth.empresa_id || row?.sucursal !== auth.empresa_id) {
+      return NextResponse.json(errorResponse("Producto o sucursal inválida."), { status: 400 });
+    }
+
+    if (incluido) {
+      await pool.query(
+        `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
+           VALUES ($1::uuid, $2::uuid, $3::numeric, 0, now())
+         ON CONFLICT (producto_id, sucursal_id)
+           DO UPDATE SET stock_actual = EXCLUDED.stock_actual, updated_at = now()`,
+        [productoId, sucursalId, stockNum],
+      );
+    } else {
+      await pool.query(
+        `DELETE FROM ${tPSS} WHERE producto_id=$1::uuid AND sucursal_id=$2::uuid`,
+        [productoId, sucursalId],
+      );
+    }
+    return NextResponse.json(successResponse({ ok: true }));
+  } catch (e) {
+    console.error("[stock-sucursal POST]", e instanceof Error ? e.message : e);
+    return NextResponse.json(errorResponse("No se pudo actualizar el stock."), { status: 500 });
+  }
+}

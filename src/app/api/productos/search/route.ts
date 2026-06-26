@@ -194,7 +194,13 @@ export async function GET(request: NextRequest) {
       return t >= ahora ? precioOferta : precioVenta;
     }
 
-    const hits: ProductoSearchHit[] = rows.map((row, i) => {
+    // Si el usuario tiene sucursal_id, descartamos los hits que no tengan
+    // una fila per-sucursal asignada (no pertenecen a su inventario).
+    const rowsFiltrados = auth.sucursal_id
+      ? rows.filter((r) => stockBySucursalById.has(r.id))
+      : rows;
+
+    const hits: ProductoSearchHit[] = rowsFiltrados.map((row, i) => {
       const precioVenta = Number(row.precio_venta ?? 0);
       const precioOferta = Number(row.precio_oferta ?? 0);
       const ofertaHasta = row.oferta_hasta ?? null;
