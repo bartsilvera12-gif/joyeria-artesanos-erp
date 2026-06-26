@@ -92,7 +92,6 @@ function adminEmpresasMatchesQuery(queryRaw: string): boolean {
  *  aparecen en familias, aunque sigan en MENU_STRUCTURE. */
 const HIDDEN_MENU_KEYS = new Set<string>([
   "gerencia",
-  "usuarios",
   "planes",
   "comisiones",
   "crm",
