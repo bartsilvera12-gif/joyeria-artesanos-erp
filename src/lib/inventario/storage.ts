@@ -235,6 +235,11 @@ export type NuevoProductoData = Omit<Producto, "id"> & {
    */
   incluir_sucursales?: string[];
   sucursal_id?: string | null;
+  /**
+   * Reparto explícito al crear: sucursal_id (no-principal) → stock asignado.
+   * El backend descuenta esos valores de Principal automáticamente.
+   */
+  stock_por_sucursal?: Record<string, number>;
 };
 
 /**
@@ -294,6 +299,7 @@ export async function saveProducto(
     // o pisa con la sucursal_id del operativo).
     incluir_sucursales: datos.incluir_sucursales ?? undefined,
     sucursal_id: datos.sucursal_id ?? undefined,
+    stock_por_sucursal: datos.stock_por_sucursal ?? undefined,
   };
 
   const res = await fetchWithSupabaseSession("/api/productos", {

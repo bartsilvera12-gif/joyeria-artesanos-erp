@@ -341,18 +341,27 @@ export async function POST(request: NextRequest) {
         es_decant: esDecant,
       });
 
-      // Multi-sucursal: crear filas per-sucursal de inclusión.
-      //   - `incluir_sucursales`: lista de sucursales en las que el producto
-      //     debe aparecer (default: solo Principal si el admin no eligió).
-      //   - `sucursalIdDestino`: la sucursal que recibe el stock inicial
-      //     cargado en el form. El resto arranca en 0.
+      // Multi-sucursal: crear filas per-sucursal con reparto explícito.
+      //   - `stock_por_sucursal`: mapa sucursal_id→stock (no-principal). Lo
+      //     asignado a otras sucursales se descuenta de Principal.
+      //   - `incluir_sucursales`: lista a incluir (con stock=0 si no hay
+      //     entrada en stock_por_sucursal). Principal va siempre con
+      //     `stockActual - sum(otras)`.
       //   El trigger sync_producto_stock_total reconcilia productos.stock_actual.
       try {
         const incluirRaw = Array.isArray(body.incluir_sucursales) ? body.incluir_sucursales : [];
         const incluir = (incluirRaw as unknown[])
           .filter((x): x is string => typeof x === "string" && x.trim().length > 0);
-        // Si admin no eligió nada y hay sucursal destino, incluir esa al menos.
-        const setSucursales = new Set<string>(incluir);
+        const stockMap: Record<string, number> = {};
+        if (body.stock_por_sucursal && typeof body.stock_por_sucursal === "object") {
+          for (const [k, v] of Object.entries(body.stock_por_sucursal as Record<string, unknown>)) {
+            const n = Number(v);
+            if (typeof k === "string" && k && Number.isFinite(n) && n >= 0) {
+              stockMap[k] = n;
+            }
+          }
+        }
+        const setSucursales = new Set<string>([...incluir, ...Object.keys(stockMap)]);
         if (sucursalIdDestino) setSucursales.add(sucursalIdDestino);
 
         if (setSucursales.size > 0) {
@@ -363,18 +372,33 @@ export async function POST(request: NextRequest) {
             );
             const tPSS = quoteSchemaTable(schema, "producto_stock_sucursal");
             const tS = quoteSchemaTable(schema, "sucursales");
-            // Validar ownership: solo sucursales de la empresa del usuario.
-            const valid = await getChatPostgresPool()!.query<{ id: string }>(
-              `SELECT id::text FROM ${tS}
+            // Validar ownership y separar Principal del resto.
+            const valid = await pool.query<{ id: string; es_principal: boolean }>(
+              `SELECT id::text, es_principal FROM ${tS}
                 WHERE empresa_id=$1::uuid
                   AND id::text = ANY($2::text[])`,
               [empresaId, [...setSucursales]],
             );
+            const principalRow = await pool.query<{ id: string }>(
+              `SELECT id::text FROM ${tS} WHERE empresa_id=$1::uuid AND es_principal=true LIMIT 1`,
+              [empresaId],
+            );
+            const principalId = principalRow.rows[0]?.id ?? null;
             const validIds = new Set(valid.rows.map((r) => r.id));
+
+            // Reparto: cuánto a cada no-principal y cuánto queda en Principal.
+            let asignadoFueraPrincipal = 0;
             for (const sid of validIds) {
-              const esDestino = sid === sucursalIdDestino;
-              const stockParaFila = esDestino ? stockActual : 0;
-              const minimoParaFila = esDestino ? stockMinimo : 0;
+              if (sid === principalId) continue;
+              const cant = stockMap[sid] ?? 0;
+              asignadoFueraPrincipal += cant;
+            }
+            const stockPrincipal = Math.max(0, stockActual - asignadoFueraPrincipal);
+
+            for (const sid of validIds) {
+              const esPrincipal = sid === principalId;
+              const stockParaFila = esPrincipal ? stockPrincipal : (stockMap[sid] ?? 0);
+              const minimoParaFila = esPrincipal ? stockMinimo : 0;
               await pool.query(
                 `INSERT INTO ${tPSS} (producto_id, sucursal_id, stock_actual, stock_minimo, updated_at)
                    VALUES ($1::uuid, $2::uuid, $3::numeric, $4::numeric, now())

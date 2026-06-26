@@ -35,12 +35,13 @@ export default function NuevoProductoPage() {
   const [errorDuplicado, setErrorDuplicado] = useState<string | null>(null);
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
 
-  // Multi-sucursal: admin elige en cuáles sucursales el producto debe aparecer.
-  // El stock del form va a la primera marcada (típicamente Principal); las
-  // demás arrancan en 0. Operativos no ven el selector — el backend igual
-  // fuerza su sucursal_id.
+  // Multi-sucursal: admin elige en cuáles sucursales el producto aparece y
+  // cuánto stock va a cada una. Principal va siempre; lo que se asigna a
+  // otras sucursales se descuenta de Principal (mismo modelo que la edición).
   const [sucursales, setSucursales] = useState<SucursalOpt[]>([]);
   const [incluirSucursales, setIncluirSucursales] = useState<Set<string>>(new Set());
+  // Mapa sucursal_id (no-principal) → stock asignado al crear.
+  const [stockExtraSucursal, setStockExtraSucursal] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     let cancel = false;
     fetch("/api/sucursales", { credentials: "include", cache: "no-store" })
@@ -389,17 +390,27 @@ export default function NuevoProductoPage() {
           activo,
           visible_web: visibleWeb,
           destacado_web: destacadoWeb,
-          // Principal va siempre (es la vista web). Las otras sucursales
-          // dependen del checkbox del admin.
+          // Principal va siempre. Las otras sucursales dependen del checkbox.
           incluir_sucursales: (() => {
             const principal = sucursales.find((s) => s.es_principal);
             const ids = new Set<string>(incluirSucursales);
             if (principal) ids.add(principal.id);
             return ids.size > 0 ? [...ids] : undefined;
           })(),
-          // El stock del form se imputa SIEMPRE a Principal (no se reparte
-          // en el alta — para repartir, se usa la edición del producto).
+          // El stock del form se imputa a Principal por defecto.
           sucursal_id: sucursales.find((s) => s.es_principal)?.id ?? null,
+          // Reparto explícito: cuánto va a cada sucursal no-principal. El
+          // backend resta de Principal lo asignado a las demás.
+          stock_por_sucursal: (() => {
+            const map: Record<string, number> = {};
+            for (const id of incluirSucursales) {
+              const s = sucursales.find((x) => x.id === id);
+              if (!s || s.es_principal) continue;
+              const cant = parseInt(stockExtraSucursal.get(id) ?? "0") || 0;
+              if (cant > 0) map[id] = cant;
+            }
+            return Object.keys(map).length > 0 ? map : undefined;
+          })(),
         });
       } catch (err) {
         console.error("[inventario/nuevo] saveProducto error:", err);
@@ -1102,37 +1113,100 @@ export default function NuevoProductoPage() {
             </select>
           </div>
 
-          {/* Sucursales en las que el producto debe aparecer (admin only).
-              Principal siempre se incluye (es lo que muestra la web pública);
-              el admin solo elige si además se va a vender en otras sucursales. */}
-          {isAdmin && sucursales.filter((s) => !s.es_principal).length > 0 && (
-            <div className="rounded-lg border border-sky-200 bg-sky-50 p-4">
-              <p className="text-sm font-semibold text-sky-900 mb-2">Sucursales adicionales</p>
-              <p className="text-xs text-sky-800 mb-3">
-                Principal siempre se incluye (es lo que se refleja en la página web). Marcá si además este producto se va a vender en otra sucursal — desde la edición podés mover stock entre ellas.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {sucursales.filter((s) => !s.es_principal).map((s) => (
-                  <label key={s.id} className="flex items-center gap-2 text-sm text-slate-700 bg-white border border-sky-100 rounded-lg px-3 py-2">
-                    <input
-                      type="checkbox"
-                      checked={incluirSucursales.has(s.id)}
-                      onChange={(e) => {
-                        setIncluirSucursales((prev) => {
-                          const next = new Set(prev);
-                          if (e.target.checked) next.add(s.id);
-                          else next.delete(s.id);
-                          return next;
-                        });
-                      }}
-                      className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
-                    />
-                    Incluir en <strong>{s.nombre}</strong>
-                  </label>
-                ))}
+          {/* Sucursales adicionales (admin only). Principal siempre se incluye
+              y arranca con todo el stock; lo que se asigne acá se descuenta
+              de Principal igual que en la edición. */}
+          {isAdmin && sucursales.filter((s) => !s.es_principal).length > 0 && (() => {
+            const total = parseInt(form.stock_actual) || 0;
+            const sumExtras = [...incluirSucursales]
+              .filter((id) => !sucursales.find((s) => s.id === id)?.es_principal)
+              .reduce((acc, id) => acc + (parseInt(stockExtraSucursal.get(id) ?? "0") || 0), 0);
+            const principalQueda = total - sumExtras;
+            const excede = principalQueda < 0;
+            return (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold text-sky-900">Sucursales adicionales</p>
+                  <span className="text-xs text-sky-800">
+                    Total: <strong className="tabular-nums">{total}</strong>
+                    {sumExtras > 0 && (
+                      <>
+                        {" · "}Principal quedará con{" "}
+                        <strong className={`tabular-nums ${excede ? "text-red-600" : ""}`}>
+                          {Math.max(0, principalQueda)}
+                        </strong>
+                      </>
+                    )}
+                  </span>
+                </div>
+                <p className="text-xs text-sky-800 mb-3">
+                  Principal siempre se incluye (es lo que se refleja en la página web). Marcá si además este producto se va a vender en otra sucursal e indicá cuánto stock va a esa sucursal — el resto queda en Principal.
+                </p>
+                <div className="space-y-2">
+                  {sucursales.filter((s) => !s.es_principal).map((s) => {
+                    const incluido = incluirSucursales.has(s.id);
+                    const cant = stockExtraSucursal.get(s.id) ?? "";
+                    const cantNum = parseInt(cant) || 0;
+                    return (
+                      <div key={s.id} className="flex items-center gap-3 bg-white border border-sky-100 rounded-lg px-3 py-2 flex-wrap">
+                        <label className="flex items-center gap-2 text-sm text-slate-700 flex-1 min-w-[160px]">
+                          <input
+                            type="checkbox"
+                            checked={incluido}
+                            onChange={(e) => {
+                              setIncluirSucursales((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(s.id);
+                                else next.delete(s.id);
+                                return next;
+                              });
+                              if (!e.target.checked) {
+                                setStockExtraSucursal((prev) => {
+                                  const next = new Map(prev);
+                                  next.delete(s.id);
+                                  return next;
+                                });
+                              }
+                            }}
+                            className="h-4 w-4 rounded border-slate-300 text-[#4FAEB2] focus:ring-[#4FAEB2]"
+                          />
+                          Incluir en <strong>{s.nombre}</strong>
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-slate-600">
+                          Cantidad:
+                          <input
+                            type="number"
+                            min={0}
+                            step={1}
+                            max={total}
+                            value={cant}
+                            disabled={!incluido}
+                            placeholder="0"
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setStockExtraSucursal((prev) => {
+                                const next = new Map(prev);
+                                next.set(s.id, v);
+                                return next;
+                              });
+                            }}
+                            className={`w-24 border rounded-lg px-2 py-1 text-sm text-right disabled:bg-slate-50 disabled:text-slate-400 ${
+                              incluido && (cantNum > total - sumExtras + cantNum) ? "border-red-400 bg-red-50" : "border-slate-300"
+                            }`}
+                          />
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                {excede && (
+                  <p className="text-xs text-red-600 mt-2">
+                    Las cantidades asignadas ({sumExtras}) superan el stock total ingresado ({total}). Ajustá los valores antes de guardar.
+                  </p>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Visibilidad en la web pública */}
           <div className="rounded-lg border border-slate-200 bg-white p-4">
