@@ -7,6 +7,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getPrincipalStockMap } from "@/lib/public/joyeria-sucursal";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,12 @@ export async function GET(
     );
   }
 
+  // Multi-sucursal: disponibilidad = stock en la sucursal Principal.
+  const stockPrincipal = await getPrincipalStockMap(supabase);
+  const stockSucursal = stockPrincipal
+    ? (stockPrincipal.get(data.id) ?? 0)
+    : Number(data.stock_actual ?? 0);
+
   const producto = {
     id: data.id,
     slug: data.slug_web,
@@ -83,7 +90,7 @@ export async function GET(
     descripcion_corta: data.descripcion_corta,
     descripcion: data.descripcion_web ?? data.descripcion_corta,
     destacado: data.destacado_web,
-    disponible: Number(data.stock_actual ?? 0) > 0,
+    disponible: stockSucursal > 0,
   };
 
   return NextResponse.json(

@@ -129,6 +129,27 @@ export async function POST(req: Request) {
   const productos = (productosRaw ?? []) as ProductoDb[];
   const byId = new Map(productos.map((p) => [p.id, p]));
 
+  // Multi-sucursal: validar stock con la sucursal Principal (la que despacha la web).
+  const { data: sucPrincipal } = await supabase
+    .from("sucursales")
+    .select("id")
+    .eq("es_principal", true)
+    .limit(1)
+    .maybeSingle();
+  const principalId = (sucPrincipal as { id?: string } | null)?.id ?? null;
+  let stockPrincipal: Map<string, number> | null = null;
+  if (principalId) {
+    const { data: stocksRaw } = await supabase
+      .from("producto_stock_sucursal")
+      .select("producto_id, stock_actual")
+      .eq("sucursal_id", principalId)
+      .in("producto_id", ids);
+    stockPrincipal = new Map(
+      ((stocksRaw ?? []) as { producto_id: string; stock_actual: number | string }[])
+        .map((r) => [r.producto_id, Number(r.stock_actual)]),
+    );
+  }
+
   let subtotal = 0;
   const itemsInsert: {
     producto_id: string;
@@ -141,7 +162,10 @@ export async function POST(req: Request) {
   for (const it of items) {
     const p = byId.get(it.producto_id);
     if (!p) return bad(`producto ${it.producto_id} no disponible`);
-    if (Number(p.stock_actual ?? 0) < it.cantidad) {
+    const stockDisp = stockPrincipal
+      ? (stockPrincipal.get(it.producto_id) ?? 0)
+      : Number(p.stock_actual ?? 0);
+    if (stockDisp < it.cantidad) {
       return bad(`stock insuficiente para ${p.nombre}`);
     }
     const precio = Number(p.precio_oferta ?? p.precio_web ?? p.precio_venta ?? 0);

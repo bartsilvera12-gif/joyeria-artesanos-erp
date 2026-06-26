@@ -11,6 +11,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { getPrincipalStockMap } from "@/lib/public/joyeria-sucursal";
 
 export const dynamic = "force-dynamic";
 
@@ -58,14 +59,25 @@ export async function GET() {
     );
   }
   const supabase = createClient(url, key, { db: { schema: "joyeriaartesanos" } });
-  const { data, error } = await supabase
+
+  // Multi-sucursal: la web sólo ofrece productos con stock en la sucursal
+  // Principal. Si stockPrincipal es null, fallback a stock_actual agregado.
+  const stockPrincipal = await getPrincipalStockMap(supabase, { soloDisponibles: true });
+
+  const baseQuery = supabase
     .from("productos")
     .select(
       "id,slug_web,nombre,marca,precio_venta,precio_web,precio_oferta,oferta_hasta,imagen_url,descripcion_corta,destacado_web,stock_actual,orden_web,categoria:categoria_principal_id(slug_web,nombre)",
     )
     .eq("activo", true)
-    .eq("visible_web", true)
-    .gt("stock_actual", 0)
+    .eq("visible_web", true);
+
+  const { data, error } = await (stockPrincipal && stockPrincipal.size > 0
+    ? baseQuery.in("id", [...stockPrincipal.keys()])
+    : stockPrincipal
+      ? baseQuery.in("id", ["00000000-0000-0000-0000-000000000000"]) // mapa vacío → sin productos
+      : baseQuery.gt("stock_actual", 0)
+  )
     .order("orden_web", { ascending: true, nullsFirst: false })
     .limit(200);
 
@@ -76,21 +88,24 @@ export async function GET() {
     );
   }
 
-  const productos = ((data ?? []) as unknown as ProductoRow[]).map((p) => ({
-    id: p.id,
-    slug: p.slug_web,
-    nombre: p.nombre,
-    marca: p.marca,
-    categoria: p.categoria?.slug_web ?? null,
-    categoria_nombre: p.categoria?.nombre ?? null,
-    precio: Number(p.precio_web ?? p.precio_venta ?? 0),
-    precio_oferta: p.precio_oferta != null ? Number(p.precio_oferta) : null,
-    oferta_hasta: p.oferta_hasta,
-    imagen_url: p.imagen_url,
-    descripcion: p.descripcion_corta,
-    destacado: p.destacado_web,
-    disponible: Number(p.stock_actual ?? 0) > 0,
-  }));
+  const productos = ((data ?? []) as unknown as ProductoRow[]).map((p) => {
+    const stockSucursal = stockPrincipal ? (stockPrincipal.get(p.id) ?? 0) : Number(p.stock_actual ?? 0);
+    return {
+      id: p.id,
+      slug: p.slug_web,
+      nombre: p.nombre,
+      marca: p.marca,
+      categoria: p.categoria?.slug_web ?? null,
+      categoria_nombre: p.categoria?.nombre ?? null,
+      precio: Number(p.precio_web ?? p.precio_venta ?? 0),
+      precio_oferta: p.precio_oferta != null ? Number(p.precio_oferta) : null,
+      oferta_hasta: p.oferta_hasta,
+      imagen_url: p.imagen_url,
+      descripcion: p.descripcion_corta,
+      destacado: p.destacado_web,
+      disponible: stockSucursal > 0,
+    };
+  });
 
   return NextResponse.json(
     { productos },
