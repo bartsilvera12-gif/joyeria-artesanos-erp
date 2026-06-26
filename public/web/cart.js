@@ -299,25 +299,32 @@
     try { return new URL(u, window.location.href).href; }
     catch { return u; }
   }
+  // Helper: arma la linea de un producto. Omite el material si viene vacio
+  // ("(Plata 925)" si hay, nada si no) y NO agrega URL — wa.me solo muestra
+  // un preview por mensaje y la URL larga del storage queda fea. La web
+  // entera aparece como preview gracias a Open Graph cuando ponemos el
+  // link al final.
+  function lineaItem(it){
+    const mat = (it.material || '').trim();
+    const matStr = mat ? ` (${mat})` : '';
+    return `• ${it.name}${matStr} x${it.qty} — ₲ ${fmt(it.price*it.qty)}`;
+  }
   function sendOrderToLocal(localKey){
     const phone = localKey === 'sl' ? WA_SAN_LORENZO : WA_MULTIPLAZA;
     const localName = localKey === 'sl' ? 'San Lorenzo' : 'Multiplaza';
+    const SITE_URL = 'https://joyeriaartesanos.com';
     let msg;
     if(pickerMode === 'cart'){
-      const lines = cart.map(it => {
-        const img = absUrl(it.img);
-        const linea = `• ${it.name} (${it.material}) x${it.qty} — ₲ ${fmt(it.price*it.qty)}`;
-        return img ? `${linea}\n   ${img}` : linea;
-      }).join('\n\n');
+      const lines = cart.map(lineaItem).join('\n');
       const total = '₲ ' + fmt(totalAmount()) + ' PYG';
-      msg = `Hola Joyería Artesanos (local ${localName}), quiero hacer un pedido:\n\n${lines}\n\nTotal: ${total}`;
+      msg = `Hola Joyería Artesanos (local ${localName}), quiero hacer un pedido:\n\n${lines}\n\nTotal: ${total}\n\n${SITE_URL}`;
     } else if(pickerMode === 'product' && pickerProduct){
       const p = pickerProduct;
-      const img = absUrl(p.img);
-      const base = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por "${p.name}" (${p.material} · ₲ ${fmt(p.price)}).`;
-      msg = img ? `${base}\n\n${img}` : base;
+      const mat = (p.material || '').trim();
+      const matStr = mat ? ` ${mat} ·` : '';
+      msg = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por "${p.name}" (${matStr} ₲ ${fmt(p.price)}).\n\n${SITE_URL}`;
     } else {
-      msg = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por una pieza.`;
+      msg = `Hola Joyería Artesanos (local ${localName}), quisiera consultar por una pieza.\n\n${SITE_URL}`;
     }
     window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
     closeLocalPicker();
