@@ -24,8 +24,10 @@ RedirectMatch 404 ^/(src|scripts|supabase|docs|public/brand|public/sorteos-ticke
 RewriteEngine On
 RewriteBase /
 
-# Caso especial: raiz -> landing (silencioso, sin cambiar URL)
-RewriteRule ^$ public/web/Joyeria%20Artesanos%20v2.dc.html [L]
+# Caso especial: raiz -> landing (silencioso, sin cambiar URL).
+# Apache NO decodifica %20 al hacer rewrite — hay que usar espacios literales
+# entre comillas para que matchee el nombre real del archivo en disco.
+RewriteRule ^$ "public/web/Joyeria Artesanos v2.dc.html" [L]
 
 # Pretty URLs
 RewriteRule ^privacidad/?$ public/web/privacidad.html [L]
