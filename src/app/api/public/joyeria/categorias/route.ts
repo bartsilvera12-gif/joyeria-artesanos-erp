@@ -8,7 +8,6 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getPrincipalStockMap } from "@/lib/public/joyeria-sucursal";
 
 export const dynamic = "force-dynamic";
 
@@ -68,21 +67,14 @@ export async function GET() {
   const ids = lista.map((c) => c.id);
   let countByCat = new Map<string, number>();
   if (ids.length) {
-    // Multi-sucursal: contar SÓLO productos con stock en la sucursal Principal.
-    const stockPrincipal = await getPrincipalStockMap(supabase, { soloDisponibles: true });
-
-    const baseQuery = supabase
+    // Contar productos con stock agregado > 0 en CUALQUIER sucursal.
+    const { data: productos } = await supabase
       .from("productos")
       .select("id, categoria_principal_id")
       .eq("activo", true)
       .eq("visible_web", true)
+      .gt("stock_actual", 0)
       .in("categoria_principal_id", ids);
-
-    const { data: productos } = await (stockPrincipal
-      ? (stockPrincipal.size > 0
-          ? baseQuery.in("id", [...stockPrincipal.keys()])
-          : baseQuery.in("id", ["00000000-0000-0000-0000-000000000000"]))
-      : baseQuery);
 
     countByCat = new Map();
     for (const p of (productos ?? []) as { categoria_principal_id: string | null }[]) {
