@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       safeGet(jwt, "facturas", `select=*&${empFilter}&limit=10000`),
       safeGet(jwt, "pagos", `select=id,factura_id,monto,fecha_pago&${empFilter}&limit=10000`),
       safeGet(jwt, "tipificaciones", `select=*&${empFilter}&limit=10000`),
-      safeGet(jwt, "productos", `select=*&${empFilter}&limit=10000`),
+      safeGet(jwt, "productos", `select=*&${empFilter}&activo=eq.true&limit=10000`),
       safeGet(jwt, "ventas", `select=*&${empFilter}&limit=10000`),
       safeGet(jwt, "ventas_items", `select=*&${empFilter}&limit=10000`),
       safeGet(jwt, "compras", `select=*&${empFilter}&limit=10000`),
