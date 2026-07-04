@@ -196,24 +196,67 @@ function ErrorBanner({ msg }: { msg: string | null }) {
 
 // ── Abrir ────────────────────────────────────────────────────────────────────
 
+type SucursalOpt = { id: string; nombre: string; es_principal: boolean };
+
 function AbrirCajaModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [monto, setMonto] = useState("");
   const [obs, setObs] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [sucursales, setSucursales] = useState<SucursalOpt[]>([]);
+  const [sucursalId, setSucursalId] = useState<string>("");
+
+  // Cargar sucursales activas de la empresa. Si hay 2+, mostrar el picker.
+  useEffect(() => {
+    let cancel = false;
+    fetch("/api/sucursales", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancel || !j?.success) return;
+        const list = (j.data?.sucursales ?? []) as SucursalOpt[];
+        setSucursales(list);
+        const principal = list.find((s) => s.es_principal) ?? list[0];
+        if (principal) setSucursalId(principal.id);
+      })
+      .catch(() => undefined);
+    return () => { cancel = true; };
+  }, []);
 
   async function submit() {
     setError(null);
     setSaving(true);
-    const r = await abrirCaja(parseFloat(monto) || 0, obs.trim() || null);
+    const r = await abrirCaja(
+      parseFloat(monto) || 0,
+      obs.trim() || null,
+      sucursalId || null,
+    );
     setSaving(false);
     if (!r.success) { setError(r.error); return; }
     onDone();
   }
 
+  const mostrarSucursal = sucursales.length >= 2;
+
   return (
     <ModalShell title="Abrir caja" onClose={onClose}>
-      <label className="mb-1.5 block text-sm font-medium text-slate-700">Monto de apertura (Gs.)</label>
+      {mostrarSucursal && (
+        <>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">Sucursal</label>
+          <select
+            value={sucursalId}
+            onChange={(e) => setSucursalId(e.target.value)}
+            className={inputClass}
+          >
+            {sucursales.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.nombre}{s.es_principal ? " · principal" : ""}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-400">Podés tener una caja abierta por sucursal a la vez.</p>
+        </>
+      )}
+      <label className={`mb-1.5 block text-sm font-medium text-slate-700 ${mostrarSucursal ? "mt-3" : ""}`}>Monto de apertura (Gs.)</label>
       <MontoInput value={monto} onChange={(n) => setMonto(String(n))} placeholder="Ej: 300.000" className={inputClass} decimals={false} />
       <label className="mb-1.5 mt-3 block text-sm font-medium text-slate-700">Observación (opcional)</label>
       <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} className={inputClass} placeholder="Ej: turno noche" />

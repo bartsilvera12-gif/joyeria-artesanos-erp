@@ -110,7 +110,11 @@ export async function getCajaAbiertaPg(
     .select(CAJA_COLS)
     .eq("empresa_id", empresaId)
     .eq("estado", "abierta");
+  // El scope de "caja abierta" es por sucursal:
+  //   sucursalId=UUID → busca la caja abierta de esa sucursal
+  //   sucursalId=null → busca la caja abierta "global" (sin sucursal)
   if (sucursalId) q = q.eq("sucursal_id", sucursalId);
+  else q = q.is("sucursal_id", null);
   const r = await q
     .order("fecha_apertura", { ascending: false })
     .limit(1)

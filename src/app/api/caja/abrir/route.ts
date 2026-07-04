@@ -27,11 +27,13 @@ export async function POST(request: NextRequest) {
       o.observacion == null || o.observacion === "" ? null : String(o.observacion).slice(0, 2000);
 
     const schema = await fetchDataSchemaForEmpresaId(auth.empresa_id);
-    const sucursalId = await resolveSucursalIdForUserPg(
-      schema,
-      auth.empresa_id,
-      auth.sucursal_id ?? null,
-    );
+    // Si el body trae sucursal_id explicito (admin eligiendo sucursal), lo usamos.
+    // Si no, resolvemos por el sucursal_id del usuario (o Principal si es admin).
+    const sucursalIdRaw =
+      typeof o.sucursal_id === "string" && o.sucursal_id.trim() ? o.sucursal_id.trim() : null;
+    const sucursalId =
+      sucursalIdRaw ??
+      (await resolveSucursalIdForUserPg(schema, auth.empresa_id, auth.sucursal_id ?? null));
     const caja = await abrirCajaPg({
       schema,
       empresaId: auth.empresa_id,

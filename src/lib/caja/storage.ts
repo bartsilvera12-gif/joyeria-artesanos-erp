@@ -40,10 +40,15 @@ export async function getCajaAbierta(): Promise<Caja | null> {
   }
 }
 
-export function abrirCaja(montoApertura: number, observacion: string | null) {
+export function abrirCaja(
+  montoApertura: number,
+  observacion: string | null,
+  sucursalId?: string | null,
+) {
   return postJson<{ caja: Caja }>("/api/caja/abrir", {
     monto_apertura: montoApertura,
     observacion,
+    sucursal_id: sucursalId ?? null,
   });
 }
 
