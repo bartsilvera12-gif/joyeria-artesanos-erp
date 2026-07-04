@@ -6,12 +6,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * Se lee de NEURA_CLIENT_SCHEMA. Si no está definida, default 'elevate'.
  * Requiere en Supabase: Settings → API → "Exposed schemas" incluir ese schema.
  */
+// Server: process.env.NEURA_CLIENT_SCHEMA. Browser: como el bundle no expone
+// vars sin NEXT_PUBLIC_, caemos al default "joyeriaartesanos" (este repo).
 const RAW_NEURA_CLIENT_SCHEMA =
   typeof process !== "undefined" ? process.env.NEURA_CLIENT_SCHEMA?.trim() : "";
 export const SUPABASE_APP_SCHEMA =
   RAW_NEURA_CLIENT_SCHEMA && RAW_NEURA_CLIENT_SCHEMA.length > 0
     ? RAW_NEURA_CLIENT_SCHEMA
-    : "elevate";
+    : "joyeriaartesanos";
 
 /**
  * Resolución de schema para tablas de negocio.

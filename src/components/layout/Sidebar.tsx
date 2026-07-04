@@ -109,7 +109,6 @@ const HIDDEN_MENU_KEYS = new Set<string>([
   "cobranzas",
   "proyectos",
   "gestion-clientes",
-  "clientes",
   "pagos",
 ]);
 
@@ -243,7 +242,7 @@ const MENU_FAMILIES: { id: string; title: string; itemKeys: string[] }[] = [
   {
     id: "comercial",
     title: "Comercial",
-    itemKeys: ["ventas"],
+    itemKeys: ["ventas", "clientes"],
   },
   { id: "finanzas", title: "Finanzas", itemKeys: ["gastos", "reportes"] },
   { id: "operaciones", title: "Operaciones", itemKeys: ["inventario", "compras"] },
