@@ -57,16 +57,15 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const req = (k: string) => body[k] != null && String(body[k]).trim() !== "";
 
+    // Validaciones comunes (aplican al single-item legacy y al multi-item nuevo).
     if (!req("proveedor_id")) return NextResponse.json(errorResponse("Falta el proveedor."), { status: 400 });
-    if (!req("producto_id")) return NextResponse.json(errorResponse("Falta el producto."), { status: 400 });
-    if (!req("cantidad") || Number(body.cantidad) <= 0)
-      return NextResponse.json(errorResponse("La cantidad debe ser mayor a 0."), { status: 400 });
-    if (!req("costo_unitario") || Number(body.costo_unitario) <= 0)
-      return NextResponse.json(errorResponse("El costo unitario debe ser mayor a 0."), { status: 400 });
-    if (!req("precio_venta") || Number(body.precio_venta) <= 0)
-      return NextResponse.json(errorResponse("El precio de venta debe ser mayor a 0."), { status: 400 });
     if (!req("nro_timbrado"))
       return NextResponse.json(errorResponse("Falta el N° de timbrado."), { status: 400 });
+
+    // Detectar multi-item: si el body trae un array `items`, cada ítem es una
+    // línea de la compra (mismo proveedor/timbrado/moneda/tipo_pago, distinto
+    // producto).
+    const itemsRaw = Array.isArray(body.items) ? (body.items as Record<string, unknown>[]) : null;
 
     const sucursalId = await resolveSucursalIdForUserPg(
       schema,
@@ -74,15 +73,104 @@ export async function POST(request: NextRequest) {
       ctx.auth.sucursal_id ?? null,
     );
 
+    const moneda = body.moneda === "USD" ? "USD" : "PYG";
+    const tipoCambio = Number(body.tipo_cambio) || 1;
+    const tipoPago = body.tipo_pago === "credito" ? "credito" : "contado";
+    const plazoDias =
+      body.plazo_dias != null && String(body.plazo_dias).trim() !== ""
+        ? parseInt(String(body.plazo_dias), 10) || null
+        : null;
+    const nroTimbrado = String(body.nro_timbrado).trim().toUpperCase();
+    const proveedorId = String(body.proveedor_id);
+    const proveedorNombre = String(body.proveedor_nombre ?? "");
+
+    // Si vienen items: procesar cada uno como una compra independiente
+    // (una fila por producto en la tabla compras, mismo proveedor).
     try {
+      if (itemsRaw && itemsRaw.length > 0) {
+        for (let i = 0; i < itemsRaw.length; i++) {
+          const item = itemsRaw[i];
+          if (!item.producto_id) {
+            return NextResponse.json(
+              errorResponse(`Ítem ${i + 1}: falta el producto.`),
+              { status: 400 },
+            );
+          }
+          if (!item.cantidad || Number(item.cantidad) <= 0) {
+            return NextResponse.json(
+              errorResponse(`Ítem ${i + 1}: la cantidad debe ser mayor a 0.`),
+              { status: 400 },
+            );
+          }
+          if (!item.costo_unitario || Number(item.costo_unitario) <= 0) {
+            return NextResponse.json(
+              errorResponse(`Ítem ${i + 1}: el costo unitario debe ser mayor a 0.`),
+              { status: 400 },
+            );
+          }
+          if (!item.precio_venta || Number(item.precio_venta) <= 0) {
+            return NextResponse.json(
+              errorResponse(`Ítem ${i + 1}: el precio de venta debe ser mayor a 0.`),
+              { status: 400 },
+            );
+          }
+        }
+
+        const compras = [];
+        const warnings: string[] = [];
+        for (const item of itemsRaw) {
+          const out = await insertCompraConImpacto(schema, empresaId, {
+            proveedor_id: proveedorId,
+            proveedor_nombre: proveedorNombre,
+            producto_id: String(item.producto_id),
+            producto_nombre: String(item.producto_nombre ?? ""),
+            cantidad: Number(item.cantidad) || 0,
+            moneda,
+            tipo_cambio: tipoCambio,
+            costo_unitario_original:
+              Number(item.costo_unitario_original) || Number(item.costo_unitario) || 0,
+            costo_unitario: Number(item.costo_unitario) || 0,
+            iva_tipo: ["0", "5", "10"].includes(String(item.iva_tipo))
+              ? String(item.iva_tipo)
+              : "10",
+            subtotal: Number(item.subtotal) || 0,
+            monto_iva: Number(item.monto_iva) || 0,
+            total: Number(item.total) || 0,
+            precio_venta: Number(item.precio_venta) || 0,
+            margen_venta: item.margen_venta != null ? Number(item.margen_venta) : null,
+            tipo_pago: tipoPago,
+            plazo_dias: plazoDias,
+            nro_timbrado: nroTimbrado,
+            created_by: ctx.auth.usuarioCatalogId ?? null,
+            usuario_nombre: ctx.auth.user?.email ?? null,
+          }, sucursalId);
+          compras.push(out.compra);
+          if (out.movimiento_warning) warnings.push(out.movimiento_warning);
+        }
+        return NextResponse.json(successResponse({
+          numero_control: (compras[0] as { numero_control?: string })?.numero_control ?? null,
+          compras,
+          warning: warnings.length ? warnings.join(" | ") : null,
+        }));
+      }
+
+      // Legacy single-item mode (backwards compat).
+      if (!req("producto_id")) return NextResponse.json(errorResponse("Falta el producto."), { status: 400 });
+      if (!req("cantidad") || Number(body.cantidad) <= 0)
+        return NextResponse.json(errorResponse("La cantidad debe ser mayor a 0."), { status: 400 });
+      if (!req("costo_unitario") || Number(body.costo_unitario) <= 0)
+        return NextResponse.json(errorResponse("El costo unitario debe ser mayor a 0."), { status: 400 });
+      if (!req("precio_venta") || Number(body.precio_venta) <= 0)
+        return NextResponse.json(errorResponse("El precio de venta debe ser mayor a 0."), { status: 400 });
+
       const out = await insertCompraConImpacto(schema, empresaId, {
-        proveedor_id: String(body.proveedor_id),
-        proveedor_nombre: String(body.proveedor_nombre ?? ""),
+        proveedor_id: proveedorId,
+        proveedor_nombre: proveedorNombre,
         producto_id: String(body.producto_id),
         producto_nombre: String(body.producto_nombre ?? ""),
         cantidad: Number(body.cantidad) || 0,
-        moneda: body.moneda === "USD" ? "USD" : "PYG",
-        tipo_cambio: Number(body.tipo_cambio) || 1,
+        moneda,
+        tipo_cambio: tipoCambio,
         costo_unitario_original: Number(body.costo_unitario_original) || Number(body.costo_unitario) || 0,
         costo_unitario: Number(body.costo_unitario) || 0,
         iva_tipo: ["0", "5", "10"].includes(String(body.iva_tipo)) ? String(body.iva_tipo) : "10",
@@ -91,10 +179,9 @@ export async function POST(request: NextRequest) {
         total: Number(body.total) || 0,
         precio_venta: Number(body.precio_venta) || 0,
         margen_venta: body.margen_venta != null ? Number(body.margen_venta) : null,
-        tipo_pago: body.tipo_pago === "credito" ? "credito" : "contado",
-        plazo_dias: body.plazo_dias != null && String(body.plazo_dias).trim() !== ""
-          ? parseInt(String(body.plazo_dias), 10) || null : null,
-        nro_timbrado: String(body.nro_timbrado).trim().toUpperCase(),
+        tipo_pago: tipoPago,
+        plazo_dias: plazoDias,
+        nro_timbrado: nroTimbrado,
         created_by: ctx.auth.usuarioCatalogId ?? null,
         usuario_nombre: ctx.auth.user?.email ?? null,
       }, sucursalId);
