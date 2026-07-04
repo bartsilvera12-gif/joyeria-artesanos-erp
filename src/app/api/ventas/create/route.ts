@@ -168,11 +168,32 @@ export async function POST(request: NextRequest) {
     }
 
     const schema = await fetchDataSchemaForEmpresaId(auth.empresa_id);
-    const sucursalId = await resolveSucursalIdForUserPg(
-      schema,
-      auth.empresa_id,
-      auth.sucursal_id ?? null,
-    );
+    // Sucursal efectiva de la venta:
+    //   1) si el usuario tiene sucursal fijada, esa manda.
+    //   2) sino (admin global), usar la sucursal de la caja abierta actual
+    //      (si el admin abrio caja en Sucursal 2, las ventas van a Sucursal 2).
+    //   3) fallback a Principal.
+    let sucursalId = auth.sucursal_id ?? null;
+    if (!sucursalId) {
+      const sb0 = createServiceRoleClientWithDbSchema(schema);
+      const { data: cajaAbierta } = await sb0
+        .from("cajas")
+        .select("sucursal_id")
+        .eq("empresa_id", auth.empresa_id)
+        .eq("estado", "abierta")
+        .not("sucursal_id", "is", null)
+        .order("fecha_apertura", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      sucursalId = (cajaAbierta as { sucursal_id?: string } | null)?.sucursal_id ?? null;
+    }
+    if (!sucursalId) {
+      sucursalId = await resolveSucursalIdForUserPg(
+        schema,
+        auth.empresa_id,
+        null,
+      );
+    }
 
     const { ventaId, numeroControl, fechaIso } = await createVentaTransaccionalPg({
       schema,
