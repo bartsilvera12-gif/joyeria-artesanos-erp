@@ -12,6 +12,7 @@ import ImportExcelButton from "@/components/ui/ImportExcelButton";
 import EdgeScrollArea from "@/components/ui/EdgeScrollArea";
 import StatCard from "@/components/ui/StatCard";
 import { useIsAdmin } from "@/lib/auth/use-is-admin";
+import { useUsuarioActual } from "@/shared/hooks/useUsuarioActual";
 
 const inputFilterClass =
   "border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-[#4FAEB2] focus:outline-none";
@@ -51,6 +52,10 @@ interface CategoriaMin { id: string; nombre: string }
 
 export default function InventarioPage() {
   const { isAdmin } = useIsAdmin();
+  const { usuario } = useUsuarioActual();
+  // Solo Principal (o admin global sin sucursal) puede tocar los toggles de web.
+  const puedeEditarWeb =
+    !usuario?.sucursal_id || usuario.sucursal_es_principal === true;
   const [todos, setTodos] = useState<Producto[]>([]);
   const [ubicaciones, setUbicaciones] = useState<UbicacionMin[]>([]);
   const [categorias, setCategorias] = useState<CategoriaMin[]>([]);
@@ -434,13 +439,13 @@ export default function InventarioPage() {
               value={filtroDistribuidor}
               onChange={(e) => setFiltroDistribuidor(e.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#4FAEB2]/30 max-w-[14rem] truncate"
-              title="Distribuidor"
+              title="Proveedor"
               disabled={distribuidoresDisponibles.length === 0}
             >
               <option value="">
                 {distribuidoresDisponibles.length === 0
-                  ? "Sin distribuidores cargados"
-                  : "Distribuidor: todos"}
+                  ? "Sin proveedores cargados"
+                  : "Proveedor: todos"}
               </option>
               {distribuidoresDisponibles.map((d) => (
                 <option key={d} value={d}>{d}</option>
@@ -655,8 +660,12 @@ export default function InventarioPage() {
                 <th className="py-3 pr-4 font-medium text-center">Stock actual</th>
                 <th className="py-3 pr-4 font-medium text-center hidden md:table-cell">Sucursal</th>
                 <th className="py-3 pr-4 text-center font-medium hidden lg:table-cell">Stock Mín.</th>
-                <th className="py-3 pr-4 font-medium text-center">Activo</th>
-                <th className="py-3 pr-4 font-medium text-center">Destacado</th>
+                {puedeEditarWeb && (
+                  <>
+                    <th className="py-3 pr-4 font-medium text-center">Visible web</th>
+                    <th className="py-3 pr-4 font-medium text-center">Destacado</th>
+                  </>
+                )}
                 {tab !== "materia" && (
                   <th className="hidden py-3 pr-6 text-right font-medium lg:table-cell">
                     <span title="(precio - costo) / precio × 100">Margen s/venta</span>
@@ -760,7 +769,7 @@ export default function InventarioPage() {
                     <td className="py-4 pr-4 text-center text-gray-500 hidden lg:table-cell">
                       {sinControl ? "—" : <span className="tabular-nums">{formatStock(p.stock_minimo)}</span>}
                     </td>
-                    {(() => {
+                    {puedeEditarWeb && (() => {
                       const mutando = mutandoIds.has(p.id);
                       const visibleWeb = p.visible_web === true;
                       const destacado = p.destacado_web === true;

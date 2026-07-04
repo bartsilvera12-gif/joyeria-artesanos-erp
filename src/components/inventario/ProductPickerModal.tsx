@@ -427,7 +427,7 @@ export default function ProductPickerModal({
                           }`}
                         >
                           <span className="block text-xs font-medium">
-                            {t === "minorista" ? "Minorista" : t === "mayorista" ? "Mayorista" : "Distribuidor"}
+                            {t === "minorista" ? "Minorista" : t === "mayorista" ? "Mayorista" : "Proveedor"}
                           </span>
                           <span className={`block text-[10px] tabular-nums ${tipoPrecio === t ? "text-white/90" : "text-slate-400"}`}>
                             {formatGs(precioPorTipoPicker(sel, t))}

@@ -48,7 +48,7 @@ const TIPOS_PRECIO_UI: TipoPrecioVenta[] = ["minorista", "mayorista", "distribui
 const tipoPrecioLabel: Record<TipoPrecioVenta, string> = {
   minorista: "Minorista",
   mayorista: "Mayorista",
-  distribuidor: "Distribuidor",
+  distribuidor: "Proveedor",
   costo: "Al costo",
 };
 

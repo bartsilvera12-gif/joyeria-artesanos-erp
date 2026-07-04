@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { SectionTitle } from "./SectionTitle";
 
 const faqs = [
-  { q: "¿Los perfumes son originales?", a: "Sí. Trabajamos exclusivamente con productos originales, importados directamente de distribuidores autorizados y maisons oficiales. Cada pieza incluye su empaque y sellos de origen." },
+  { q: "¿Los perfumes son originales?", a: "Sí. Trabajamos exclusivamente con productos originales, importados directamente de proveedores autorizados y maisons oficiales. Cada pieza incluye su empaque y sellos de origen." },
   { q: "¿Realizan envíos a todo el país?", a: "Sí, enviamos a todo el territorio nacional mediante operadores logísticos premium con seguimiento. CABA y GBA cuentan con envío express." },
   { q: "¿Puedo consultar disponibilidad antes de comprar?", a: "Por supuesto. Podés consultarnos por WhatsApp y te respondemos en el día con stock, presentaciones disponibles y asesoramiento personalizado." },
   { q: "¿Tienen perfumes nicho y ultranicho?", a: "Sí. Es nuestra especialidad. Contamos con casas niche reconocidas y ediciones ultranicho de tirada limitada." },

@@ -115,7 +115,7 @@ export default function CompraMayoristaPage() {
                 icon={<ShieldCheck size={20} strokeWidth={1.5} />}
                 title="Originales 100%"
               >
-                Trabajamos exclusivamente con distribuidores autorizados y
+                Trabajamos exclusivamente con proveedores autorizados y
                 maisons oficiales. Todos los perfumes incluyen empaque y sellos
                 de origen. Garantía Elevate sobre cada pieza.
               </Bloque>

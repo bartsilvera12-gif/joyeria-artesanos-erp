@@ -48,6 +48,7 @@ import type { ModuloEmpresa } from "@/lib/empresas/actions";
 import { getFavoritos, toggleFavorito } from "@/lib/favorites";
 import { canAccessSidebarSlug } from "@/lib/modulos/route-slug-map";
 import { useBoot } from "@/components/BootContext";
+import { useUsuarioActual } from "@/shared/hooks/useUsuarioActual";
 
 type MenuItem = {
   key: string;
@@ -592,6 +593,20 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
   const modulosSlugs = new Set(modulos.map((m) => m.slug));
   const hasAccess = (slug: string) => canAccessSidebarSlug(slug, modulosSlugs, esSuperAdmin);
 
+  // Gate por sucursal: operativos de sucursal NO Principal no ven Categorias
+  // (solo Principal edita el catalogo web).
+  const { usuario } = useUsuarioActual();
+  const esOperativoNoPrincipal =
+    !!usuario?.sucursal_id && usuario.sucursal_es_principal === false;
+  const filterItemChildren = (item: MenuItem): MenuItem => {
+    if (!esOperativoNoPrincipal) return item;
+    if (item.key !== "inventario" || !item.children) return item;
+    return {
+      ...item,
+      children: item.children.filter((c) => c.href !== "/inventario/categorias"),
+    };
+  };
+
   const isActive = (slug: string, href: string) => {
     const p = pathname ?? "";
     if (slug === "dashboard") return p === "/";
@@ -613,8 +628,8 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
         favoritos.includes(idForSlug(item.slug)) &&
         access(item.slug) &&
         menuItemMatchesQuery(item, menuSearchQuery)
-    );
-  }, [favoritos, menuSearchQuery, modulos, esSuperAdmin]);
+    ).map(filterItemChildren);
+  }, [favoritos, menuSearchQuery, modulos, esSuperAdmin, esOperativoNoPrincipal]);
 
   const mainItemsFiltered = useMemo(() => {
     const slugs = new Set(modulos.map((m) => m.slug));
@@ -625,8 +640,8 @@ export default function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarPr
         !favoritos.includes(idForSlug(item.slug)) &&
         access(item.slug) &&
         menuItemMatchesQuery(item, menuSearchQuery)
-    );
-  }, [favoritos, menuSearchQuery, modulos, esSuperAdmin]);
+    ).map(filterItemChildren);
+  }, [favoritos, menuSearchQuery, modulos, esSuperAdmin, esOperativoNoPrincipal]);
 
   /** Agrupa `mainItemsFiltered` por familia (preservando acceso/búsqueda/favoritos ya aplicados). */
   const familiesToRender = useMemo(() => {

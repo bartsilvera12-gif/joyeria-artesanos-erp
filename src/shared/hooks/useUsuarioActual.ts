@@ -7,6 +7,8 @@ export type UsuarioActual = {
   nombre: string | null;
   rol: string | null;
   email: string | null;
+  sucursal_id?: string | null;
+  sucursal_es_principal?: boolean;
 };
 
 /** Hook compartido que devuelve el usuario logueado actual (nombre, rol, email).

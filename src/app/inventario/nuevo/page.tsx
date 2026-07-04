@@ -815,7 +815,7 @@ export default function NuevoProductoPage() {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Precio distribuidor (Gs.) <span className="text-gray-400 font-normal">(opcional)</span></label>
+                  <label className={labelClass}>Precio proveedor (Gs.) <span className="text-gray-400 font-normal">(opcional)</span></label>
                   <MontoInput
                     value={form.precio_distribuidor}
                     onChange={(n) => setForm((prev) => ({ ...prev, precio_distribuidor: String(n) }))}
@@ -825,7 +825,7 @@ export default function NuevoProductoPage() {
                   />
                 </div>
                 <p className="sm:col-span-2 text-xs text-gray-400">
-                  Precios por canal: en Ventas el cajero elige Minorista, Mayorista o Distribuidor. El precio distribuidor es comercial (no es el costo).
+                  Precios por canal: en Ventas el cajero elige Minorista, Mayorista o Proveedor. El precio proveedor es comercial (no es el costo).
                 </p>
               </div>
             )}
@@ -913,12 +913,12 @@ export default function NuevoProductoPage() {
 
               {/* Proveedor — 4 cols. Oculto para Menú (productos preparados no tienen proveedor). */}
               <div className={`md:col-span-4 min-w-0 ${tipoGastro === "menu" ? "hidden" : ""}`}>
-                <label className={labelClass}>Distribuidor principal</label>
+                <label className={labelClass}>Proveedor principal</label>
                 <SelectFromList
                   value={proveedorId}
                   onChange={setProveedorId}
                   options={proveedores.map((p) => ({ id: p.id, label: p.nombre }))}
-                  emptyShort="Sin distribuidores"
+                  emptyShort="Sin proveedores"
                 />
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <span className="text-xs text-gray-400 truncate">

@@ -5,6 +5,7 @@ type UsuarioMeRow = {
   nombre: string | null;
   email: string | null;
   rol: string | null;
+  sucursal_id?: string | null;
 };
 
 function pickAuthMetadataName(authUser: { user_metadata?: Record<string, unknown> | null }): string | null {
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
     if (catalogUsuario?.id) {
       const { data, error } = await supabaseSr
         .from("usuarios")
-        .select("nombre, email, rol")
+        .select("nombre, email, rol, sucursal_id")
         .eq("id", catalogUsuario.id)
         .maybeSingle();
 
@@ -48,8 +49,28 @@ export async function GET(request: Request) {
     const nombre = (row?.nombre ?? pickAuthMetadataName(authUser) ?? "").trim() || null;
     const email = (row?.email ?? authUser.email ?? "").trim() || null;
     const rol = (row?.rol ?? catalogUsuario?.rol ?? "").trim() || null;
+    const sucursalId = row?.sucursal_id ?? catalogUsuario?.sucursal_id ?? null;
 
-    return NextResponse.json({ usuario: { nombre, rol, email } });
+    // Marca es_principal para gate de UI (categorias/web solo Principal).
+    let sucursalEsPrincipal = false;
+    if (sucursalId) {
+      const { data: suc } = await supabaseSr
+        .from("sucursales")
+        .select("es_principal")
+        .eq("id", sucursalId)
+        .maybeSingle();
+      sucursalEsPrincipal = (suc as { es_principal?: boolean } | null)?.es_principal === true;
+    }
+
+    return NextResponse.json({
+      usuario: {
+        nombre,
+        rol,
+        email,
+        sucursal_id: sucursalId,
+        sucursal_es_principal: sucursalEsPrincipal,
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error al obtener el usuario actual";
     return NextResponse.json({ error: message }, { status: 500 });

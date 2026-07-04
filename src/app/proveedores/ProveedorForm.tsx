@@ -77,7 +77,7 @@ export default function ProveedorForm({
             className={`${inputClass} uppercase`}
             value={values.nombre}
             onChange={(e) => patch("nombre", e.target.value)}
-            placeholder="Ej: DISTRIBUIDORA EJEMPLO S.A."
+            placeholder="Ej: PROVEEDORA EJEMPLO S.A."
             disabled={disabled}
             required
           />

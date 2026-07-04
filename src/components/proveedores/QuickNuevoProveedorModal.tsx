@@ -126,7 +126,7 @@ export default function QuickNuevoProveedorModal({ open, onClose, onCreated }: P
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               autoFocus
-              placeholder="EJ: DISTRIBUIDORA EJEMPLO S.A."
+              placeholder="EJ: PROVEEDORA EJEMPLO S.A."
               className={input}
             />
           </div>

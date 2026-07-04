@@ -429,13 +429,13 @@ export default function InventarioPage() {
               value={filtroDistribuidor}
               onChange={(e) => setFiltroDistribuidor(e.target.value)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-[#4FAEB2]/30 max-w-[14rem] truncate"
-              title="Distribuidor"
+              title="Proveedor"
               disabled={distribuidoresDisponibles.length === 0}
             >
               <option value="">
                 {distribuidoresDisponibles.length === 0
-                  ? "Sin distribuidores cargados"
-                  : "Distribuidor: todos"}
+                  ? "Sin proveedores cargados"
+                  : "Proveedor: todos"}
               </option>
               {distribuidoresDisponibles.map((d) => (
                 <option key={d} value={d}>{d}</option>
