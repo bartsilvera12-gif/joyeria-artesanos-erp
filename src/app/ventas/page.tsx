@@ -69,7 +69,7 @@ interface MetricasHoy {
 }
 
 function calcularMetricas(ventas: Venta[]): MetricasHoy {
-  const deHoy            = ventas.filter((v) => esDeHoy(v.fecha));
+  const deHoy            = ventas.filter((v) => esDeHoy(v.fecha) && v.estado !== "anulada");
   const facturacion      = deHoy.reduce((s, v) => s + v.total, 0);
   const cantidadVentas   = deHoy.length;
   const ticketPromedio   = cantidadVentas > 0 ? facturacion / cantidadVentas : 0;
@@ -151,6 +151,33 @@ export default function VentasPage() {
   const [filtroTipo, setFiltroTipo] = useState<TipoVenta | "">("");
   const [filtroIva,  setFiltroIva]  = useState<TipoIvaVenta | "">("");
   const [cargandoLista, setCargandoLista] = useState(true);
+  const [ventaAAnular, setVentaAAnular] = useState<Venta | null>(null);
+  const [anulando, setAnulando] = useState(false);
+  const [errorAnular, setErrorAnular] = useState<string | null>(null);
+
+  async function confirmarAnular() {
+    if (!ventaAAnular || anulando) return;
+    setAnulando(true);
+    setErrorAnular(null);
+    try {
+      const { fetchWithSupabaseSession } = await import("@/lib/api/fetch-with-supabase-session");
+      const res = await fetchWithSupabaseSession(
+        `/api/ventas/${ventaAAnular.id}/anular`,
+        { method: "POST" },
+      );
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j?.success) {
+        throw new Error(j?.error || `HTTP ${res.status}`);
+      }
+      // Marca la venta como anulada en memoria (evita refetch pesado).
+      setTodas((arr) => arr.map((v) => (v.id === ventaAAnular.id ? { ...v, estado: "anulada" } : v)));
+      setVentaAAnular(null);
+    } catch (err) {
+      setErrorAnular(err instanceof Error ? err.message : "No se pudo anular la venta.");
+    } finally {
+      setAnulando(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -361,8 +388,9 @@ export default function VentasPage() {
               ) : (
                 filtradas.map((v) => {
                   const cantTotal = v.items.reduce((s, i) => s + i.cantidad, 0);
+                  const anulada = v.estado === "anulada";
                   return (
-                    <tr key={v.id} className="border-b border-slate-200 last:border-0 hover:bg-[#4FAEB2]/[0.04] transition-colors">
+                    <tr key={v.id} className={`border-b border-slate-200 last:border-0 transition-colors ${anulada ? "opacity-60 line-through decoration-red-300" : "hover:bg-[#4FAEB2]/[0.04]"}`}>
                       <td className="py-4 pr-4 font-mono text-xs text-gray-500 align-middle">
                         {v.numero_control}
                       </td>
@@ -426,6 +454,20 @@ export default function VentasPage() {
                               Nota de remisión
                             </a>
                           )}
+                          {anulada ? (
+                            <span className="inline-flex items-center rounded-md bg-red-50 text-red-700 border border-red-200 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide">
+                              Anulada
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => { setErrorAnular(null); setVentaAAnular(v); }}
+                              className="inline-flex items-center justify-center rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 transition-colors"
+                              title="Anular venta y reintegrar stock"
+                            >
+                              Anular
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -440,6 +482,41 @@ export default function VentasPage() {
 
       {/* FAB mobile: acceso 1-tap a "+ Nueva venta" desde cualquier scroll position */}
       <MobileFab href="/ventas/nueva" label="Nueva venta" />
+
+      {ventaAAnular && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-800">Anular venta {ventaAAnular.numero_control}</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              El stock de {ventaAAnular.items.length} línea(s) volverá a la sucursal. La venta queda marcada como anulada
+              y no se puede revertir.
+            </p>
+            {errorAnular && (
+              <p className="mt-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                {errorAnular}
+              </p>
+            )}
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { if (!anulando) { setVentaAAnular(null); setErrorAnular(null); } }}
+                disabled={anulando}
+                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarAnular}
+                disabled={anulando}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+              >
+                {anulando ? "Anulando…" : "Anular"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

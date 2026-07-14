@@ -53,4 +53,6 @@ export interface Venta {
   sucursal_id?: string | null;
   /** Nombre legible de la sucursal, resuelto en el endpoint. */
   sucursal_nombre?: string | null;
+  /** 'completada' | 'anulada' | etc. */
+  estado?: string | null;
 }
