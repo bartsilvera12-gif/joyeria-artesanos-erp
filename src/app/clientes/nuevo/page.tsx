@@ -28,8 +28,10 @@ import { filasTiposDesdeSistemaEstatico, fetchTiposFormCliente } from "@/lib/cli
 import type { Plan } from "@/lib/planes/types";
 import { SUPABASE_APP_SCHEMA as NEURA_CLIENT_SCHEMA } from "@/lib/supabase/schema";
 
-/** Instancia monocliente Reserva: formulario de clientes simplificado (sin campos SaaS/Neura). */
-const SIMPLE_CLIENTE = NEURA_CLIENT_SCHEMA === "reservacaacupe";
+/** Modo simple: oculta suscripciones, planes, MENSUAL, origen/vendedor/tipo-servicio.
+ *  Habilitado para deploys sin modelo de suscripcion (Reserva Caacupe, Joyeria Artesanos). */
+const SIMPLE_CLIENTE =
+  NEURA_CLIENT_SCHEMA === "reservacaacupe" || NEURA_CLIENT_SCHEMA === "joyeriaartesanos";
 
 // ── Estilos ────────────────────────────────────────────────────────────────────
 

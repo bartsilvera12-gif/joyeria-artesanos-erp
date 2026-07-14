@@ -61,8 +61,10 @@ import { ClienteDatosSifenReceptorForm } from "@/components/clientes/ClienteDato
 import { SUPABASE_APP_SCHEMA as NEURA_CLIENT_SCHEMA } from "@/lib/supabase/schema";
 import ClienteVehiculoEditor from "@/components/clientes/ClienteVehiculoEditor";
 
-/** Instancia monocliente Reserva: formulario/detalle de clientes simplificado (sin campos SaaS/Neura). */
-const SIMPLE_CLIENTE = NEURA_CLIENT_SCHEMA === "reservacaacupe";
+/** Modo simple: oculta suscripciones, planes, MENSUAL, origen/vendedor/tipo-servicio.
+ *  Habilitado para deploys sin modelo de suscripcion (Reserva Caacupe, Joyeria Artesanos). */
+const SIMPLE_CLIENTE =
+  NEURA_CLIENT_SCHEMA === "reservacaacupe" || NEURA_CLIENT_SCHEMA === "joyeriaartesanos";
 // ── Estilos ────────────────────────────────────────────────────────────────────
 
 const inputClass =

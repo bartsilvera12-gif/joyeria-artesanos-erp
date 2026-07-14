@@ -10,6 +10,11 @@ import { getClientes, clienteNombre } from "@/lib/clientes/storage";
 import type { Cliente } from "@/lib/clientes/types";
 import { etiquetaVisibleTipoServicio, type ClienteTipoServicioRow } from "@/lib/clientes/tipo-servicio-catalogo";
 import { filasTiposDesdeSistemaEstatico, fetchTiposFormCliente } from "@/lib/clientes/fetch-tipos-servicio-form";
+import { SUPABASE_APP_SCHEMA as NEURA_CLIENT_SCHEMA } from "@/lib/supabase/schema";
+
+/** Modo simple: oculta columnas de plan/origen/tipo servicio en el listado. */
+const SIMPLE_CLIENTE =
+  NEURA_CLIENT_SCHEMA === "reservacaacupe" || NEURA_CLIENT_SCHEMA === "joyeriaartesanos";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,17 +82,9 @@ type ClienteColumnDef = {
   render: (cliente: Cliente) => ReactNode;
 };
 
-const DEFAULT_VISIBLE_COLUMN_KEYS: ClienteColumnKey[] = [
-  "codigo",
-  "empresa_nombre",
-  "contacto",
-  "telefono",
-  "plan_activo",
-  "origen",
-  "tipo_servicio",
-  "estado",
-  "desde",
-];
+const DEFAULT_VISIBLE_COLUMN_KEYS: ClienteColumnKey[] = SIMPLE_CLIENTE
+  ? ["codigo", "empresa_nombre", "contacto", "telefono", "email", "ruc_documento", "desde"]
+  : ["codigo", "empresa_nombre", "contacto", "telefono", "plan_activo", "origen", "tipo_servicio", "estado", "desde"];
 
 function normalizeVisibleColumnKeys(raw: unknown, columns: ClienteColumnDef[]): ClienteColumnKey[] {
   const validKeys = new Set(columns.map((c) => c.key));
@@ -458,34 +455,38 @@ export default function ClientesPage() {
             { value: "persona", label: "Persona" },
           ]}
         />
-        <FancySelect
-          value={filtroOrigen}
-          onChange={(v) => setFiltroOrigen(v as "" | "CRM" | "VENTA" | "MANUAL")}
-          ariaLabel="Filtrar por origen"
-          className="w-44"
-          size="sm"
-          options={[
-            { value: "", label: "Todos los orígenes" },
-            { value: "CRM", label: "CRM" },
-            { value: "VENTA", label: "Venta" },
-            { value: "MANUAL", label: "Manual" },
-          ]}
-        />
-        <FancySelect
-          value={filtroTipoServicio}
-          onChange={(v) => setFiltroTipoServicio(v)}
-          ariaLabel="Filtrar por tipo de servicio"
-          className="w-44"
-          size="sm"
-          options={[
-            { value: "", label: "Tipo servicio" },
-            ...filasTipoCatalogo.map((t) => ({ value: t.slug, label: t.nombre })),
-            ...slugsExtraFiltro.map((slug) => ({
-              value: slug,
-              label: etiquetaVisibleTipoServicio(slug, mapNombreTipo),
-            })),
-          ]}
-        />
+        {!SIMPLE_CLIENTE && (
+          <FancySelect
+            value={filtroOrigen}
+            onChange={(v) => setFiltroOrigen(v as "" | "CRM" | "VENTA" | "MANUAL")}
+            ariaLabel="Filtrar por origen"
+            className="w-44"
+            size="sm"
+            options={[
+              { value: "", label: "Todos los orígenes" },
+              { value: "CRM", label: "CRM" },
+              { value: "VENTA", label: "Venta" },
+              { value: "MANUAL", label: "Manual" },
+            ]}
+          />
+        )}
+        {!SIMPLE_CLIENTE && (
+          <FancySelect
+            value={filtroTipoServicio}
+            onChange={(v) => setFiltroTipoServicio(v)}
+            ariaLabel="Filtrar por tipo de servicio"
+            className="w-44"
+            size="sm"
+            options={[
+              { value: "", label: "Tipo servicio" },
+              ...filasTipoCatalogo.map((t) => ({ value: t.slug, label: t.nombre })),
+              ...slugsExtraFiltro.map((slug) => ({
+                value: slug,
+                label: etiquetaVisibleTipoServicio(slug, mapNombreTipo),
+              })),
+            ]}
+          />
+        )}
         {hayFiltros && (
           <button
             onClick={() => { setBusqueda(""); setFiltroEstado(""); setFiltroOrigen(""); setFiltroTipo(""); setFiltroTipoServicio(""); }}
