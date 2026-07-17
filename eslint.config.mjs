@@ -29,6 +29,9 @@ const eslintConfig = defineConfig([
     "**/package/dist/**",
     // Scripts one-off (CommonJS, herramientas locales): no bloquean lint del producto
     "scripts/**",
+    // Web publica (Hostinger): assets estaticos + vendor JS del framework DC.
+    // No es codigo del ERP y no lo tocamos aca.
+    "public/web/**",
   ]),
 ]);
 

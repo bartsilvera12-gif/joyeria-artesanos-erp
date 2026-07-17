@@ -69,11 +69,13 @@ function persist(map: Map<string, unknown>) {
 }
 
 export default function SWRPersistedProvider({ children }: { children: React.ReactNode }) {
-  // Map estable entre renders.
+  // Map estable entre renders. Lazy init: solo hidratamos localStorage la
+  // primera vez que se monta el provider, no en cada render.
+  // eslint-disable-next-line react-hooks/refs
   const cacheRef = useRef<Map<string, unknown> | null>(null);
-  if (cacheRef.current === null) {
-    cacheRef.current = hydrate() as Map<string, unknown>;
-  }
+  // eslint-disable-next-line react-hooks/refs
+  if (cacheRef.current === null) cacheRef.current = hydrate() as Map<string, unknown>;
+  // eslint-disable-next-line react-hooks/refs
   const cache = cacheRef.current;
 
   // Persistir periódicamente y al cambio de visibilidad.

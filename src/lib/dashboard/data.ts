@@ -25,6 +25,8 @@ export interface ClienteRaw {
   origen: string;
   created_at: string;
   vendedor_asignado?: string;
+  /** UUID del usuario ERP asignado como vendedor (nueva forma; texto libre `vendedor_asignado` queda como fallback legacy). */
+  vendedor_usuario_id?: string | null;
   /** Para distribución en dashboard (prioridad: tipo servicio → condición → origen) */
   tipo_servicio_cliente?: string;
   condicion_pago?: string;

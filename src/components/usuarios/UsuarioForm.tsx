@@ -92,6 +92,8 @@ export type UsuarioFormProps = {
   variant: "create" | "edit";
   form: UsuarioFormValues;
   onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  /** Callback opcional para selects controlados (FancySelect emite name/value en vez de un event). */
+  onSelectChange?: (name: string, value: string) => void;
   onSalarioBaseChange: (n: number | "") => void;
   /** Clases de campo: create usa focus sky, edit usa gray (misma página detalle). */
   fieldClassName?: typeof usuarioFormInput | string;

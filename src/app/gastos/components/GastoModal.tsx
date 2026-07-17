@@ -91,9 +91,7 @@ export default function GastoModal({ open, gasto, onClose, onSaved }: GastoModal
         <div className="min-h-0 flex-1 overflow-hidden">
           <GastoForm
             gasto={gasto ?? null}
-            variant="modal"
-            onSaved={onSaved}
-            onCancel={requestClose}
+            onSuccess={onSaved}
           />
         </div>
       </div>
