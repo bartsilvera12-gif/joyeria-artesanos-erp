@@ -98,7 +98,6 @@ const HIDDEN_MENU_KEYS = new Set<string>([
   "comisiones",
   "crm",
   "agenda",
-  "conversaciones",
   "conversaciones-finalizadas",
   "monitoreo",
   "historial-omnicanal",
