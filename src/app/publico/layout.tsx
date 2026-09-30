@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Cormorant_Garamond, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { Header } from "@/components/elevate-public/Header";
 import { Footer } from "@/components/elevate-public/Footer";
 import { CartProvider } from "@/components/elevate-public/CartContext";
@@ -8,23 +8,32 @@ import { CartDrawer } from "@/components/elevate-public/CartDrawer";
 import { WhatsAppFloat } from "@/components/elevate-public/WhatsAppFloat";
 import "./elevate-theme.css";
 
-const playfair = Playfair_Display({
+/**
+ * Fuentes locales (no `next/font/google`): con Google, `next build` las descarga en pleno build y
+ * el deploy falla si esa descarga se corta. Mismos archivos que entrega Google (subset latino,
+ * fuentes variables: un archivo cubre todos los pesos). Licencia OFL.
+ */
+const playfair = localFont({
+  src: "./fonts/playfair-display-latin.woff2",
   variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: "400 800",
+  display: "swap",
 });
 
-const cormorant = Cormorant_Garamond({
+const cormorant = localFont({
+  src: [
+    { path: "./fonts/cormorant-garamond-latin.woff2", weight: "400 700", style: "normal" },
+    { path: "./fonts/cormorant-garamond-italic-latin.woff2", weight: "400 700", style: "italic" },
+  ],
   variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
+  display: "swap",
 });
 
-const inter = Inter({
+const inter = localFont({
+  src: "./fonts/inter-latin.woff2",
   variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: "300 700",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
