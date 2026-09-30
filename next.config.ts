@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Salida standalone para el Dockerfile (node server.js): la imagen solo lleva el
+  // subconjunto de node_modules que Next rastreó → mucha menos RAM que `next start`.
+  output: "standalone",
   // El VPS de Coolify mata el container durante "Running TypeScript ..." por
   // OOM (RAM acotada). El chequeo de tipos sigue siendo obligatorio en local
   // y en CI vía `tsc --noEmit` antes de pushear. En el build de producción
