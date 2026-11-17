@@ -13,7 +13,7 @@ import {
 import ZentraLoader from "@/components/ZentraLoader";
 import { BootProvider } from "@/components/BootContext";
 
-const PUBLIC_ROUTES = ["/login"];
+const PUBLIC_ROUTES = ["/login", "/bloqueado"];
 
 type ModuleAccess = { superAdmin: boolean; slugs: Set<string> };
 

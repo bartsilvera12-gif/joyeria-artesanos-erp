@@ -1,5 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { errorResponse } from "@/lib/api/response";
+import {
+  BLOQUEO_PAGO_MENSAJE,
+  BLOQUEO_PAGO_PATH,
+  ERP_BLOQUEADO_POR_FALTA_DE_PAGO,
+} from "@/lib/bloqueo-pago";
 import {
   isElevatePublicHost,
   ELEVATE_PUBLIC_PREFIX,
@@ -63,6 +69,20 @@ export async function middleware(request: NextRequest) {
   }
 
   // ERP/admin path — comportamiento legacy (refresh de sesión Supabase).
+  // ===== ERP bloqueado por falta de pago (ver src/lib/bloqueo-pago.ts) =====
+  if (ERP_BLOQUEADO_POR_FALTA_DE_PAGO) {
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json(errorResponse(BLOQUEO_PAGO_MENSAJE), { status: 402 });
+    }
+    if (request.nextUrl.pathname !== BLOQUEO_PAGO_PATH) {
+      const bloqueoUrl = request.nextUrl.clone();
+      bloqueoUrl.pathname = BLOQUEO_PAGO_PATH;
+      bloqueoUrl.search = "";
+      return NextResponse.redirect(bloqueoUrl, 307);
+    }
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
