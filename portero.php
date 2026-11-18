@@ -48,7 +48,9 @@ if (portero_bloqueado(portero_host())) {
 }
 
 header('Content-Type: text/html; charset=utf-8');
-header('Cache-Control: no-cache');
+// no-store: si la CDN de Hostinger guarda la página, al bloquear sigue sirviendo
+// la copia vieja (incluso ante el 503 del servidor).
+header('Cache-Control: no-store');
 readfile($ruta);
 exit;
 
