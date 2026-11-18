@@ -24,6 +24,19 @@ RedirectMatch 404 ^/(src|scripts|supabase|docs|public/brand|public/sorteos-ticke
 RewriteEngine On
 RewriteBase /
 
+# --- 0. SITIO EN MANTENIMIENTO ------------------------------------------------
+# Todo responde 503 con public/web/mantenimiento.html (solo se deja pasar la
+# página y el logo). PARA REABRIR: borrar este bloque completo, commit + push a
+# main (Hostinger redeploya solo).
+ErrorDocument 503 /public/web/mantenimiento.html
+RewriteCond %{REQUEST_URI} !^/public/web/(mantenimiento\.html|uploads/logo2\.PNG)$
+RewriteRule ^ - [R=503,L]
+<IfModule mod_headers.c>
+  Header always set Retry-After "86400"
+  Header always set Cache-Control "no-store"
+</IfModule>
+# --- fin mantenimiento ---------------------------------------------------------
+
 # Caso especial: raiz -> landing (silencioso, sin cambiar URL).
 # Apache NO decodifica %20 al hacer rewrite — hay que usar espacios literales
 # entre comillas para que matchee el nombre real del archivo en disco.
