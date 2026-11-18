@@ -24,18 +24,13 @@ RedirectMatch 404 ^/(src|scripts|supabase|docs|public/brand|public/sorteos-ticke
 RewriteEngine On
 RewriteBase /
 
-# --- 0. SITIO EN MANTENIMIENTO ------------------------------------------------
-# Todo responde 503 con public/web/mantenimiento.html (solo se deja pasar la
-# página y el logo). PARA REABRIR: borrar este bloque completo, commit + push a
-# main (Hostinger redeploya solo).
-ErrorDocument 503 /public/web/mantenimiento.html
-RewriteCond %{REQUEST_URI} !^/public/web/(mantenimiento\.html|uploads/logo2\.PNG)$
-RewriteRule ^ - [R=503,L]
-<IfModule mod_headers.c>
-  Header always set Retry-After "86400"
-  Header always set Cache-Control "no-store"
-</IfModule>
-# --- fin mantenimiento ---------------------------------------------------------
+# --- 0. PORTERO: bloqueo desde sistemas.neura.com.py ------------------------
+# Toda pagina .html de public/web/ pasa por portero.php, que pregunta si este
+# dominio esta bloqueado (pestana "Acceso" del proyecto en el sistema de Neura,
+# boton Bloquear / Desbloquear). Bloqueado -> 503 con public/web/mantenimiento.html.
+# Las reglas de abajo reescriben a public/web/...html y Apache vuelve a pasar
+# por aca con la ruta final, asi que tambien cubre la raiz y las pretty URLs.
+RewriteRule ^(public/web/[^/]+\.html)$ portero.php?archivo=$1 [B,L,QSA]
 
 # Caso especial: raiz -> landing (silencioso, sin cambiar URL).
 # Apache NO decodifica %20 al hacer rewrite — hay que usar espacios literales
@@ -64,5 +59,4 @@ RewriteRule ^(.+)$ public/web/$1 [L]
   ExpiresByType font/woff  "access plus 365 days"
   ExpiresByType text/css   "access plus 7 days"
   ExpiresByType application/javascript "access plus 7 days"
-  ExpiresByType text/html  "access plus 1 hour"
 </IfModule>
